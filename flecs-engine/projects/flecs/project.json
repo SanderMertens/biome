@@ -1,0 +1,8 @@
+{
+    "id": "flecs_app",
+    "type": "application",
+    "value": {
+        "output": "flecs",
+        "use": ["flecs_engine"]
+    }
+}

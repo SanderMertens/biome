@@ -1,0 +1,20 @@
+include config/sky
+
+using flecs.engine.*
+using flecs.script
+
+{
+    Position3: {}
+    Quad: {1000, 1000}
+    Rotation3: {-math.PI / 2}
+    Rgba: {0, 0, 0}
+}
+
+prefab DiffuseTransmissionTeacup {
+    Gltf: {"etc/assets/glTF-Sample-Assets/Models/DiffuseTransmissionTeacup/glTF/DiffuseTransmissionTeacup.gltf"}
+}
+
+_ : DiffuseTransmissionTeacup {
+    Position3: {}
+    Scale3: {15, 15, 15}
+}

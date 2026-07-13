@@ -1,0 +1,44 @@
+using flecs.engine.*
+
+sky {
+    atmosphere {
+        Atmosphere: {
+            sun: sun,
+            moon: moon,
+            stars: stars,
+            sun_disk_intensity: 20,
+            sun_disk_angular_radius: 0.02,
+            aerial_perspective_distance_km: 6,
+            aerial_perspective_intensity: 10,
+            sea_level_y: 0,
+            world_units_per_km: 1000,
+            ground_altitude_km: 0.01,
+            planet_radius_km: 6360,
+            atmosphere_thickness_km: 100,
+            rayleigh: { scale_height_km: 8, scattering_scale: 1.0 },
+            mie: {
+                scale_height_km: 5,
+                anisotropy: 0.5,
+                scattering_scale: 2,
+                tint: {255, 215, 180, 255}
+            },
+            ozone_scale: 2,
+            stratospheric_aerosol_scale: 1.5,
+            ground_albedo: {180, 160, 140, 255}
+            night_tint: {25, 80, 230, 255 }
+            night_intensity: 0.003
+        }
+    }
+
+    time_of_day {
+        TimeOfDay: {
+            light: sun,
+            moon_light: moon,
+            stars: stars,
+            atmosphere: atmosphere,
+            hour: 15,
+            day_of_year: 80,
+            latitude: 25.2,
+        }
+    }
+}

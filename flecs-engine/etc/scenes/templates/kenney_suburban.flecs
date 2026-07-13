@@ -1,0 +1,213 @@
+module kenney
+include kenney_assets
+
+using flecs.script
+using flecs.engine.*
+
+const rng = math.Rng: {}
+
+@tree Parent
+template RandomSuburbanSmall {
+  const p: rng.u(6)
+  const v: rng.u(4)
+
+  if p == 0 {
+    if v == 0 {
+      (IsA, kenney.suburban.building_c.a)
+    } else if v == 1 {
+      (IsA, kenney.suburban.building_c.b)
+    } else if v == 2 {
+      (IsA, kenney.suburban.building_c.c)
+    } else if v == 3 {
+      (IsA, kenney.suburban.building_c.d)
+    }
+
+    _ : kenney.path_stones_long {
+      Position3: {0, 0, -0.45}
+    }
+    _ : kenney.driveway_long {
+      Position3: {-0.4, 0.01, -0.45}
+    }
+  } else if p == 1 {
+    if v == 0 {
+      (IsA, kenney.suburban.building_e.a)
+    } else if v == 1 {
+      (IsA, kenney.suburban.building_e.b)
+    } else if v == 2 {
+      (IsA, kenney.suburban.building_e.c)
+    } else if v == 3 {
+      (IsA, kenney.suburban.building_e.d)
+    }
+
+    _ : kenney.path_stones_long {
+      Position3: {0, 0, -0.45}
+    }
+  } else if p == 2 {
+    if v == 0 {
+      (IsA, kenney.suburban.building_h.a)
+    } else if v == 1 {
+      (IsA, kenney.suburban.building_h.b)
+    } else if v == 2 {
+      (IsA, kenney.suburban.building_h.c)
+    } else if v == 3 {
+      (IsA, kenney.suburban.building_h.d)
+    }
+
+    _ : kenney.path_stones_long {
+      Position3: {0, 0, -0.45}
+    }
+  } else if p == 3 {
+    if v == 0 {
+      (IsA, kenney.suburban.building_i.a)
+    } else if v == 1 {
+      (IsA, kenney.suburban.building_i.b)
+    } else if v == 2 {
+      (IsA, kenney.suburban.building_i.c)
+    } else if v == 3 {
+      (IsA, kenney.suburban.building_i.d)
+    }
+
+    _ : kenney.path_stones_long {
+      Position3: {-1, 0, -0.45}
+    }
+    _ : kenney.driveway_long {
+      Position3: {-0.4, 0, -0.45}
+    }
+    _ : kenney.tree_small {
+      Position3: {-0.45 + rng.f(0.5), 0, 0.65}
+    }
+  } else if p == 4 {
+    if v == 0 {
+      (IsA, kenney.suburban.building_k.a)
+    } else if v == 1 {
+      (IsA, kenney.suburban.building_k.b)
+    } else if v == 2 {
+      (IsA, kenney.suburban.building_k.c)
+    } else if v == 3 {
+      (IsA, kenney.suburban.building_k.d)
+    }
+
+    _ : kenney.path_stones_long {
+      Position3: {-0.2, 0, -0.45}
+    }
+  } else if p == 5 {
+    if v == 0 {
+      (IsA, kenney.suburban.building_l.a)
+    } else if v == 1 {
+      (IsA, kenney.suburban.building_l.b)
+    } else if v == 2 {
+      (IsA, kenney.suburban.building_l.c)
+    } else if v == 3 {
+      (IsA, kenney.suburban.building_l.d)
+    }
+
+    _ : kenney.path_stones_long {
+      Position3: {-0.25, 0, -0.45}
+    }
+  }
+}
+
+@tree Parent
+template RandomSuburbanLarge {
+  const p: rng.u(6)
+  const v: rng.u(4)
+
+  if p == 0 {
+    if v == 0 {
+      (IsA, kenney.suburban.building_b.a)
+    } else if v == 1 {
+      (IsA, kenney.suburban.building_b.b)
+    } else if v == 2 {
+      (IsA, kenney.suburban.building_b.c)
+    } else if v == 3 {
+      (IsA, kenney.suburban.building_b.d)
+    }
+
+    _ : kenney.path_stones_long {
+      Position3: {0.25, 0, -0.55}
+    }
+  } else if p == 1 {
+    if v == 0 {
+      (IsA, kenney.suburban.building_d.a)
+    } else if v == 1 {
+      (IsA, kenney.suburban.building_d.b)
+    } else if v == 2 {
+      (IsA, kenney.suburban.building_d.c)
+    } else if v == 3 {
+      (IsA, kenney.suburban.building_d.d)
+    }
+
+    _ : kenney.path_stones_long {
+      Position3: {0.15, 0, -0.55}
+    }
+    _ : kenney.driveway_long {
+      Position3: {-0.65, 0.01, -0.55}
+    }
+  } else if p == 2 {
+    if v == 0 {
+      (IsA, kenney.suburban.building_g.a)
+    } else if v == 1 {
+      (IsA, kenney.suburban.building_g.b)
+    } else if v == 2 {
+      (IsA, kenney.suburban.building_g.c)
+    } else if v == 3 {
+      (IsA, kenney.suburban.building_g.d)
+    }
+
+    _ : kenney.path_stones_long {
+      Position3: {-0.1, 0, -0.55}
+    }
+  } else if p == 3 {
+    if v == 0 {
+      (IsA, kenney.suburban.building_f.a)
+    } else if v == 1 {
+      (IsA, kenney.suburban.building_f.b)
+    } else if v == 2 {
+      (IsA, kenney.suburban.building_f.c)
+    } else if v == 3 {
+      (IsA, kenney.suburban.building_f.d)
+    }
+
+    _ : kenney.path_stones_short {
+      Position3: {0.05, 0, -0.65}
+    }
+    _ : kenney.driveway_long {
+      Position3: {-0.35, 0.01, -0.55}
+    }
+  } else if p == 4 {
+    if v == 0 {
+      (IsA, kenney.suburban.building_o.a)
+    } else if v == 1 {
+      (IsA, kenney.suburban.building_o.b)
+    } else if v == 2 {
+      (IsA, kenney.suburban.building_o.c)
+    } else if v == 3 {
+      (IsA, kenney.suburban.building_o.d)
+    }
+
+    _ : kenney.path_stones_long {
+      Position3: {0.375, 0, -0.55}
+    }
+    _ : kenney.driveway_long {
+      Position3: {-0.425, 0, -0.55}
+    }
+  } else if p == 5 {
+    if v == 0 {
+      (IsA, kenney.suburban.building_u.a)
+    } else if v == 1 {
+      (IsA, kenney.suburban.building_u.b)
+    } else if v == 2 {
+      (IsA, kenney.suburban.building_u.c)
+    } else if v == 3 {
+      (IsA, kenney.suburban.building_u.d)
+    }
+
+    _ : kenney.path_stones_long {
+      Position3: {0.05, 0, -0.5}
+      Scale3: {1, 1, 1.2}
+    }
+    _ : kenney.driveway_long {
+      Position3: {0.45, 0, -0.55}
+    }
+  }
+}

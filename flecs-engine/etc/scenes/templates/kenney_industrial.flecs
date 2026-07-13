@@ -1,0 +1,94 @@
+module kenney
+include kenney_assets
+
+using flecs.script
+using flecs.engine.*
+
+const rng = math.Rng: {}
+
+@tree Parent
+template RandomIndustrial {
+  const p = rng.u(8)
+  const v = rng.u(4)
+  if p == 0 {
+    if v == 0 {
+      (IsA, kenney.industrial.building_a.a)
+    } else if v == 1 {
+      (IsA, kenney.industrial.building_a.b)
+    } else if v == 2 {
+      (IsA, kenney.industrial.building_a.c)
+    } else if v == 3 {
+      (IsA, kenney.industrial.building_a.d)
+    }
+  } else if p == 1 {
+    if v == 0 {
+      (IsA, kenney.industrial.building_b.a)
+    } else if v == 1 {
+      (IsA, kenney.industrial.building_b.b)
+    } else if v == 2 {
+      (IsA, kenney.industrial.building_b.c)
+    } else if v == 3 {
+      (IsA, kenney.industrial.building_b.d)
+    }
+  } else if p == 2 {
+    if v == 0 {
+      (IsA, kenney.industrial.building_c.a)
+    } else if v == 1 {
+      (IsA, kenney.industrial.building_c.b)
+    } else if v == 2 {
+      (IsA, kenney.industrial.building_c.c)
+    } else if v == 3 {
+      (IsA, kenney.industrial.building_c.d)
+    }
+  } else if p == 3 {
+    if v == 0 {
+      (IsA, kenney.industrial.building_d.a)
+    } else if v == 1 {
+      (IsA, kenney.industrial.building_d.b)
+    } else if v == 2 {
+      (IsA, kenney.industrial.building_d.c)
+    } else if v == 3 {
+      (IsA, kenney.industrial.building_d.d)
+    }
+  } else if p == 4 {
+    if v == 0 {
+      (IsA, kenney.industrial.building_e.a)
+    } else if v == 1 {
+      (IsA, kenney.industrial.building_e.b)
+    } else if v == 2 {
+      (IsA, kenney.industrial.building_e.c)
+    } else if v == 3 {
+      (IsA, kenney.industrial.building_e.d)
+    }
+  } else if p == 5 {
+    if v == 0 {
+      (IsA, kenney.industrial.building_f.a)
+    } else if v == 1 {
+      (IsA, kenney.industrial.building_f.b)
+    } else if v == 2 {
+      (IsA, kenney.industrial.building_f.c)
+    } else if v == 3 {
+      (IsA, kenney.industrial.building_f.d)
+    }
+  } else if p == 6 {
+    if v == 0 {
+      (IsA, kenney.industrial.building_g.a)
+    } else if v == 1 {
+      (IsA, kenney.industrial.building_g.b)
+    } else if v == 2 {
+      (IsA, kenney.industrial.building_g.c)
+    } else if v == 3 {
+      (IsA, kenney.industrial.building_g.d)
+    }
+  } else if p == 7 {
+    if v == 0 {
+      (IsA, kenney.industrial.building_h.a)
+    } else if v == 1 {
+      (IsA, kenney.industrial.building_h.b)
+    } else if v == 2 {
+      (IsA, kenney.industrial.building_h.c)
+    } else if v == 3 {
+      (IsA, kenney.industrial.building_h.d)
+    }
+  }
+}

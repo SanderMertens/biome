@@ -1,0 +1,25 @@
+using biome.buildings
+using biome.resources
+using resources
+
+player {
+    export const BuildingsPlaced = u64: 0
+
+    fn isBuildingPlaced(b: entity) -> bool {
+        BuildingsPlaced & (1 << b[BuildingBit])
+    }
+
+    export const ResourceTotals = Storage: [
+        Iron: 0
+        Copper: 0
+        Carbon: 0
+        Silica: 0
+    ]
+
+    export const ResourceCapacityTotals = Storage: [
+        Iron: 0
+        Copper: 0
+        Carbon: 0
+        Silica: 0
+    ]
+}

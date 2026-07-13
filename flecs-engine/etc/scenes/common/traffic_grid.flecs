@@ -1,0 +1,70 @@
+using flecs.engine.*
+using flecs.script
+using traffic
+
+const grid_size: 100
+const grid_size_h: (grid_size / 2)
+
+const x_spacing: 33
+const z_spacing: 24
+const x_road_length: 27
+const z_road_length: 18
+
+const lane_width: 3
+const max_speed: 0.1
+const grid_y: 1
+
+for x in 0..grid_size {
+    for z in 0..grid_size {
+        const x_r: (x - grid_size_h)
+        const z_r: (z - grid_size_h)
+        const x_p: (x_r * x_spacing)
+        const z_p: (z_r * z_spacing)
+
+        if x < (grid_size - 1) {
+            "road_lr_{x + 1}_{z}" {
+                cars.Road: {
+                    length: x_road_length,
+                    lane_width: lane_width,
+                    max_speed: max_speed
+                }
+                Position3: {x_p + x_spacing / 2, grid_y, z_p}
+            }
+        }
+
+        if z < (grid_size - 1) {
+            "road_tb_{x}_{z + 1}" {
+                cars.Road: {
+                    length: z_road_length,
+                    lane_width: lane_width,
+                    max_speed: max_speed
+                }
+                Position3: {x_p, grid_y, z_p + z_spacing / 2}
+                Rotation3: {0, math.PI / 2, 0}
+            }
+        }
+    }
+}
+
+for x in 0..grid_size {
+    for z in 0..grid_size {
+        const x_r: (x - grid_size_h)
+        const z_r: (z - grid_size_h)
+        const x_p: (x_r * x_spacing)
+        const z_p: (z_r * z_spacing)
+
+        "intersection_{x}_{z}" {
+            cars.Intersection: {
+                roads: [
+                    {#0.lookup("road_tb_{x}_{z + 1}"), 0}
+                    {#0.lookup("road_lr_{x + 1}_{z}"), 1}
+                    {#0.lookup("road_tb_{x}_{z}"), 1}
+                    {#0.lookup("road_lr_{x}_{z}"), 0}
+                ]
+                lane_width: lane_width
+                max_speed: max_speed
+            }
+            Position3: {x_p, grid_y, z_p}
+        }
+    }
+}

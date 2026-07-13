@@ -1,0 +1,19 @@
+include config/sky
+include common/kenney_city_template
+include common/atmosphere_purple
+
+using flecs.engine.*
+
+camera {
+    Camera: {
+        fov: 1
+        near_: 1
+        far_: 4000
+    }
+    Position3: {-1640, 30.358, 1185}
+    LookAt: {-1639, 30, 1184}
+}
+
+kenney.City city(150) {
+  Position3: {y: 1}
+}

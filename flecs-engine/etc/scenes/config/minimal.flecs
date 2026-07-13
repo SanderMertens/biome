@@ -1,0 +1,25 @@
+using flecs.engine.*
+using flecs.script
+
+camera {
+    Camera: {
+        fov: math.PI / 3,
+        near_: 0.5,
+        far_: 1000
+    }
+    CameraController
+    Position3: {0, 2, -3}
+    LookAt: {0, 0, 0}
+}
+
+view {
+    geometry { GeometryBatch }
+
+    RenderView: {
+        camera: camera,
+    }
+
+    RenderBatchSet: {
+        batches: [ geometry ]
+    }
+}

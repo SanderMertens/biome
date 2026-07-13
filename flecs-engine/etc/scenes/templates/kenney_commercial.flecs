@@ -1,0 +1,70 @@
+module kenney
+include kenney_assets
+
+using flecs.script
+using flecs.engine.*
+
+const rng = math.Rng: {}
+
+@tree Parent
+template RandomCommercial {
+  const p = rng.u(7)
+  const v = rng.u(3)
+  if p == 0 {
+    if v == 0 {
+      (IsA, kenney.commercial.building_a.a)
+    } else if v == 1 {
+      (IsA, kenney.commercial.building_a.b)
+    } else if v == 2 {
+      (IsA, kenney.commercial.building_a.c)
+    }
+  } else if p == 1 {
+    if v == 0 {
+      (IsA, kenney.commercial.building_b.a)
+    } else if v == 1 {
+      (IsA, kenney.commercial.building_b.b)
+    } else if v == 2 {
+      (IsA, kenney.commercial.building_b.c)
+    }
+  } else if p == 2 {
+    if v == 0 {
+      (IsA, kenney.commercial.building_c.a)
+    } else if v == 1 {
+      (IsA, kenney.commercial.building_c.b)
+    } else if v == 2 {
+      (IsA, kenney.commercial.building_c.c)
+    }
+  } else if p == 3 {
+    if v == 0 {
+      (IsA, kenney.commercial.building_d.a)
+    } else if v == 1 {
+      (IsA, kenney.commercial.building_d.b)
+    } else if v == 2 {
+      (IsA, kenney.commercial.building_d.c)
+    }
+  } else if p == 4 {
+    if v == 0 {
+      (IsA, kenney.commercial.building_f.a)
+    } else if v == 1 {
+      (IsA, kenney.commercial.building_f.b)
+    } else if v == 2 {
+      (IsA, kenney.commercial.building_f.c)
+    }
+  } else if p == 5 {
+    if v == 0 {
+      (IsA, kenney.commercial.building_g.a)
+    } else if v == 1 {
+      (IsA, kenney.commercial.building_g.b)
+    } else if v == 2 {
+      (IsA, kenney.commercial.building_g.c)
+    }
+  } else if p == 6 {
+    if v == 0 {
+      (IsA, kenney.commercial.building_h.a)
+    } else if v == 1 {
+      (IsA, kenney.commercial.building_h.b)
+    } else if v == 2 {
+      (IsA, kenney.commercial.building_h.c)
+    }
+  }
+}

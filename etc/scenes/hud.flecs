@@ -1,0 +1,55 @@
+include config/widgets
+using biome.widgets
+using biome.resources
+using flecs.engine.*
+using resources
+
+hud {
+  toolbar {
+    Anchor: {h: Center, v: Bottom, x: 0, y: -21}
+    Layout: {direction: Row, padding: 4, spacing: 4}
+    Border: {width: 2, color: PanelColor.rgba, radius: 10}
+    Rect: {width: 0, height: 0}
+    Rgba: PanelColor
+    
+    if !player.isBuildingPlaced(buildings.Base) {
+      ToolButton base("BASE", hotKey: "0")
+    } else {
+      ToolButton wire("WIRE", hotKey: "1")
+      ToolButton solar("SOLAR", hotKey: "2")
+    }
+
+    if player.isBuildingPlaced(buildings.Solar) {
+      ToolButton lights("LIGHT", hotKey: "3")
+      ToolButton storage("DEPOT", hotKey: "5")
+      ToolButton drill("DRILL", hotKey: "3")
+      ToolButton habitat("HABITAT", hotKey: "4")
+      ToolButton biome("BIOME", hotKey: "5")
+    }
+
+    if player.isBuildingPlaced(buildings.Base) {
+      ToolButton doze("DOZE", hotKey: "x")
+    }
+  }
+
+  resources {
+    Anchor: {h: Left, v: Top, x: 24, y: 24}
+    Layout: {direction: Column, padding: 0, spacing: 6}
+
+    ResourceGauge("IRON", Iron)
+    ResourceGauge("COPPER", Copper)
+    // ResourceGauge("SILICA", Silica)
+    // ResourceGauge("CARBON", Carbon)
+  }
+
+  atmosphere {
+    Anchor: {h: Right, v: Top, x: -24, y: 24}
+    Layout: {direction: Column, padding: 0, spacing: 6}
+
+    Label("OXYGEN")
+    Gauge oxygen(width: 300, height: 27, value: 0)
+
+    Label("CO2")
+    Gauge co2(width: 300, height: 27, value: 0)
+  }
+}

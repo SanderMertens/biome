@@ -1,0 +1,128 @@
+using flecs.engine.*
+using flecs.script
+
+camera {
+    Camera: {
+        fov: math.PI / 3,
+        near_: 0.5,
+        far_: 1000
+    }
+    CameraController
+    Position3: {0, 2, -3}
+    LookAt: {0, 0, 0}
+}
+
+sky {
+    sun {
+        Position3: {1, 2, 1}
+        DirectionalLight: {intensity: 2}
+        CelestialLight: {
+            toa_intensity: 6,
+            toa_color: {255, 255, 255, 255}
+        }
+        LookAt: {0, 0, 0}
+        Rgba: {255, 255, 255, 255}
+    }
+
+    moon {
+        Position3: {-1, 2, -1}
+        DirectionalLight: {intensity: 0}
+        CelestialLight: {
+            toa_intensity: 0.0005,
+            toa_color: {255, 255, 255, 255}
+        }
+        LookAt: {0, 0, 0}
+        Rgba: {255, 255, 255, 255}
+    }
+
+    stars {
+        Stars: {
+            density: 0.9,
+            cells: 180,
+            size: 150,
+            color_variation: 1
+        }
+        CelestialLight: {
+            toa_intensity: 0.015,
+            toa_color: {255, 255, 255, 255}
+        }
+        Rotation3: {0, 0, 0}
+    }
+
+    atmosphere {
+        Atmosphere: {
+            sun: sun,
+            moon: moon,
+            stars: stars
+        }
+    }
+
+    clouds {
+        Clouds: {
+            appearance: {atmosphere: atmosphere}
+        }
+    }
+}
+
+view {
+    geometry { GeometryBatch }
+    skybox { SkyBoxBatch }
+
+    heightFog { 
+        HeightFog: { density: 0 } 
+    }
+
+    sunShafts {
+        SunShafts: {}
+    }
+
+    ssao { 
+        SSAO: { radius: 0.5 }
+    }
+
+    bloom { 
+        Bloom: {} 
+    }
+
+    autoExposure {
+        AutoExposure: {
+            min_log_luma: -16,
+            low_percentile: 0,
+            min_brightness: 0.01,
+            max_brightness: 0.3
+        }
+    }
+
+    tonyMcMapFace {
+        Tony: { auto_exposure: autoExposure }
+    }
+
+    gammaCorrect { GammaCorrect }
+
+    RenderView: {
+        camera: camera,
+        atmosphere: sky.atmosphere,
+        ambient_intensity: 0.5,
+        screen_px_threshold: 10,
+        shadow: {
+            enabled: true,
+            map_size: 4096,
+            max_range: 400,
+            bias: 0.0001
+        },
+        effects: [
+            { enabled: true,  effect: ssao },
+            { enabled: false, effect: heightFog },
+            { enabled: false, effect: sunShafts },
+            { enabled: true, effect: sky.clouds },
+            { enabled: true,  effect: bloom },
+            { enabled: true,  effect: autoExposure },
+            { enabled: true,  effect: tonyMcMapFace },
+            { enabled: false, effect: gammaCorrect }
+        ]
+    }
+
+    RenderBatchSet: {
+        batches: [ geometry, skybox ]
+    }
+}

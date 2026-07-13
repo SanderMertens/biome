@@ -1,0 +1,270 @@
+include config/sky
+using flecs.script
+using flecs.engine.*
+using flecs.game
+
+const rng = math.Rng: {} // Random number generator
+
+ground {
+  Position3: {y: -0.5}
+  Box: {1000, 1, 1000}
+  Rgba: {0.2, 0.2, 0.2}
+}
+
+@tree Parent
+template Frame {
+  prop width: 1.0
+  prop height: 2.0
+  prop styleWidth: 0.1
+  prop styleDepth: 0.1
+  prop barWidth: 0.05
+  prop barsHorizontal: 2
+  prop barsVertical: 1
+  prop color = Rgba: {255, 255, 255}
+  
+  const wH = width / 2
+  const hH = height / 2
+  const swH = styleWidth / 2
+
+  {
+    Position3: {0, hH - swH}
+    Box: {width, styleWidth, styleDepth}
+    $color
+  }
+  {
+    Position3: {0, -hH + swH}
+    Box: {width, styleWidth, styleDepth}
+    $color
+  }
+  {
+    Position3: {-wH + swH, 0}
+    Box: {styleWidth, height, styleDepth}
+    $color
+  }
+  {
+    Position3: {wH - swH, 0}
+    Box: {styleWidth, height, styleDepth}
+    $color
+  }
+  
+  @name HorizontalBars
+  {
+    Position3: {0}
+
+    const innerHeight = height - styleWidth * 2
+    const sep = innerHeight / (barsHorizontal + 1)
+    const offset = hH - styleWidth
+    for i in 0..barsHorizontal {
+      {
+        Position3: {0, offset - (i + 1) * sep}
+        Box: {width - styleWidth * 2, barWidth, styleDepth / 2}
+        $color
+      }
+    }
+  }
+
+  @name VerticalBars
+  {
+    Position3: {0}
+
+    const innerWidth = width - styleWidth * 2
+    const sep = innerWidth / (barsVertical + 1)
+    const offset = wH - styleWidth
+    for i in 0..barsVertical {
+      {
+        Position3: {offset - (i + 1) * sep}
+        Box: {barWidth, height - styleWidth * 2, styleDepth / 2}
+        $color
+      }
+    }
+  }
+}
+
+@tree Parent
+template Building {
+  prop floors: 5
+  prop unitsPerFloor: 6
+  prop floorHeight: 2
+  prop floorWidth: 10
+  prop floorSep: 0.5
+  prop floorOverhang: 0.3
+  prop unitSepOverhang: 0.2
+  prop unitSepWidth: 0.2
+  prop pillarOffset: 0
+  prop pillarWidth: 0.3
+  prop windowStyles: true
+  prop windowStylesWidth: 0.05
+  prop windowStylesDepth: 0.1
+
+  prop windowColor = Rgba: {10, 10, 10}
+  prop wallColor = Rgba: {10, 40, 40}
+  prop windowStylesColor = Rgba: {255, 255, 255}
+  prop unitSepColor = Rgba: {100, 100, 100}
+
+  const totalHeight = floors * floorHeight
+  const pillarPos = floorWidth / 2 + pillarOffset + pillarWidth / 2
+
+  pillars {
+    Position3: {}
+    {
+      Position3: {pillarPos, totalHeight / 2, pillarPos}
+      Box: {pillarWidth, totalHeight, pillarWidth}
+      $wallColor
+    }
+    {
+      Position3: {-pillarPos, totalHeight / 2, pillarPos}
+      Box: {pillarWidth, totalHeight, pillarWidth}
+      $wallColor
+    }
+    {
+      Position3: {pillarPos, totalHeight / 2, -pillarPos}
+      Box: {pillarWidth, totalHeight, pillarWidth}
+      $wallColor
+    }
+    {
+      Position3: {-pillarPos, totalHeight / 2, -pillarPos}
+      Box: {pillarWidth, totalHeight, pillarWidth}
+      $wallColor
+    }
+  }
+  
+  for i in 0..floors {
+    const floorOffset = i * floorHeight
+    const windowHeight = floorHeight - floorSep
+    const floorY = floorOffset + windowHeight / 2
+
+    windows {
+      Position3: {}
+      {
+        Position3: {0, floorY}
+        Box: {floorWidth, floorHeight, floorWidth}
+        $windowColor
+        PbrMaterial: {metallic: 0, roughness: 0}
+      }
+    }
+
+    
+    units {
+      Position3: {}
+
+      const sepCount = unitsPerFloor - 1
+      const unitWidth = floorWidth / unitsPerFloor
+      const sepLength = floorWidth + unitSepOverhang * 2
+
+      for u in 0..sepCount {
+       {
+          Position3: {u * unitWidth - floorWidth / 2 + unitWidth, floorY}
+          Box: {unitSepWidth, windowHeight, sepLength}
+          $unitSepColor
+       }
+       {
+          Position3: {0, floorY, u * unitWidth - floorWidth / 2 + unitWidth}
+          Box: {sepLength, windowHeight, unitSepWidth}
+          $unitSepColor
+       }
+      }
+    }
+
+    if windowStyles {
+      winStyles {
+        Position3: {}
+
+        const unitWidth = floorWidth / unitsPerFloor
+        const frameWidth = unitWidth - unitSepWidth
+        const outer = floorWidth / 2 + windowStylesDepth / 2
+
+        for u in 0..unitsPerFloor {
+          const unitPos = u * unitWidth - floorWidth / 2 + unitWidth / 2
+          
+          with Frame(
+            width: frameWidth, 
+            height: windowHeight,  
+            styleWidth: windowStylesWidth, 
+            styleDepth: windowStylesDepth, 
+            color: windowStylesColor) 
+          {
+            {
+              Position3: {unitPos, floorY, outer}
+            }
+            {
+              Position3: {unitPos, floorY, -outer}
+            }
+            {
+              Position3: {outer, floorY, unitPos}
+              Rotation3: {0, math.PI / 2, 0}
+            }
+            {
+              Position3: {-outer, floorY, unitPos}
+              Rotation3: {0, math.PI / 2, 0}
+            }
+          }
+        }
+      }
+    }
+
+    floors {
+      Position3: {}
+      {
+        Position3: {0, floorOffset + floorHeight - floorSep / 2}
+        Box: {floorWidth + 2*floorOverhang, floorSep, floorWidth + 2*floorOverhang}
+        $wallColor
+      }
+    }
+  }
+}
+
+template CityBlock {
+  prop width: 10
+  
+  const yOffset: 0.2
+
+  {
+    Position3: {y: yOffset / 2}
+    Box: {width, yOffset, width}
+    Rgba: {100, 100, 100}
+  }
+  
+  Building building(floorWidth: width - 3) {
+    Position3: {y: yOffset}
+  }
+}
+
+template Road {
+  prop width: 15
+  {
+    Position3: {}
+    Box: {width / 2, 1, width / 2}
+    Rgba: {255}
+  }
+}
+
+template Cross {
+  prop roadWidth: 15
+  prop buildingWidth: 10
+  
+  const rH: roadWidth / 2
+
+  Position3: {}
+
+  CityBlock() {
+    Position3: {-rH, 0, -rH}
+  }
+  CityBlock() {
+    Position3: {rH, 0, -rH}
+  }
+  CityBlock() {
+    Position3: {-rH, 0, rH}
+  }
+  CityBlock() {
+    Position3: {rH, 0, rH}
+  }
+  
+  Road() {
+  }
+}
+
+Cross() {
+}
+
+
+

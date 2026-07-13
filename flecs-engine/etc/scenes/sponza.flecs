@@ -1,0 +1,20 @@
+include config/sky
+
+using flecs.engine.*
+using flecs.script
+
+camera {
+    Position3: {-1.168, 9.497, -41.425}
+    LookAt: {-1.168, 9.61, -40.431}
+}
+
+sky.sun {
+    Position3: {1, 6, -1}
+}
+
+{
+    Gltf: {"etc/assets/gltf/Sponza/Sponza.gltf"}
+    Position3: {y: 3, z: 0}
+    Rotation3: {y: math.PI / 2}
+    Scale3: {5, 5, 5}
+}

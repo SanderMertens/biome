@@ -1,0 +1,7 @@
+.DS_Store
+build
+.vscode
+.claude
+_deps
+test/out
+.bake

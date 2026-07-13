@@ -1,0 +1,263 @@
+module kenney
+
+include kenney_assets
+include kenney_suburban
+include kenney_commercial
+include kenney_industrial
+include kenney_highrise
+
+using flecs.script
+using flecs.engine.*
+
+const rng = math.Rng: {}
+const CellOuterX: 5.5
+const CellOuterZ: 4.0
+const CellInnerX: 4.5
+const CellInnerZ: 3.0
+
+@tree Parent
+template ForestBlock {
+  _ {
+    Position3: {y: -0.05}
+    Box: {CellInnerX, 0.1, CellInnerZ}
+    Rgba: {10, 60, 20}
+  }
+
+  for tx in 0..12 {
+    for tz in 0..8 {
+      const treeX = tx * 0.325 - CellInnerX / 2.5
+      const treeZ = tz * 0.3 - CellInnerZ / 2.5
+      const pick = rng.u(3)
+      if pick == 1 {
+        _ : kenney.tree_small {
+          Position3: {treeX, 0, treeZ}
+        }
+      }
+      if pick == 2 {
+        _ : kenney.tree_large {
+          Position3: {treeX, 0, treeZ}
+        }
+      }
+    }
+  }
+}
+
+@tree Parent
+template IndustrialBlock {
+  for i in 0..2 {
+    const bx = 1.75 + i * 2.0
+
+    RandomIndustrial() {
+      Position3: {bx, 0, 1.5}
+    }
+
+    RandomIndustrial() {
+      Position3: {bx, 0, 2.5}
+      Rotation3: {0, math.PI, 0}
+    }
+  }
+}
+
+@tree Parent
+template LowDensitySmallBlock {
+  _ {
+    Position3: {y: -0.05}
+    Box: {CellInnerX, 0.1, CellInnerZ}
+    Rgba: {100, 100, 100}
+  }
+
+  for i in 0..3 {
+    RandomSuburbanSmall() {
+      Position3: {-1.4 + i * 1.4, 0, -0.85}
+    }
+
+    RandomSuburbanSmall() {
+      Position3: {-1.4 + i * 1.4, 0, 0.85}
+      Rotation3: {0, math.PI, 0}
+    }
+  }
+
+  for i in 0..10 {
+    _ : kenney.fence {
+      Position3: {1.8 - i * 0.4, 0, 0}
+    }
+  }
+
+  for i in 0..6 {
+    _ : kenney.fence {
+      Position3: {-2.1, 0, 1 - i * 0.4}
+      Rotation3: {0, math.PI / 2, 0}
+    }
+    _ : kenney.fence {
+      Position3: {2.1, 0, 1 - i * 0.4}
+      Rotation3: {0, math.PI / 2, 0}
+    }
+    _ : kenney.fence {
+      Position3: {-0.7, 0, 1 - i * 0.4}
+      Rotation3: {0, math.PI / 2, 0}
+    }
+    _ : kenney.fence {
+      Position3: {0.7, 0, 1 - i * 0.4}
+      Rotation3: {0, math.PI / 2, 0}
+    }
+  }
+}
+
+@tree Parent
+template LowDensityLargeBlock {
+  _ {
+    Position3: {y: -0.05}
+    Box: {CellInnerX, 0.1, CellInnerZ}
+    Rgba: {10, 60, 20}
+  }
+
+  for i in 0..2 {
+    RandomSuburbanLarge() {
+      Position3: {-1 + i * 2, 0, -0.75}
+    }
+
+    RandomSuburbanLarge() {
+      Position3: {-1 + i * 2, 0, 0.75}
+      Rotation3: {0, math.PI, 0}
+    }
+  }
+
+  for i in 0..7 {
+    _ : kenney.fence {
+      Position3: {-2.15, 0, 1.2 - i * 0.4}
+      Rotation3: {0, math.PI / 2, 0}
+    }
+    _ : kenney.fence {
+      Position3: {0, 0, 1.2 - i * 0.4}
+      Rotation3: {0, math.PI / 2, 0}
+    }
+    _ : kenney.fence {
+      Position3: {2.15, 0, 1.2 - i * 0.4}
+      Rotation3: {0, math.PI / 2, 0}
+    }
+  }
+
+  for z in 0..8 {
+    _ : kenney.tree_small {
+      Position3: {-2, 0, 1.4 - z * 0.4}
+    }
+    _ : kenney.tree_small {
+      Position3: {2, 0, 1.4 - z * 0.4}
+    }
+  }
+}
+
+@tree Parent
+template MediumDensityBlock {
+  _ {
+    Position3: {y: -0.05}
+    Box: {CellInnerX, 0.1, CellInnerZ}
+    Rgba: {50, 50, 50}
+  }
+
+  for i in 0..5 {
+    const bx = (i + 1) * 0.9
+
+    RandomCommercial() {
+      Position3: {-1.8 + i * 0.9, 0, -0.95}
+    }
+
+    RandomCommercial() {
+      Position3: {-1.8 + i * 0.9, 0, 0.95}
+      Rotation3: {0, math.PI, 0}
+    }
+  }
+
+  RandomCommercial() {
+    Position3: {-1.7, 0, 0}
+    Rotation3: {0, math.PI / 2, 0}
+  }
+  RandomCommercial() {
+    Position3: {1.7, 0, 0}
+    Rotation3: {0, -math.PI / 2, 0}
+  }
+}
+
+@tree Parent
+template HighDensityBlock {
+  for i in 0..3 {
+    const bx = 1.25 + i * 1.5
+
+    RandomHighrise() {
+      Position3: {bx, 0, 1.25}
+    }
+
+    RandomHighrise() {
+      Position3: {bx, 0, 2.75}
+      Rotation3: {0, math.PI, 0}
+    }
+  }
+}
+
+template City {
+  prop gridSize: 10
+
+  Scale3: {6, 6, 6}
+
+  const gridSizeH = gridSize / 2
+
+  for x in 0..gridSize {
+    for z in 0..gridSize {
+      const xR: x - gridSizeH
+      const zR: z - gridSizeH
+      const xP: xR * CellOuterX
+      const zP: zR * CellOuterZ
+      const xC: xP + CellOuterX / 2
+      const zC: zP + CellOuterZ / 2
+
+      _ : kenney.crossroad {
+        Position3: {xP, 0, zP}
+      }
+
+      _ : kenney.road_straight {
+        Position3: {xP + 2.75, 0, zP}
+        Scale3: {4.5, 1, 1}
+      }
+
+      _ : kenney.road_straight {
+        Position3: {xP, 0, zP + 2.0}
+        Scale3: {3.0, 1, 1}
+        Rotation3: {0, math.PI / 2, 0}
+      }
+
+      const density = math.perlin2(xP * 0.012, zP * 0.012) * 0.5 + 0.5
+
+      if density < 0.2 {
+        @name Industrial block
+        IndustrialBlock() {
+          Position3: {xP, 0.01, zP}
+        }
+      } else if density < 0.4 {
+        @name Forest block
+        ForestBlock() {
+          Position3: {xC, 0.01, zC}
+        }
+      } else if density < 0.45 {
+        @name Low density block
+        LowDensityLargeBlock() {
+          Position3: {xC, 0.01, zC}
+        }
+      } else if density < 0.6 {
+        @name Low density block
+        LowDensitySmallBlock() {
+          Position3: {xC, 0.01, zC}
+        }
+      } else if density < 0.8 {
+        @name Medium density block
+        MediumDensityBlock() {
+          Position3: {xC, 0.01, zC}
+        }
+      } else {
+        @name High density block
+        HighDensityBlock() {
+          Position3: {xP, 0.01, zP}
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,18 @@
+include config/sky
+
+using flecs.engine.*
+using flecs.script
+
+ground {
+    Position3: {y: -1}
+    Quad: {10000, 10000}
+    Rotation3: {-math.PI / 2}
+    Rgba: {0, 0, 0}
+}
+
+chair {
+    Gltf: {"etc/assets/glTF-Sample-Assets/Models/SheenChair/glTF/SheenChair.gltf"}
+    Position3: {y: -1}
+    Scale3: {3, 3, 3}
+    Rotation3: {y: math.PI * 0.8}
+}

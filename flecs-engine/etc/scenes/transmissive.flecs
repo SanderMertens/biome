@@ -1,0 +1,60 @@
+include config/sky
+
+using flecs.engine.*
+using flecs.script
+
+const rnd = math.Rng: {0}
+
+{
+    Position3: {}
+    Quad: {100, 100}
+    Rotation3: {-math.PI / 2}
+    Rgba: {50, 50, 50}
+}
+
+camera {
+    Position3: {-1.914, 7.035, -20.393}
+    LookAt: {-1.909, 6.432, -19.5}
+}
+
+light {
+    Position3: {1, 1, 1}
+}
+
+for x in 0..8 {
+    for y in 0..8 {{
+        const smooth: (x + y) % 2
+        const segments: match smooth {
+            false: 1
+            true: 3
+        }
+
+        Position3: {x * 4 - 16, y: 1.5, z: y * 4 - 16 + 1}
+        IcoSphere: {segments, smooth, 1}
+        Rgba: {250, 230, 180}
+        PbrMaterial: {roughness: x / 8}
+        Transmission: {
+            transmission_factor: 0.9
+            ior: 1.0 + y / 10
+            thickness_factor: 2
+            attenuation_distance: 2
+            attenuation_color: {75, 200, 255}
+        }
+    }}
+}
+
+grid {
+    for x in 0..20 {
+        for y in 0..20 {
+            {
+                Position3: {x * 2 - 20, 0.15, y * 2 - 20}
+                Box: {1, 0.3, 1}
+                Rgba: {0, 2 * x + 15, 2 * y + 15}
+                PbrMaterial: {
+                    metallic: 1
+                    roughness: 0.2
+                }
+            }
+        }
+    }
+}

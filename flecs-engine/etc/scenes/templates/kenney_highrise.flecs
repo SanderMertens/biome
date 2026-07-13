@@ -1,0 +1,71 @@
+module kenney
+include kenney_assets
+
+using flecs.script
+using flecs.engine.*
+
+const rng = math.Rng: {}
+
+@tree Parent
+template RandomHighrise {
+  const p = rng.u(7)
+  const v = rng.u(3)
+
+  if p == 0 {
+    if v == 0 {
+      (IsA, kenney.commercial.skyscraper_a.a)
+    } else if v == 1 {
+      (IsA, kenney.commercial.skyscraper_a.b)
+    } else if v == 2 {
+      (IsA, kenney.commercial.skyscraper_a.c)
+    }
+  } else if p == 1 {
+    if v == 0 {
+      (IsA, kenney.commercial.skyscraper_b.a)
+    } else if v == 1 {
+      (IsA, kenney.commercial.skyscraper_b.b)
+    } else if v == 2 {
+      (IsA, kenney.commercial.skyscraper_b.c)
+    }
+  } else if p == 2 {
+    if v == 0 {
+      (IsA, kenney.commercial.skyscraper_c.a)
+    } else if v == 1 {
+      (IsA, kenney.commercial.skyscraper_c.b)
+    } else if v == 2 {
+      (IsA, kenney.commercial.skyscraper_c.c)
+    }
+  } else if p == 3 {
+    if v == 0 {
+      (IsA, kenney.commercial.skyscraper_d.a)
+    } else if v == 1 {
+      (IsA, kenney.commercial.skyscraper_d.b)
+    } else if v == 2 {
+      (IsA, kenney.commercial.skyscraper_d.c)
+    }
+  } else if p == 4 {
+    if v == 0 {
+      (IsA, kenney.commercial.skyscraper_e.a)
+    } else if v == 1 {
+      (IsA, kenney.commercial.skyscraper_e.b)
+    } else if v == 2 {
+      (IsA, kenney.commercial.skyscraper_e.c)
+    }
+  } else if p == 5 {
+    if v == 0 {
+      (IsA, kenney.commercial.building_l.a)
+    } else if v == 1 {
+      (IsA, kenney.commercial.building_l.b)
+    } else if v == 2 {
+      (IsA, kenney.commercial.building_l.c)
+    }
+  } else if p == 6 {
+    if v == 0 {
+      (IsA, kenney.commercial.building_m.a)
+    } else if v == 1 {
+      (IsA, kenney.commercial.building_m.b)
+    } else if v == 2 {
+      (IsA, kenney.commercial.building_m.c)
+    }
+  }
+}

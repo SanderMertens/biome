@@ -1,0 +1,20 @@
+include config/sky
+
+using flecs.engine.*
+using flecs.script
+
+{
+    Position3: {}
+    Quad: {1000, 1000}
+    Rotation3: {-math.PI / 2}
+    Rgba: {50, 50, 50}
+}
+
+prefab StainedGlassLamp {
+    Gltf: {"etc/assets/glTF-Sample-Assets/Models/StainedGlassLamp/glTF/StainedGlassLamp.gltf"}
+}
+
+_ : StainedGlassLamp {
+    Position3: {z: -1.5}
+    Scale3: {2.5, 2.5, 2.5}
+}

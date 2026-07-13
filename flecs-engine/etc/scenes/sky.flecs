@@ -1,0 +1,9 @@
+include config/sky
+
+using flecs.engine.*
+using flecs.script
+
+camera {
+    Position3: {0, 0, 0}
+    LookAt: {0, 0, 1}
+}

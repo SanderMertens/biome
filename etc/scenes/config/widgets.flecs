@@ -1,0 +1,101 @@
+module biome.widgets
+
+using flecs.engine.ui
+using flecs.engine.material
+
+export const FontSize: 18
+export const PanelColor = Rgba: {19, 23, 27, 255}
+export const ButtonColor = Rgba: {49, 56, 63, 255}
+export const HoverColor = Rgba: {58, 66, 74, 255}
+export const HighlightColor = Rgba: {66, 185, 131, 255}
+export const DangerColor = Rgba: {220, 60, 50, 255}
+
+template Label {
+  prop text: "Label"
+  prop size: FontSize
+
+  Text: {text: text, size: size}
+  Rgba: {235, 238, 245, 255}
+}
+
+template Button {
+  prop text: "Button"
+  prop width: 120
+  prop height: 32
+  prop size: FontSize
+
+  OrderedChildren
+  WidgetState
+
+  Rect: {width: width, height: height}
+  Border: {width: 1, color: ButtonColor, radius: 6}
+  Rgba: ButtonColor
+
+  if $this[WidgetState].hover {
+    Rgba: HoverColor
+  }
+  if $this[WidgetState].lmb_down {
+    Rgba: HighlightColor
+  }
+
+  label {
+    Position: {x: 0, y: (height - size) / 2}
+    Text: {text: text, size: size, align: Center}
+    Rgba: {235, 238, 245, 255}
+  }
+}
+
+template Panel {
+  prop width: 0
+  prop height: 0
+  prop padding: 10
+  prop spacing: 8
+
+  OrderedChildren
+  Layout: {direction: Column, padding: padding, spacing: spacing, width: width, height: height}
+  Rect: {width: 0, height: 0}
+  Rgba: {28, 32, 42, 215}
+}
+
+template Gauge {
+  prop width: 180
+  prop height: 18
+  prop value: 0.5
+  prop max: 1.0
+  prop size: FontSize
+
+  OrderedChildren
+  Rect: {width: width, height: height}
+  Border: {width: 1, color: ButtonColor, radius: 8}
+  Rgba: {24, 28, 36, 235}
+
+  fill {
+    Position: {x: 2, y: 2}
+    Border: {width: 1, color: HighlightColor, radius: 6}
+    Rect: {width: (width - 4) * (value / max), height: height - 4}
+    Rgba: HighlightColor
+  }
+
+  label {
+    Position: {x: 0, y: (height - size) / 2}
+    Text: {text: "{value}", size: size, align: Center}
+    Rgba: {235, 238, 245, 255}
+  }
+}
+
+template ToolButton {
+  prop text = "Button"
+  prop hotKey = ""
+
+  Button: {text: text, width: 80, height: 60}
+  Hotkey: {key: hotKey}
+}
+
+template ResourceGauge {
+  prop text = "Resource"
+  prop resource = entity: 0
+
+  Layout: {direction: Column, padding: 0, spacing: 3}
+  Label (text: text)
+  Gauge (width: 300, height: 27, value: player.ResourceTotals[resource], max: player.ResourceCapacityTotals[resource])
+}

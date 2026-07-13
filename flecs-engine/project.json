@@ -1,0 +1,106 @@
+{
+    "id": "flecs_engine",
+    "type": "package",
+    "value": {
+        "language": "c++"
+    },
+    "lang.c": {
+        "c-standard": "c11",
+        "defines": ["FLECS_SCRIPT_MATH"],
+        "${os Darwin}": {
+            "defines": ["GLFW_EXPOSE_NATIVE_COCOA"]
+        },
+        "${os Emscripten}": {
+            "cflags": ["-sUSE_GLFW=3", "-sUSE_WEBGPU=1", "-D_GNU_SOURCE"]
+        }
+    },
+    "lang.cpp": {
+        "cpp-standard": "c++11",
+        "${os Emscripten}": {
+            "cxxflags": ["-sUSE_GLFW=3", "-sUSE_WEBGPU=1", "-D_GNU_SOURCE"]
+        }
+    },
+    "dependee": {
+        "lang.c": {
+            "defines": ["FLECS_SCRIPT_MATH"],
+            "${os Darwin}": {
+                "ldflags": [
+                    "-framework Cocoa",
+                    "-framework QuartzCore",
+                    "-framework Metal",
+                    "-framework IOKit",
+                    "-framework IOSurface",
+                    "-framework CoreVideo",
+                    "-framework CoreFoundation",
+                    "-framework CoreGraphics",
+                    "-framework Foundation",
+                    "-framework AppKit"
+                ]
+            },
+            "${os Emscripten}": {
+                "ldflags": [
+                    "-sUSE_GLFW=3",
+                    "-sUSE_WEBGPU=1",
+                    "-sASYNCIFY",
+                    "-sASYNCIFY_STACK_SIZE=1048576",
+                    "-sASYNCIFY_IMPORTS=['emscripten_sleep']",
+                    "-sALLOW_MEMORY_GROWTH=1",
+                    "-sSTACK_SIZE=8388608",
+                    "-L/Users/sandermertens/GitHub/SanderMertens/flecs-projects/flecs-engine/.bake/bundles/flecs/default/install/wasm32-Emscripten-release/lib",
+                    "-lflecs_static",
+                    "-L/Users/sandermertens/GitHub/SanderMertens/flecs-projects/flecs-engine/.bake/bundles/cglm/tags/v0.9.2/install/wasm32-Emscripten-release/lib",
+                    "-lcglm"
+                ]
+            }
+        }
+    },
+    "bundle": {
+        "flecs": {
+            "repository": "/Users/sandermertens/GitHub/SanderMertens/flecs",
+            "branch": "fix_query_up_w_parent",
+            "commit": "41c99b379f07107aad8b90d0b67632ee48adf4b4",
+            "library": "flecs_static",
+            "cmake-args": ["-DCMAKE_C_FLAGS=-DFLECS_SCRIPT_MATH", "-DFLECS_SHARED=OFF", "-DFLECS_STATIC=ON"]
+        },
+        "cglm": {
+            "repository": "https://github.com/recp/cglm.git",
+            "tag": "v0.9.2",
+            "library": "cglm",
+            "cmake-args": ["-DCGLM_SHARED=OFF", "-DCGLM_STATIC=ON", "-DCGLM_USE_TEST=OFF"]
+        },
+        "stb": {
+            "repository": "https://github.com/nothings/stb.git",
+            "commit": "28d546d5eb77d4585506a20480f4de2e706dff4c",
+            "header-only": true
+        },
+        "tinyexr": {
+            "repository": "https://github.com/syoyo/tinyexr.git",
+            "tag": "v1.0.9",
+            "header-only": true,
+            "include": ["deps/miniz"],
+            "sources": ["deps/miniz/miniz.c"]
+        },
+        "cgltf": {
+            "repository": "https://github.com/jkuhlmann/cgltf.git",
+            "tag": "v1.15",
+            "header-only": true
+        }
+    },
+    "${os Darwin}": {
+        "bundle": {
+            "glfw": {
+                "repository": "https://github.com/glfw/glfw.git",
+                "tag": "3.3.9",
+                "library": "glfw3",
+                "cmake-args": ["-DGLFW_BUILD_EXAMPLES=OFF", "-DGLFW_BUILD_TESTS=OFF", "-DGLFW_BUILD_DOCS=OFF"]
+            },
+            "wgpu_native": {
+                "repository": "https://github.com/gfx-rs/wgpu-native.git",
+                "tag": "v27.0.4.0",
+                "build-system": "cargo",
+                "library": "wgpu_native",
+                "include": ["ffi", "ffi/webgpu-headers"]
+            }
+        }
+    }
+}

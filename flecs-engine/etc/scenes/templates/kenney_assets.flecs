@@ -1,0 +1,705 @@
+module kenney
+
+using flecs.engine.*
+
+prefab crossroad {
+  Gltf: {"etc/assets/kenney/city-kit-roads/Models/GLB format/road-crossroad-path.glb"}
+}
+prefab road_straight {
+  Gltf: {"etc/assets/kenney/city-kit-roads/Models/GLB format/road-straight.glb"}
+}
+prefab ground_tile {
+  Gltf: {"etc/assets/kenney/city-kit-roads/Models/GLB format/tile-low.glb"}
+}
+
+prefab tree_small {
+  Gltf: {"etc/assets/kenney/city-kit-suburban/Models/GLB format/tree-small.glb"}
+}
+prefab tree_large {
+  Gltf: {"etc/assets/kenney/city-kit-suburban/Models/GLB format/tree-large.glb"}
+}
+prefab fence {
+  Gltf: {"etc/assets/kenney/city-kit-suburban/Models/GLB format/fence.glb"}
+}
+prefab path_stones_short {
+  Gltf: {"etc/assets/kenney/city-kit-suburban/Models/GLB format/path-stones-short.glb"}
+}
+prefab path_stones_long {
+  Gltf: {"etc/assets/kenney/city-kit-suburban/Models/GLB format/path-stones-long.glb"}
+}
+prefab driveway_short {
+  Gltf: {"etc/assets/kenney/city-kit-suburban/Models/GLB format/driveway-short.glb"}
+}
+prefab driveway_long {
+  Gltf: {"etc/assets/kenney/city-kit-suburban/Models/GLB format/driveway-long.glb"}
+}
+
+suburban {
+  prefab texture_a {
+    Texture: {"etc/assets/kenney/city-kit-suburban/Models/Textures/variation-a.png"}
+  }
+  prefab texture_b {
+    Texture: {"etc/assets/kenney/city-kit-suburban/Models/Textures/variation-b.png"}
+  }
+  prefab texture_c {
+    Texture: {"etc/assets/kenney/city-kit-suburban/Models/Textures/variation-c.png"}
+  }
+
+  building_b {
+    prefab a {
+      Gltf: {"etc/assets/kenney/city-kit-suburban/Models/GLB format/building-type-b.glb"}
+    }
+
+    prefab b : a {
+      PbrTextures: {texture_a}
+    }
+
+    prefab c : a {
+      PbrTextures: {texture_b}
+    }
+
+    prefab d : a {
+      PbrTextures: {texture_c}
+    }
+  }
+
+  building_c {
+    prefab a {
+      Gltf: {"etc/assets/kenney/city-kit-suburban/Models/GLB format/building-type-c.glb"}
+    }
+    prefab b : a {
+      PbrTextures: {texture_a}
+    }
+    prefab c : a {
+      PbrTextures: {texture_b}
+    }
+    prefab d : a {
+      PbrTextures: {texture_c}
+    }
+  }
+
+  building_d {
+    prefab a {
+      Gltf: {"etc/assets/kenney/city-kit-suburban/Models/GLB format/building-type-d.glb"}
+    }
+    prefab b : a {
+      PbrTextures: {texture_a}
+    }
+    prefab c : a {
+      PbrTextures: {texture_b}
+    }
+    prefab d : a {
+      PbrTextures: {texture_c}
+    }
+  }
+
+  building_e {
+    prefab a {
+      Gltf: {"etc/assets/kenney/city-kit-suburban/Models/GLB format/building-type-e.glb"}
+    }
+    prefab b : a {
+      PbrTextures: {texture_a}
+    }
+    prefab c : a {
+      PbrTextures: {texture_b}
+    }
+    prefab d : a {
+      PbrTextures: {texture_c}
+    }
+  }
+
+  building_f {
+    prefab a {
+      Gltf: {"etc/assets/kenney/city-kit-suburban/Models/GLB format/building-type-f.glb"}
+    }
+    prefab b : a {
+      PbrTextures: {texture_a}
+    }
+    prefab c : a {
+      PbrTextures: {texture_b}
+    }
+    prefab d : a {
+      PbrTextures: {texture_c}
+    }
+  }
+
+  building_g {
+    prefab a {
+      Gltf: {"etc/assets/kenney/city-kit-suburban/Models/GLB format/building-type-g.glb"}
+    }
+    prefab b : a {
+      PbrTextures: {texture_a}
+    }
+    prefab c : a {
+      PbrTextures: {texture_b}
+    }
+    prefab d : a {
+      PbrTextures: {texture_c}
+    }
+  }
+
+  building_h {
+    prefab a {
+      Gltf: {"etc/assets/kenney/city-kit-suburban/Models/GLB format/building-type-h.glb"}
+    }
+    prefab b : a {
+      PbrTextures: {texture_a}
+    }
+    prefab c : a {
+      PbrTextures: {texture_b}
+    }
+    prefab d : a {
+      PbrTextures: {texture_c}
+    }
+  }
+
+  building_i {
+    prefab a {
+      Gltf: {"etc/assets/kenney/city-kit-suburban/Models/GLB format/building-type-i.glb"}
+    }
+    prefab b : a {
+      PbrTextures: {texture_a}
+    }
+    prefab c : a {
+      PbrTextures: {texture_b}
+    }
+    prefab d : a {
+      PbrTextures: {texture_c}
+    }
+  }
+
+  building_k {
+    prefab a {
+      Gltf: {"etc/assets/kenney/city-kit-suburban/Models/GLB format/building-type-k.glb"}
+    }
+    prefab b : a {
+      PbrTextures: {texture_a}
+    }
+    prefab c : a {
+      PbrTextures: {texture_b}
+    }
+    prefab d : a {
+      PbrTextures: {texture_c}
+    }
+  }
+
+  building_l {
+    prefab a {
+      Gltf: {"etc/assets/kenney/city-kit-suburban/Models/GLB format/building-type-l.glb"}
+    }
+    prefab b : a {
+      PbrTextures: {texture_a}
+    }
+    prefab c : a {
+      PbrTextures: {texture_b}
+    }
+    prefab d : a {
+      PbrTextures: {texture_c}
+    }
+  }
+
+  building_o {
+    prefab a {
+      Gltf: {"etc/assets/kenney/city-kit-suburban/Models/GLB format/building-type-o.glb"}
+    }
+    prefab b : a {
+      PbrTextures: {texture_a}
+    }
+    prefab c : a {
+      PbrTextures: {texture_b}
+    }
+    prefab d : a {
+      PbrTextures: {texture_c}
+    }
+  }
+
+  building_u {
+    prefab a {
+      Gltf: {"etc/assets/kenney/city-kit-suburban/Models/GLB format/building-type-u.glb"}
+    }
+    prefab b : a {
+      PbrTextures: {texture_a}
+    }
+    prefab c : a {
+      PbrTextures: {texture_b}
+    }
+    prefab d : a {
+      PbrTextures: {texture_c}
+    }
+  }
+
+}
+
+commercial {
+  prefab texture_a {
+    Texture: {"etc/assets/kenney/city-kit-commercial/Models/Textures/variation-a.png"}
+  }
+  prefab texture_b {
+    Texture: {"etc/assets/kenney/city-kit-commercial/Models/Textures/variation-b.png"}
+  }
+
+  building_a {
+    prefab a {
+      Gltf: {"etc/assets/kenney/city-kit-commercial/Models/GLB format/building-a.glb"}
+    }
+    prefab b : a {
+      PbrTextures: {texture_a}
+    }
+    prefab c : a {
+      PbrTextures: {texture_b}
+    }
+  }
+
+  building_b {
+    prefab a {
+      Gltf: {"etc/assets/kenney/city-kit-commercial/Models/GLB format/building-b.glb"}
+    }
+    prefab b : a {
+      PbrTextures: {texture_a}
+    }
+    prefab c : a {
+      PbrTextures: {texture_b}
+    }
+  }
+
+  building_c {
+    prefab a {
+      Gltf: {"etc/assets/kenney/city-kit-commercial/Models/GLB format/building-c.glb"}
+    }
+    prefab b : a {
+      PbrTextures: {texture_a}
+    }
+    prefab c : a {
+      PbrTextures: {texture_b}
+    }
+  }
+
+  building_d {
+    prefab a {
+      Gltf: {"etc/assets/kenney/city-kit-commercial/Models/GLB format/building-d.glb"}
+    }
+    prefab b : a {
+      PbrTextures: {texture_a}
+    }
+    prefab c : a {
+      PbrTextures: {texture_b}
+    }
+  }
+
+  building_f {
+    prefab a {
+      Gltf: {"etc/assets/kenney/city-kit-commercial/Models/GLB format/building-f.glb"}
+    }
+    prefab b : a {
+      PbrTextures: {texture_a}
+    }
+    prefab c : a {
+      PbrTextures: {texture_b}
+    }
+  }
+
+  building_g {
+    prefab a {
+      Gltf: {"etc/assets/kenney/city-kit-commercial/Models/GLB format/building-g.glb"}
+    }
+    prefab b : a {
+      PbrTextures: {texture_a}
+    }
+    prefab c : a {
+      PbrTextures: {texture_b}
+    }
+  }
+
+  building_h {
+    prefab a {
+      Gltf: {"etc/assets/kenney/city-kit-commercial/Models/GLB format/building-h.glb"}
+    }
+    prefab b : a {
+      PbrTextures: {texture_a}
+    }
+    prefab c : a {
+      PbrTextures: {texture_b}
+    }
+  }
+
+  skyscraper_a {
+    prefab a {
+      Gltf: {"etc/assets/kenney/city-kit-commercial/Models/GLB format/building-skyscraper-a.glb"}
+    }
+    prefab b : a {
+      PbrTextures: {texture_a}
+    }
+    prefab c : a {
+      PbrTextures: {texture_b}
+    }
+  }
+
+  skyscraper_b {
+    prefab a {
+      Gltf: {"etc/assets/kenney/city-kit-commercial/Models/GLB format/building-skyscraper-b.glb"}
+    }
+    prefab b : a {
+      PbrTextures: {texture_a}
+    }
+    prefab c : a {
+      PbrTextures: {texture_b}
+    }
+  }
+
+  skyscraper_c {
+    prefab a {
+      Gltf: {"etc/assets/kenney/city-kit-commercial/Models/GLB format/building-skyscraper-c.glb"}
+    }
+    prefab b : a {
+      PbrTextures: {texture_a}
+    }
+    prefab c : a {
+      PbrTextures: {texture_b}
+    }
+  }
+
+  skyscraper_d {
+    prefab a {
+      Gltf: {"etc/assets/kenney/city-kit-commercial/Models/GLB format/building-skyscraper-d.glb"}
+    }
+    prefab b : a {
+      PbrTextures: {texture_a}
+    }
+    prefab c : a {
+      PbrTextures: {texture_b}
+    }
+  }
+
+  skyscraper_e {
+    prefab a {
+      Gltf: {"etc/assets/kenney/city-kit-commercial/Models/GLB format/building-skyscraper-e.glb"}
+    }
+    prefab b : a {
+      PbrTextures: {texture_a}
+    }
+    prefab c : a {
+      PbrTextures: {texture_b}
+    }
+  }
+
+  building_l {
+    prefab a {
+      Gltf: {"etc/assets/kenney/city-kit-commercial/Models/GLB format/building-l.glb"}
+    }
+    prefab b : a {
+      PbrTextures: {texture_a}
+    }
+    prefab c : a {
+      PbrTextures: {texture_b}
+    }
+  }
+
+  building_m {
+    prefab a {
+      Gltf: {"etc/assets/kenney/city-kit-commercial/Models/GLB format/building-m.glb"}
+    }
+    prefab b : a {
+      PbrTextures: {texture_a}
+    }
+    prefab c : a {
+      PbrTextures: {texture_b}
+    }
+  }
+}
+
+industrial {
+  prefab texture_a {
+    Texture: {"etc/assets/kenney/city-kit-industrial/Models/Textures/variation-a.png"}
+  }
+  prefab texture_b {
+    Texture: {"etc/assets/kenney/city-kit-industrial/Models/Textures/variation-b.png"}
+  }
+  prefab texture_c {
+    Texture: {"etc/assets/kenney/city-kit-industrial/Models/Textures/variation-c.png"}
+  }
+
+  building_a {
+    prefab a {
+      Gltf: {"etc/assets/kenney/city-kit-industrial/Models/GLB format/building-a.glb"}
+    }
+    prefab b : a {
+      PbrTextures: {texture_a}
+    }
+    prefab c : a {
+      PbrTextures: {texture_b}
+    }
+    prefab d : a {
+      PbrTextures: {texture_c}
+    }
+  }
+
+  building_b {
+    prefab a {
+      Gltf: {"etc/assets/kenney/city-kit-industrial/Models/GLB format/building-b.glb"}
+    }
+    prefab b : a {
+      PbrTextures: {texture_a}
+    }
+    prefab c : a {
+      PbrTextures: {texture_b}
+    }
+    prefab d : a {
+      PbrTextures: {texture_c}
+    }
+  }
+
+  building_c {
+    prefab a {
+      Gltf: {"etc/assets/kenney/city-kit-industrial/Models/GLB format/building-c.glb"}
+    }
+    prefab b : a {
+      PbrTextures: {texture_a}
+    }
+    prefab c : a {
+      PbrTextures: {texture_b}
+    }
+    prefab d : a {
+      PbrTextures: {texture_c}
+    }
+  }
+
+  building_d {
+    prefab a {
+      Gltf: {"etc/assets/kenney/city-kit-industrial/Models/GLB format/building-d.glb"}
+    }
+    prefab b : a {
+      PbrTextures: {texture_a}
+    }
+    prefab c : a {
+      PbrTextures: {texture_b}
+    }
+    prefab d : a {
+      PbrTextures: {texture_c}
+    }
+  }
+
+  building_e {
+    prefab a {
+      Gltf: {"etc/assets/kenney/city-kit-industrial/Models/GLB format/building-e.glb"}
+    }
+    prefab b : a {
+      PbrTextures: {texture_a}
+    }
+    prefab c : a {
+      PbrTextures: {texture_b}
+    }
+    prefab d : a {
+      PbrTextures: {texture_c}
+    }
+  }
+
+  building_f {
+    prefab a {
+      Gltf: {"etc/assets/kenney/city-kit-industrial/Models/GLB format/building-f.glb"}
+    }
+    prefab b : a {
+      PbrTextures: {texture_a}
+    }
+    prefab c : a {
+      PbrTextures: {texture_b}
+    }
+    prefab d : a {
+      PbrTextures: {texture_c}
+    }
+  }
+
+  building_g {
+    prefab a {
+      Gltf: {"etc/assets/kenney/city-kit-industrial/Models/GLB format/building-g.glb"}
+    }
+    prefab b : a {
+      PbrTextures: {texture_a}
+    }
+    prefab c : a {
+      PbrTextures: {texture_b}
+    }
+    prefab d : a {
+      PbrTextures: {texture_c}
+    }
+  }
+
+  building_h {
+    prefab a {
+      Gltf: {"etc/assets/kenney/city-kit-industrial/Models/GLB format/building-h.glb"}
+    }
+    prefab b : a {
+      PbrTextures: {texture_a}
+    }
+    prefab c : a {
+      PbrTextures: {texture_b}
+    }
+    prefab d : a {
+      PbrTextures: {texture_c}
+    }
+  }
+}
+
+cars {
+  prefab ambulance {
+    Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/ambulance.glb"}
+  }
+  prefab delivery {
+    Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/delivery.glb"}
+  }
+  prefab delivery_flat {
+    Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/delivery-flat.glb"}
+  }
+  prefab firetruck {
+    Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/firetruck.glb"}
+  }
+  prefab garbage_truck {
+    Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/garbage-truck.glb"}
+  }
+  prefab hatchback_sports {
+    Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/hatchback-sports.glb"}
+  }
+  prefab police {
+    Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/police.glb"}
+  }
+  prefab race {
+    Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/race.glb"}
+  }
+  prefab race_future {
+    Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/race-future.glb"}
+  }
+  prefab sedan {
+    Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/sedan.glb"}
+  }
+  prefab sedan_sports {
+    Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/sedan-sports.glb"}
+  }
+  prefab suv {
+    Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/suv.glb"}
+  }
+  prefab suv_luxury {
+    Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/suv-luxury.glb"}
+  }
+  prefab taxi {
+    Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/taxi.glb"}
+  }
+  prefab tractor {
+    Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/tractor.glb"}
+  }
+  prefab tractor_police {
+    Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/tractor-police.glb"}
+  }
+  prefab tractor_shovel {
+    Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/tractor-shovel.glb"}
+  }
+  prefab truck {
+    Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/truck.glb"}
+  }
+  prefab truck_flat {
+    Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/truck-flat.glb"}
+  }
+  prefab van {
+    Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/van.glb"}
+  }
+
+  karts {
+    prefab oobi {
+      Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/kart-oobi.glb"}
+    }
+    prefab oodi {
+      Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/kart-oodi.glb"}
+    }
+    prefab ooli {
+      Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/kart-ooli.glb"}
+    }
+    prefab oopi {
+      Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/kart-oopi.glb"}
+    }
+    prefab oozi {
+      Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/kart-oozi.glb"}
+    }
+  }
+
+  wheels {
+    prefab default {
+      Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/wheel-default.glb"}
+    }
+    prefab dark {
+      Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/wheel-dark.glb"}
+    }
+    prefab racing {
+      Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/wheel-racing.glb"}
+    }
+    prefab truck {
+      Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/wheel-truck.glb"}
+    }
+    prefab tractor_front {
+      Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/wheel-tractor-front.glb"}
+    }
+    prefab tractor_back {
+      Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/wheel-tractor-back.glb"}
+    }
+    prefab tractor_dark_front {
+      Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/wheel-tractor-dark-front.glb"}
+    }
+    prefab tractor_dark_back {
+      Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/wheel-tractor-dark-back.glb"}
+    }
+  }
+
+  props {
+    prefab box {
+      Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/box.glb"}
+    }
+    prefab cone {
+      Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/cone.glb"}
+    }
+    prefab cone_flat {
+      Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/cone-flat.glb"}
+    }
+  }
+
+  debris {
+    prefab bolt {
+      Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/debris-bolt.glb"}
+    }
+    prefab bumper {
+      Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/debris-bumper.glb"}
+    }
+    prefab door {
+      Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/debris-door.glb"}
+    }
+    prefab door_window {
+      Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/debris-door-window.glb"}
+    }
+    prefab drivetrain {
+      Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/debris-drivetrain.glb"}
+    }
+    prefab drivetrain_axle {
+      Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/debris-drivetrain-axle.glb"}
+    }
+    prefab nut {
+      Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/debris-nut.glb"}
+    }
+    prefab plate_a {
+      Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/debris-plate-a.glb"}
+    }
+    prefab plate_b {
+      Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/debris-plate-b.glb"}
+    }
+    prefab plate_small_a {
+      Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/debris-plate-small-a.glb"}
+    }
+    prefab plate_small_b {
+      Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/debris-plate-small-b.glb"}
+    }
+    prefab spoiler_a {
+      Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/debris-spoiler-a.glb"}
+    }
+    prefab spoiler_b {
+      Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/debris-spoiler-b.glb"}
+    }
+    prefab tire {
+      Gltf: {"etc/assets/kenney/kenney_car-kit/Models/GLB format/debris-tire.glb"}
+    }
+  }
+}

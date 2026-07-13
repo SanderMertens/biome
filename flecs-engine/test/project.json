@@ -1,0 +1,22 @@
+{
+    "id": "flecs_engine_test",
+    "type": "application",
+    "value": {
+        "description": "Headless tests for Flecs Engine",
+        "public": false,
+        "use": [
+            "flecs_engine"
+        ]
+    },
+    "test": {
+        "testsuites": [{
+            "id": "Transform3",
+            "testcases": [
+                "child_world_transform",
+                "gltf_preserves_root_transform",
+                "gltf_prefab_instantiates_mesh_child",
+                "gltf_nested_prefab_instantiates_mesh_child"
+            ]
+        }]
+    }
+}
