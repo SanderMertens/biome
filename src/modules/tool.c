@@ -58,7 +58,9 @@ static bool biome_tool_pickTile(
     float view_norm_x,
     float view_norm_y,
     int32_t *tile_x,
-    int32_t *tile_y)
+    int32_t *tile_y,
+    float *tile_offset_x,
+    float *tile_offset_y)
 {
     const FlecsTerrain *t = ecs_get(world, terrain, FlecsTerrain);
     if (!t || t->width <= 0 || t->depth <= 0 || t->cell_size <= 0) {
@@ -97,6 +99,14 @@ static bool biome_tool_pickTile(
         if (py - oy <= flecsEngine_terrainCellHeight(t, cx, cz)) {
             *tile_x = cx;
             *tile_y = cz;
+            if (tile_offset_x) {
+                *tile_offset_x =
+                    (px - ox) / t->cell_size - (float)cx;
+            }
+            if (tile_offset_y) {
+                *tile_offset_y =
+                    (pz - oz) / t->cell_size - (float)cz;
+            }
             return true;
         }
     }
@@ -227,13 +237,29 @@ static bool biome_tool_slotFree(
     return true;
 }
 
+typedef struct biome_tool_region_t {
+    int32_t x0;
+    int32_t y0;
+    int32_t x1;
+    int32_t y1;
+    int32_t anchor_x;
+    int32_t anchor_y;
+    int32_t dest_x;
+    int32_t dest_y;
+    int32_t count;
+    bool rect;
+    bool horizontal_entry;
+} biome_tool_region_t;
+
+static bool biome_tool_regionContains(
+    const biome_tool_region_t *region,
+    int32_t x,
+    int32_t y);
+
 static int32_t biome_tool_freeSlots(
     const FlecsTerrain *t,
     const TerrainOccupancy *occ,
-    int32_t x0,
-    int32_t y0,
-    int32_t x1,
-    int32_t y1,
+    const biome_tool_region_t *region,
     int32_t fw,
     int32_t fh,
     int32_t step_x,
@@ -241,8 +267,11 @@ static int32_t biome_tool_freeSlots(
     uint64_t requirement_mask)
 {
     int32_t result = 0;
-    for (int32_t sy = y0; sy <= y1; sy += step_y) {
-        for (int32_t sx = x0; sx <= x1; sx += step_x) {
+    for (int32_t sy = region->y0; sy <= region->y1; sy += step_y) {
+        for (int32_t sx = region->x0; sx <= region->x1; sx += step_x) {
+            if (!biome_tool_regionContains(region, sx, sy)) {
+                continue;
+            }
             if (biome_tool_slotFree(
                 t, occ, sx, sy, fw, fh, requirement_mask))
             {
@@ -259,51 +288,112 @@ static bool biome_tool_shiftDown(const FlecsInput *input) {
         input->keys[FLECS_KEY_RIGHT_SHIFT].state;
 }
 
-static void biome_tool_region(
+static biome_tool_region_t biome_tool_region(
     const BiomeTool *tool,
     bool rect,
     int32_t cur_x,
     int32_t cur_y,
+    float tile_offset_x,
+    float tile_offset_y,
     int32_t step_x,
-    int32_t step_y,
-    int32_t *x0,
-    int32_t *y0,
-    int32_t *x1,
-    int32_t *y1,
-    int32_t *count)
+    int32_t step_y)
 {
+    biome_tool_region_t result = {
+        .x0 = cur_x, .y0 = cur_y, .x1 = cur_x, .y1 = cur_y,
+        .anchor_x = cur_x, .anchor_y = cur_y,
+        .dest_x = cur_x, .dest_y = cur_y,
+        .count = 1, .rect = rect
+    };
+
     if (!tool->dragging) {
-        *x0 = *x1 = cur_x;
-        *y0 = *y1 = cur_y;
-        *count = 1;
-        return;
+        return result;
     }
 
     int32_t ax = tool->anchor_x, ay = tool->anchor_y;
-    int32_t dx = cur_x > ax ? cur_x - ax : ax - cur_x;
-    int32_t dy = cur_y > ay ? cur_y - ay : ay - cur_y;
+    result.x0 = ax < cur_x ? ax : cur_x;
+    result.x1 = ax > cur_x ? ax : cur_x;
+    result.y0 = ay < cur_y ? ay : cur_y;
+    result.y1 = ay > cur_y ? ay : cur_y;
+    result.anchor_x = ax;
+    result.anchor_y = ay;
 
-    *x0 = ax < cur_x ? ax : cur_x;
-    *x1 = ax > cur_x ? ax : cur_x;
-    *y0 = ay < cur_y ? ay : cur_y;
-    *y1 = ay > cur_y ? ay : cur_y;
-
-    if (!rect) {
-        if (dx >= dy) {
-            *y0 = *y1 = ay;
-        } else {
-            *x0 = *x1 = ax;
-        }
+    if (cur_x == ax) {
+        result.horizontal_entry = false;
+    } else if (cur_y == ay) {
+        result.horizontal_entry = true;
+    } else {
+        /* Each L can enter the destination through only one of the two sides
+         * that face the anchor. Compare the cursor against those sides, not
+         * against the nearest side on each axis. */
+        float horizontal_dist = cur_x > ax
+            ? tile_offset_x : 1.0f - tile_offset_x;
+        float vertical_dist = cur_y > ay
+            ? tile_offset_y : 1.0f - tile_offset_y;
+        result.horizontal_entry = horizontal_dist <= vertical_dist;
     }
 
-    if (*x0 < ax) {
-        *x0 = ax - ((ax - *x0 + step_x - 1) / step_x) * step_x;
+    if (result.x0 < ax) {
+        result.x0 = ax - ((ax - result.x0 + step_x - 1) / step_x) * step_x;
     }
-    if (*y0 < ay) {
-        *y0 = ay - ((ay - *y0 + step_y - 1) / step_y) * step_y;
+    if (result.y0 < ay) {
+        result.y0 = ay - ((ay - result.y0 + step_y - 1) / step_y) * step_y;
     }
 
-    *count = ((*x1 - *x0) / step_x + 1) * ((*y1 - *y0) / step_y + 1);
+    int32_t nx = (result.x1 - result.x0) / step_x + 1;
+    int32_t ny = (result.y1 - result.y0) / step_y + 1;
+    result.dest_x = cur_x < ax
+        ? result.x0
+        : ax + ((cur_x - ax) / step_x) * step_x;
+    result.dest_y = cur_y < ay
+        ? result.y0
+        : ay + ((cur_y - ay) / step_y) * step_y;
+    result.count = rect ? nx * ny : nx + ny - 1;
+
+    return result;
+}
+
+static bool biome_tool_regionContains(
+    const biome_tool_region_t *region,
+    int32_t x,
+    int32_t y)
+{
+    if (region->rect) {
+        return true;
+    }
+
+    if (region->horizontal_entry) {
+        return x == region->anchor_x || y == region->dest_y;
+    } else {
+        return y == region->anchor_y || x == region->dest_x;
+    }
+}
+
+static bool biome_tool_regionOverlaps(
+    const biome_tool_region_t *region,
+    int32_t x,
+    int32_t y,
+    int32_t w,
+    int32_t h)
+{
+    int32_t bx1 = x + w - 1;
+    int32_t by1 = y + h - 1;
+    if (x > region->x1 || bx1 < region->x0 ||
+        y > region->y1 || by1 < region->y0)
+    {
+        return false;
+    }
+
+    if (region->rect) {
+        return true;
+    }
+
+    int32_t line_x = region->horizontal_entry
+        ? region->anchor_x : region->dest_x;
+    int32_t line_y = region->horizontal_entry
+        ? region->dest_y : region->anchor_y;
+    bool overlaps_vertical = x <= line_x && bx1 >= line_x;
+    bool overlaps_horizontal = y <= line_y && by1 >= line_y;
+    return overlaps_vertical || overlaps_horizontal;
 }
 
 static void biome_tool_ghostInstance(
@@ -385,10 +475,7 @@ static void biome_tool_doze(
     ecs_world_t *world,
     ecs_entity_t terrain,
     ecs_entity_t doze_effect,
-    int32_t x0,
-    int32_t y0,
-    int32_t x1,
-    int32_t y1)
+    const biome_tool_region_t *region)
 {
     const FlecsTerrain *t = ecs_get(world, terrain, FlecsTerrain);
     TerrainOccupancy *occ = biome_tool_occupancy(world, terrain);
@@ -411,8 +498,8 @@ static void biome_tool_doze(
 
             int32_t fw = tp[i].span_x ? tp[i].span_x : 1;
             int32_t fh = tp[i].span_y ? tp[i].span_y : 1;
-            if (tp[i].x > x1 || (tp[i].x + fw) <= x0 ||
-                tp[i].y > y1 || (tp[i].y + fh) <= y0)
+            if (!biome_tool_regionOverlaps(
+                region, tp[i].x, tp[i].y, fw, fh))
             {
                 continue;
             }
@@ -475,10 +562,12 @@ void BiomeToolPreview(ecs_iter_t *it) {
         ecs_entity_t terrain = it->entities[i];
 
         int32_t x = 0, y = 0;
+        float tile_offset_x = 0, tile_offset_y = 0;
         bool hover = input && camera &&
             !flecsEngine_uiMouseCaptured(world) &&
             biome_tool_pickTile(world, camera, terrain,
-                input->mouse.view_norm.x, input->mouse.view_norm.y, &x, &y);
+                input->mouse.view_norm.x, input->mouse.view_norm.y,
+                &x, &y, &tile_offset_x, &tile_offset_y);
 
         if (!hover) {
             continue;
@@ -494,9 +583,12 @@ void BiomeToolPreview(ecs_iter_t *it) {
         }
         int32_t step_x = fw + stride, step_y = fh + stride;
 
-        int32_t x0, y0, x1, y1, count;
-        biome_tool_region(tool, biome_tool_shiftDown(input), x, y,
-            step_x, step_y, &x0, &y0, &x1, &y1, &count);
+        biome_tool_region_t region = biome_tool_region(
+            tool, biome_tool_shiftDown(input), x, y,
+            tile_offset_x, tile_offset_y, step_x, step_y);
+        int32_t x0 = region.x0, y0 = region.y0;
+        int32_t x1 = region.x1, y1 = region.y1;
+        int32_t count = region.count;
 
         if (tool->doze) {
             if (ecs_vec_count(&t[i].colors) == t[i].width * t[i].depth) {
@@ -508,6 +600,9 @@ void BiomeToolPreview(ecs_iter_t *it) {
                 int32_t cx1 = x1 >= t[i].width ? t[i].width - 1 : x1;
                 for (int32_t cy = cy0; cy <= cy1; cy ++) {
                     for (int32_t cx = cx0; cx <= cx1; cx ++) {
+                        if (!biome_tool_regionContains(&region, cx, cy)) {
+                            continue;
+                        }
                         colors[cy * t[i].width + cx] =
                             (flecs_rgba_t){ 230, 120, 40, 230 };
                     }
@@ -523,7 +618,7 @@ void BiomeToolPreview(ecs_iter_t *it) {
         int32_t maxCount = biome_tool_buildingMaxCount(world, tool->building);
         int32_t curCount = biome_tool_buildingCount(world, tool->building);
         int32_t freeSlots = biome_tool_freeSlots(
-            &t[i], occ, x0, y0, x1, y1, fw, fh, step_x, step_y,
+            &t[i], occ, &region, fw, fh, step_x, step_y,
             requirement_mask);
         int32_t affordable = biome_factory_canAfford(world, tool->building);
         bool tooMany = (maxCount > 0 &&
@@ -534,6 +629,9 @@ void BiomeToolPreview(ecs_iter_t *it) {
             flecs_rgba_t *colors = ecs_vec_first_t(&t[i].colors, flecs_rgba_t);
             for (int32_t sy = y0; sy <= y1; sy += step_y) {
                 for (int32_t sx = x0; sx <= x1; sx += step_x) {
+                    if (!biome_tool_regionContains(&region, sx, sy)) {
+                        continue;
+                    }
                     bool free = biome_tool_slotFree(
                         &t[i], occ, sx, sy, fw, fh, requirement_mask);
                     flecs_rgba_t color = (tooMany || !free)
@@ -573,6 +671,9 @@ void BiomeToolPreview(ecs_iter_t *it) {
             int32_t g = 0;
             for (int32_t sy = y0; sy <= y1 && g < count; sy += step_y) {
                 for (int32_t sx = x0; sx <= x1 && g < count; sx += step_x) {
+                    if (!biome_tool_regionContains(&region, sx, sy)) {
+                        continue;
+                    }
                     if (!biome_tool_slotFree(
                         &t[i], occ, sx, sy, fw, fh, requirement_mask))
                     {
@@ -630,9 +731,11 @@ void BiomeToolUpdate(ecs_iter_t *it) {
     }
 
     int32_t x = 0, y = 0;
+    float tile_offset_x = 0, tile_offset_y = 0;
     bool hover = !flecsEngine_uiMouseCaptured(world) &&
         biome_tool_pickTile(world, camera, terrain,
-            input->mouse.view_norm.x, input->mouse.view_norm.y, &x, &y);
+            input->mouse.view_norm.x, input->mouse.view_norm.y,
+            &x, &y, &tile_offset_x, &tile_offset_y);
 
     if (!tool->dragging) {
         if (hover && input->mouse.left.pressed) {
@@ -658,13 +761,15 @@ void BiomeToolUpdate(ecs_iter_t *it) {
         }
         int32_t step_x = fw + stride, step_y = fh + stride;
 
-        int32_t x0, y0, x1, y1, count;
-        biome_tool_region(tool, biome_tool_shiftDown(input), x, y,
-            step_x, step_y, &x0, &y0, &x1, &y1, &count);
+        biome_tool_region_t region = biome_tool_region(
+            tool, biome_tool_shiftDown(input), x, y,
+            tile_offset_x, tile_offset_y, step_x, step_y);
+        int32_t x0 = region.x0, y0 = region.y0;
+        int32_t x1 = region.x1, y1 = region.y1;
 
         if (tool->doze) {
-            biome_tool_doze(world, terrain, tool->doze_effect,
-                x0, y0, x1, y1);
+            biome_tool_doze(
+                world, terrain, tool->doze_effect, &region);
             tool->dragging = false;
             return;
         }
@@ -677,7 +782,7 @@ void BiomeToolUpdate(ecs_iter_t *it) {
         int32_t maxCount = biome_tool_buildingMaxCount(world, tool->building);
         int32_t curCount = biome_tool_buildingCount(world, tool->building);
         int32_t freeSlots = biome_tool_freeSlots(
-            t, occ, x0, y0, x1, y1, fw, fh, step_x, step_y,
+            t, occ, &region, fw, fh, step_x, step_y,
             requirement_mask);
 
         if (maxCount > 0 && (freeSlots + curCount) > maxCount) {
@@ -713,6 +818,9 @@ void BiomeToolUpdate(ecs_iter_t *it) {
         int32_t placed = 0;
         for (int32_t sy = y0; sy <= y1; sy += step_y) {
             for (int32_t sx = x0; sx <= x1; sx += step_x) {
+                if (!biome_tool_regionContains(&region, sx, sy)) {
+                    continue;
+                }
                 if (!biome_tool_slotFree(
                     t, occ, sx, sy, fw, fh, requirement_mask))
                 {

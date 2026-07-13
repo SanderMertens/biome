@@ -58,7 +58,7 @@ void BiomeUiBind(ecs_iter_t *it) {
     biome_ui_bindToolButton(it->world, "hud.toolbar.base", "buildings.Base");
     biome_ui_bindToolButton(it->world, "hud.toolbar.solar", "buildings.Solar");
     biome_ui_bindToolButton(it->world, "hud.toolbar.drill", "buildings.Drill");
-    biome_ui_bindToolButton(it->world, "hud.toolbar.storage", "buildings.Depot");
+    biome_ui_bindToolButton(it->world, "hud.toolbar.depot", "buildings.Depot");
     biome_ui_bindToolButton(it->world, "hud.toolbar.habitat", "buildings.Habitat");
     biome_ui_bindToolButton(it->world, "hud.toolbar.lights", "buildings.Lights");
     biome_ui_bindToolButton(it->world, "hud.toolbar.biome", "buildings.Biome");

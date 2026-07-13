@@ -3,7 +3,7 @@
 void biome_playerAttr_addFlag(
     ecs_world_t *world,
     const char *name,
-    int8_t flag)
+    int64_t flag)
 {
     ecs_entity_t player = ecs_lookup(world, "player");
     if (!player) {
@@ -23,7 +23,7 @@ void biome_playerAttr_addFlag(
         return;
     }
 
-    *(int8_t*)value.ptr |= flag;
+    *(int64_t*)value.ptr |= flag;
 
     ecs_const_var_modified(world, var);
 }

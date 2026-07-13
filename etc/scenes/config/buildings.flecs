@@ -85,6 +85,20 @@ buildings {
         Rgba: {230, 230, 80, 255}
     }
 
+    prefab ElectricalConnection {
+        {
+            Position3: {-1.25, 0.75, 0}
+            Box: {2.5, 0.3, 0.3}
+            Rgba: {230, 230, 80, 255}
+        }
+
+        {
+            Position3: {0, 0.3, 0}
+            Box: {0.3, 0.9, 0.3}
+            Rgba: {230, 230, 80, 255}
+        }
+    }
+
     prefab ElectricityPole {
         Building: {
             can_doze: true
@@ -315,6 +329,13 @@ buildings {
         out: ElectricityWire
         rotate: true
         follow_slope: true
+    )
+
+    BuildingRule2x1 (
+        left: [ElectricityPole]
+        right: [Base, Depot, Habitat, Biome]
+        out: ElectricalConnection
+        rotate: true
     )
 
     BuildingRule2x1 (

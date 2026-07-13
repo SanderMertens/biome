@@ -4,7 +4,7 @@
 void biome_playerAttr_addFlag(
     ecs_world_t *world,
     const char *name,
-    int8_t flag);
+    int64_t flag);
 
 void biome_playerAttr_set(
     ecs_world_t *world,

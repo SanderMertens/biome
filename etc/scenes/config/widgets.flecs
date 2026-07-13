@@ -78,7 +78,7 @@ template Gauge {
 
   label {
     Position: {x: 0, y: (height - size) / 2}
-    Text: {text: "{value}", size: size, align: Center}
+    Text: {text: "{value:.0}", size: size, align: Center}
     Rgba: {235, 238, 245, 255}
   }
 }
