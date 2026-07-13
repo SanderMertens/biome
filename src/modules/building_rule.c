@@ -144,7 +144,10 @@ static int32_t biome_building_rule_matching_rotations(
         return 0;
     }
 
-    int8_t forward_rotation = vertical ? 1 : 0;
+    /* Positive Y rotation maps local +X towards world -Z. Use -90 degrees
+     * for a vertical forward pattern so local -X still points at the first
+     * (top) tile, just like it points at the first (left) tile horizontally. */
+    int8_t forward_rotation = vertical ? -1 : 0;
     if (biome_building_rule_slot_matches(
         occupancy, first, first_mask) &&
         biome_building_rule_slot_matches(occupancy, second, second_mask))
