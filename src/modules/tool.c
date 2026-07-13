@@ -396,6 +396,25 @@ static bool biome_tool_regionOverlaps(
     return overlaps_vertical || overlaps_horizontal;
 }
 
+static float biome_tool_maxHeight(
+    const FlecsTerrain *t,
+    int32_t x,
+    int32_t y,
+    int32_t fw,
+    int32_t fh)
+{
+    float height = flecsEngine_terrainCellHeight(t, x, y);
+    for (int32_t cy = y; cy < y + fh; cy ++) {
+        for (int32_t cx = x; cx < x + fw; cx ++) {
+            float cell_height = flecsEngine_terrainCellHeight(t, cx, cy);
+            if (cell_height > height) {
+                height = cell_height;
+            }
+        }
+    }
+    return height;
+}
+
 static void biome_tool_ghostInstance(
     const FlecsTerrain *t,
     const FlecsPosition3 *terrain_pos,
@@ -407,15 +426,7 @@ static void biome_tool_ghostInstance(
 {
     float px = ((float)x + (float)fw * 0.5f) * t->cell_size;
     float pz = ((float)y + (float)fh * 0.5f) * t->cell_size;
-    float py = flecsEngine_terrainCellHeight(t, x, y);
-    for (int32_t cy = y; cy < y + fh; cy ++) {
-        for (int32_t cx = x; cx < x + fw; cx ++) {
-            float ch = flecsEngine_terrainCellHeight(t, cx, cy);
-            if (ch > py) {
-                py = ch;
-            }
-        }
-    }
+    float py = biome_tool_maxHeight(t, x, y, fw, fh);
 
     if (terrain_pos) {
         px += terrain_pos->x;
@@ -447,15 +458,7 @@ static void biome_tool_burst(
     float pos[3];
     pos[0] = ((float)x + (float)fw * 0.5f) * t->cell_size;
     pos[2] = ((float)y + (float)fh * 0.5f) * t->cell_size;
-    pos[1] = flecsEngine_terrainCellHeight(t, x, y);
-    for (int32_t cy = y; cy < y + fh; cy ++) {
-        for (int32_t cx = x; cx < x + fw; cx ++) {
-            float ch = flecsEngine_terrainCellHeight(t, cx, cy);
-            if (ch > pos[1]) {
-                pos[1] = ch;
-            }
-        }
-    }
+    pos[1] = biome_tool_maxHeight(t, x, y, fw, fh);
 
     if (terrain_pos) {
         pos[0] += terrain_pos->x;
@@ -825,6 +828,13 @@ void BiomeToolUpdate(ecs_iter_t *it) {
                     t, occ, sx, sy, fw, fh, requirement_mask))
                 {
                     continue;
+                }
+
+                if (fw > 1 || fh > 1) {
+                    float target_height = biome_tool_maxHeight(
+                        t, sx, sy, fw, fh);
+                    flecsEngine_terrain_setHeight(
+                        world, terrain, sx, sy, fw, fh, target_height);
                 }
 
                 ecs_entity_t building = ecs_new_w_pair(

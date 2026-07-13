@@ -9,14 +9,23 @@
         ]
     },
     "test": {
-        "testsuites": [{
-            "id": "Transform3",
-            "testcases": [
-                "child_world_transform",
-                "gltf_preserves_root_transform",
-                "gltf_prefab_instantiates_mesh_child",
-                "gltf_nested_prefab_instantiates_mesh_child"
-            ]
-        }]
+        "testsuites": [
+            {
+                "id": "Transform3",
+                "testcases": [
+                    "child_world_transform",
+                    "gltf_preserves_root_transform",
+                    "gltf_prefab_instantiates_mesh_child",
+                    "gltf_nested_prefab_instantiates_mesh_child"
+                ]
+            },
+            {
+                "id": "Terrain",
+                "testcases": [
+                    "set_height_flattens_footprint",
+                    "set_height_refreshes_positions"
+                ]
+            }
+        ]
     }
 }

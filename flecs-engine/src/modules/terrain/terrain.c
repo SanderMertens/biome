@@ -374,6 +374,38 @@ static void FlecsTerrain_on_set(
     }
 }
 
+void flecsEngine_terrain_setHeight(
+    ecs_world_t *world,
+    ecs_entity_t terrainEntity,
+    int32_t x,
+    int32_t z,
+    int32_t width,
+    int32_t depth,
+    float targetHeight)
+{
+    FlecsTerrain *t = ecs_get_mut(world, terrainEntity, FlecsTerrain);
+    if (!t || x < 0 || z < 0 || width <= 0 || depth <= 0 ||
+        x >= t->width || z >= t->depth ||
+        width > t->width - x || depth > t->depth - z)
+    {
+        return;
+    }
+
+    if (ecs_vec_count(&t->heights) != (t->width + 1) * (t->depth + 1)) {
+        return;
+    }
+
+    float *heights = ecs_vec_first_t(&t->heights, float);
+    int32_t stride = t->width + 1;
+    for (int32_t cz = z; cz <= z + depth; cz ++) {
+        for (int32_t cx = x; cx <= x + width; cx ++) {
+            heights[cz * stride + cx] = targetHeight;
+        }
+    }
+
+    ecs_modified(world, terrainEntity, FlecsTerrain);
+}
+
 float flecsEngine_terrainCellHeight(
     const FlecsTerrain *t,
     int32_t x,
