@@ -223,12 +223,61 @@ static flecs_rgba_t biomeGroundColor(
     };
 }
 
+static float biomeLerp(float a, float b, float t) {
+    return a + (b - a) * t;
+}
+
+static WeatherGroundTile biomeSampleGroundLinear(
+    const WeatherGroundTile *ground,
+    int32_t width,
+    int32_t depth,
+    int32_t scale,
+    int32_t x,
+    int32_t z)
+{
+    /* Layer values represent samples at the centers of their cells. Convert
+     * the terrain cell center to that coordinate space before interpolating. */
+    float fx = ((float)x + 0.5f) / (float)scale - 0.5f;
+    float fz = ((float)z + 0.5f) / (float)scale - 0.5f;
+    fx = biomeClampf(fx, 0, (float)(width - 1));
+    fz = biomeClampf(fz, 0, (float)(depth - 1));
+
+    int32_t x0 = (int32_t)floorf(fx);
+    int32_t z0 = (int32_t)floorf(fz);
+    int32_t x1 = x0 + 1 < width ? x0 + 1 : x0;
+    int32_t z1 = z0 + 1 < depth ? z0 + 1 : z0;
+    float tx = fx - (float)x0;
+    float tz = fz - (float)z0;
+
+    const WeatherGroundTile *g00 = &ground[z0 * width + x0];
+    const WeatherGroundTile *g10 = &ground[z0 * width + x1];
+    const WeatherGroundTile *g01 = &ground[z1 * width + x0];
+    const WeatherGroundTile *g11 = &ground[z1 * width + x1];
+
+#define BIOME_SAMPLE_FIELD(field) biomeLerp( \
+    biomeLerp(g00->field, g10->field, tx), \
+    biomeLerp(g01->field, g11->field, tx), tz)
+
+    WeatherGroundTile result = {
+        .temperature = BIOME_SAMPLE_FIELD(temperature),
+        .moisture = BIOME_SAMPLE_FIELD(moisture),
+        .water = BIOME_SAMPLE_FIELD(water),
+        .frozen = BIOME_SAMPLE_FIELD(frozen),
+        .albedo = BIOME_SAMPLE_FIELD(albedo)
+    };
+
+#undef BIOME_SAMPLE_FIELD
+
+    return result;
+}
+
 void ApplyTerrainColors(ecs_iter_t *it) {
     ecs_assert(it->count == 1, ECS_INVALID_OPERATION, "can only have one terrain");
 
     ecs_world_t *world = it->world;
     ecs_entity_t e = it->entities[0];
     FlecsTerrain *t = ecs_field(it, FlecsTerrain, 0);
+    const Terrain *cfg = ecs_get(world, e, Terrain);
 
     int32_t cells = t->width * t->depth;
     if (cells <= 0 || ecs_vec_count(&t->colors) != cells) {
@@ -256,19 +305,24 @@ void ApplyTerrainColors(ecs_iter_t *it) {
         return;
     }
 
+    TerrainSampleKind sample_kind = cfg
+        ? cfg->sample_kind
+        : TerrainSampleKindNearest;
     for (int32_t z = 0; z < t->depth; z ++) {
-        int32_t ground_z = z / ground_scale;
-        if (ground_z >= ground_d) {
-            ground_z = ground_d - 1;
-        }
-        const WeatherGroundTile *ground_row = &ground[ground_z * ground_w];
         for (int32_t x = 0; x < t->width; x ++) {
             int32_t i = z * t->width + x;
-            int32_t ground_x = x / ground_scale;
-            if (ground_x >= ground_w) {
-                ground_x = ground_w - 1;
+            if (sample_kind == TerrainSampleKindLinear) {
+                WeatherGroundTile sample = biomeSampleGroundLinear(
+                    ground, ground_w, ground_d, ground_scale, x, z);
+                colors[i] = biomeGroundColor(&sample, &soil[i]);
+            } else {
+                int32_t ground_x = x / ground_scale;
+                int32_t ground_z = z / ground_scale;
+                if (ground_x >= ground_w) ground_x = ground_w - 1;
+                if (ground_z >= ground_d) ground_z = ground_d - 1;
+                colors[i] = biomeGroundColor(
+                    &ground[ground_z * ground_w + ground_x], &soil[i]);
             }
-            colors[i] = biomeGroundColor(&ground_row[ground_x], &soil[i]);
         }
     }
 
@@ -503,6 +557,10 @@ static void TerrainScatterOnSet(ecs_iter_t *it) {
 void biomeTerrainImport(ecs_world_t *world) {
     ECS_MODULE(world, biomeTerrain);
 
+    ecs_set_name_prefix(world, "Terrain");
+    ECS_META_COMPONENT(world, TerrainSampleKind);
+
+    ecs_set_name_prefix(world, NULL);
     ECS_META_COMPONENT(world, Terrain);
 
     ecs_set_name_prefix(world, "Terrain");

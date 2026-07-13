@@ -16,6 +16,11 @@
 #define TerrainPowerIndex (5)
 #define TerrainWeatherScale (4)
 
+ECS_ENUM(TerrainSampleKind, {
+    TerrainSampleKindNearest,
+    TerrainSampleKindLinear,
+});
+
 ECS_STRUCT(TerrainSoil, {
     float sedimentFactor;          /* 0: solid rock, 1: fine sand */
     float fertility;               /* 0: no nutrients, 1: maximum nutrients */
@@ -39,6 +44,7 @@ ECS_STRUCT(TerrainScatter,  {
 ECS_STRUCT(Terrain, {
     int16_t width;
     int16_t height;
+    TerrainSampleKind sample_kind;
     float scale;
     int16_t octaves;
     int16_t warp_octaves;

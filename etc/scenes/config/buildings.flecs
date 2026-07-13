@@ -326,26 +326,26 @@ buildings {
 
     BuildingRule2x1 (
         left: [ElectricityPole]
-        right: [Base, Depot, Habitat, Biome]
+        right: [Base, Depot, Habitat, Biome, Solar, Drill]
         out: ElectricalConnection
         rotate: true
     )
 
     BuildingRule2x1 (
         top: [Base]
-        bottom: [Habitat, Storage, Biome]
+        bottom: [Habitat, Depot, Biome]
         out: Corridor
     )
 
     BuildingRule2x1 (
-        top: [Habitat, Storage, Biome]
+        top: [Habitat, Depot, Biome]
         bottom: [Base]
         out: Corridor
     )
 
     BuildingRule2x1 (
-        left: [Habitat, Storage, Biome]
-        right: [Habitat, Storage, Biome]
+        left: [Habitat, Depot, Biome]
+        right: [Habitat, Depot, Biome]
         out: Corridor
         rotate: true
     )

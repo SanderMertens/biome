@@ -90,7 +90,7 @@ sky {
             moon_light: moon,
             stars: stars,
             atmosphere: atmosphere,
-            hour: 6.5,
+            hour: 9,
             day_of_year: 140,
             latitude: 28,
             north_offset: 45

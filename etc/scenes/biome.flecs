@@ -21,6 +21,7 @@ $ {
     terrain.Terrain: {
         width: 128 // tiles
         height: 128
+        sample_kind: Linear
         scale: 60
         octaves: 5
         warp_octaves: 3
