@@ -9,14 +9,14 @@ player {
         BuildingsPlaced & (1 << b[BuildingBit])
     }
 
-    export const ResourceTotals = Storage: [
+    export const ResourceTotals = StorageMap: [
         Iron: 0
         Copper: 0
         Carbon: 0
         Silica: 0
     ]
 
-    export const ResourceCapacityTotals = Storage: [
+    export const ResourceCapacityTotals = StorageMap: [
         Iron: 0
         Copper: 0
         Carbon: 0

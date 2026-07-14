@@ -1,3 +1,5 @@
+#define BIOME_MINER_IMPL
+
 #include "biome.h"
 
 typedef int32_t BiomeResourceMinerFrames;
@@ -69,11 +71,13 @@ static void BiomeResourceMinerPlace(ecs_iter_t *it) {
 static bool biome_miner_isActive(
     const ecs_world_t *world,
     const BiomeResourceMiner *miner,
-    const BiomeResourceSource *source,
-    const BiomeResourceSourceDesc *desc,
+    const BiomeResourceStorage *storage,
+    const BiomeResourceStorageDesc *desc,
     const BiomePowerConsumer *power)
 {
-    if (!power->powered || desc->capacity <= 0 || !miner->deposit ||
+    if (!power->powered ||
+        desc->kind != BiomeResourceStorageKindSource ||
+        desc->capacity <= 0 || !miner->deposit ||
         !ecs_is_alive(world, miner->deposit))
     {
         return false;
@@ -91,22 +95,22 @@ static bool biome_miner_isActive(
         return false;
     }
 
-    if (!ecs_map_is_init(source)) {
+    if (!ecs_map_is_init(&storage->resources)) {
         return true;
     }
 
     const int32_t *stored = (const int32_t*)ecs_map_get(
-        source, (ecs_map_key_t)deposit->resource);
+        &storage->resources, (ecs_map_key_t)deposit->resource);
     return !stored || *stored < desc->capacity;
 }
 
 static void BiomeResourceMinerUpdateEmitter(ecs_iter_t *it) {
     const BiomeResourceMiner *miners = ecs_field(
         it, BiomeResourceMiner, 0);
-    const BiomeResourceSource *sources = ecs_field(
-        it, BiomeResourceSource, 1);
-    const BiomeResourceSourceDesc *descs = ecs_field(
-        it, BiomeResourceSourceDesc, 2);
+    const BiomeResourceStorage *storages = ecs_field(
+        it, BiomeResourceStorage, 1);
+    const BiomeResourceStorageDesc *descs = ecs_field(
+        it, BiomeResourceStorageDesc, 2);
     const BiomePowerConsumer *power = ecs_field(
         it, BiomePowerConsumer, 3);
     FlecsParticleEmitter *emitters = ecs_field(
@@ -114,24 +118,26 @@ static void BiomeResourceMinerUpdateEmitter(ecs_iter_t *it) {
 
     for (int32_t i = 0; i < it->count; i ++) {
         emitters[i].enabled = biome_miner_isActive(
-            it->world, &miners[i], &sources[i], &descs[i], &power[i]);
+            it->world, &miners[i], &storages[i], &descs[i], &power[i]);
     }
 }
 
 static void BiomeResourceMinerUpdate(ecs_iter_t *it) {
     const BiomeResourceMiner *miners = ecs_field(
         it, BiomeResourceMiner, 0);
-    BiomeResourceSource *sources = ecs_field(
-        it, BiomeResourceSource, 1);
-    const BiomeResourceSourceDesc *descs = ecs_field(
-        it, BiomeResourceSourceDesc, 2);
+    BiomeResourceStorage *storages = ecs_field(
+        it, BiomeResourceStorage, 1);
+    const BiomeResourceStorageDesc *descs = ecs_field(
+        it, BiomeResourceStorageDesc, 2);
     BiomeResourceMinerFrames *frames = ecs_field(
         it, BiomeResourceMinerFrames, 3);
     const BiomePowerConsumer *power = ecs_field(
         it, BiomePowerConsumer, 4);
 
     for (int32_t i = 0; i < it->count; i ++) {
-        if (!power[i].powered) {
+        if (!power[i].powered ||
+            descs[i].kind != BiomeResourceStorageKindSource)
+        {
             continue;
         }
 
@@ -169,13 +175,13 @@ static void BiomeResourceMinerUpdate(ecs_iter_t *it) {
             continue;
         }
 
-        BiomeResourceSource *source = &sources[i];
-        if (!ecs_map_is_init(source)) {
-            ecs_map_init(source, NULL);
+        BiomeResourceStorage *storage = &storages[i];
+        if (!ecs_map_is_init(&storage->resources)) {
+            ecs_map_init(&storage->resources, NULL);
         }
 
         int32_t *stored = (int32_t*)ecs_map_ensure(
-            source, (ecs_map_key_t)deposit->resource);
+            &storage->resources, (ecs_map_key_t)deposit->resource);
         int32_t room = descs[i].capacity - *stored;
         if (room <= 0) {
             continue;
@@ -196,7 +202,7 @@ static void BiomeResourceMinerUpdate(ecs_iter_t *it) {
         ecs_set_ptr(it->world, deposit_entity,
             BiomeResourceDeposit, &updated_deposit);
         ecs_modified_id(it->world, it->entities[i],
-            ecs_id(BiomeResourceSource));
+            ecs_id(BiomeResourceStorage));
     }
 }
 
@@ -205,6 +211,10 @@ void biomeMinerImport(ecs_world_t *world) {
 
     ECS_IMPORT(world, biomeResources);
     ECS_IMPORT(world, biomeTerrainItemIndex);
+
+    ecs_set_name_prefix(world, "BiomeResource");
+    ECS_META_COMPONENT(world, BiomeResourceDeposit);
+    ECS_META_COMPONENT(world, BiomeResourceMiner);
 
     ecs_set_name_prefix(world, "BiomeResourceMiner");
     ECS_COMPONENT_DEFINE(world, BiomeResourceMinerFrames);
@@ -227,17 +237,29 @@ void biomeMinerImport(ecs_world_t *world) {
         .callback = BiomeResourceMinerPlace
     });
 
-    ECS_SYSTEM(world, BiomeResourceMinerUpdateEmitter, EcsPreUpdate,
-        [in] BiomeResourceMiner,
-        [in] BiomeResourceSource,
-        [in] BiomeResourceSourceDesc,
-        [in] BiomePowerConsumer,
-        [inout] FlecsParticleEmitter);
+    ecs_system(world, {
+        .entity = ecs_entity(world, { .name = "UpdateEmitter" }),
+        .query.terms = {
+            { .id = ecs_id(BiomeResourceMiner), .inout = EcsIn },
+            { .id = ecs_id(BiomeResourceStorage), .inout = EcsIn },
+            { .id = ecs_id(BiomeResourceStorageDesc), .inout = EcsIn },
+            { .id = ecs_id(BiomePowerConsumer), .inout = EcsIn },
+            { .id = ecs_id(FlecsParticleEmitter) }
+        },
+        .phase = EcsPreUpdate,
+        .callback = BiomeResourceMinerUpdateEmitter
+    });
 
-    ECS_SYSTEM(world, BiomeResourceMinerUpdate, EcsOnUpdate,
-        [in] BiomeResourceMiner,
-        [inout] BiomeResourceSource,
-        [in] BiomeResourceSourceDesc,
-        [inout] BiomeResourceMinerFrames,
-        [in] BiomePowerConsumer);
+    ecs_system(world, {
+        .entity = ecs_entity(world, { .name = "Update" }),
+        .query.terms = {
+            { .id = ecs_id(BiomeResourceMiner), .inout = EcsIn },
+            { .id = ecs_id(BiomeResourceStorage) },
+            { .id = ecs_id(BiomeResourceStorageDesc), .inout = EcsIn },
+            { .id = ecs_id(BiomeResourceMinerFrames) },
+            { .id = ecs_id(BiomePowerConsumer), .inout = EcsIn }
+        },
+        .phase = EcsOnUpdate,
+        .callback = BiomeResourceMinerUpdate
+    });
 }

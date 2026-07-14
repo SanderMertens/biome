@@ -10,6 +10,8 @@
 #include "biome/precipitation.h"
 #include "biome/cloud.h"
 #include "biome/resources.h"
+#include "biome/miner.h"
+#include "biome/logistics.h"
 #include "biome/factory.h"
 #include "biome/power.h"
 #include "biome/buildings.h"

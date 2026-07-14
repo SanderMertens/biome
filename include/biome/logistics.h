@@ -6,6 +6,28 @@
 #define ECS_META_IMPL EXTERN
 #endif
 
+ECS_ENUM(biome_logisticsRequestKind_t, {
+    BiomeRequestPickup,
+    BiomeRequestDropOff
+});
+
+// A request created by a building.
+ECS_STRUCT(BiomeLogisticsRequest, {
+    biome_logisticsRequestKind_t kind;
+    ecs_entity_t source;
+    ecs_entity_t resource;
+    int32_t amount;
+    int32_t priority;
+});
+
+void biome_logistics_postRequest(
+    ecs_world_t *world,
+    biome_logisticsRequestKind_t kind,
+    ecs_entity_t source,
+    ecs_entity_t resource,
+    int32_t amount,
+    int32_t priority);
+
 void biomeLogisticsImport(ecs_world_t *world);
 
 #endif

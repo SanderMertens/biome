@@ -40,8 +40,8 @@ template Button {
 
   Transition: [
       Rgba: {
-          duration: 0.5
-          timing_function: EaseInOut
+          duration: 0.15
+          timing_function: EaseIn
       }
   ]
 

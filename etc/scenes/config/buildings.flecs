@@ -44,15 +44,18 @@ buildings {
         }
 
         StorageDesc: {
+            kind: Storage
             capacity: 5000
         }
 
-        Storage: [ // map with stored resources
-            Iron:   5000
-            Copper: 5000
-            Silica: 5000
-            Carbon: 5000
-        ]
+        Storage: {
+            resources: [
+                Iron:   5000
+                Copper: 5000
+                Silica: 5000
+                Carbon: 5000
+            ]
+        }
 
         {
             Position3: {x: 2}
@@ -212,6 +215,13 @@ buildings {
             conductor: true
         }
 
+        StorageDesc: {
+            kind: Storage
+            capacity: 1000
+        }
+
+        Storage: {}
+
         Recipe: {
             inputs: [
                 Iron: 100
@@ -301,12 +311,12 @@ buildings {
             requires: [IronOre, CopperOre]
         }
 
-        SourceDesc: {
+        StorageDesc: {
+            kind: Source
             capacity: 100
         }
 
-        Source: []
-
+        Storage: {}
         Miner: {}
 
         Power: {

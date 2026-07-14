@@ -67,6 +67,7 @@ int main(int argc, char *argv[]) {
     ECS_IMPORT(world, biomePrecipitation);
     ECS_IMPORT(world, biomeCloud);
     ECS_IMPORT(world, biomeResources);
+    ECS_IMPORT(world, biomeLogistics);
     ECS_IMPORT(world, biomeFactory);
     ECS_IMPORT(world, biomePower);
     ECS_IMPORT(world, biomeBuildings);

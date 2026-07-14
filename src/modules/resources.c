@@ -2,9 +2,8 @@
 
 #include "biome.h"
 
-ECS_COMPONENT_DECLARE(BiomeResourceSource);
-ECS_COMPONENT_DECLARE(BiomeResourceStorage);
-ECS_COMPONENT_DECLARE(BiomeResourceSink);
+ECS_COMPONENT_DECLARE(BiomeResourceStorageMap);
+ECS_COMPONENT_DECLARE(biome_resource_storageKind_t);
 
 static void BiomeResourceSumTotals(ecs_iter_t *it) {
     ecs_map_t totals = {0};
@@ -16,6 +15,8 @@ static void BiomeResourceSumTotals(ecs_iter_t *it) {
     ecs_value_t v = biome_playerAttr_get(it->real_world, "ResourceTotals");
     if (!v.ptr) {
         ecs_err("ResourceTotals is missing");
+        ecs_map_fini(&totals);
+        ecs_map_fini(&capacityTotals);
         return;
     }
 
@@ -36,11 +37,13 @@ static void BiomeResourceSumTotals(ecs_iter_t *it) {
             BiomeResourceStorage *s = &storage[i];
             BiomeResourceStorageDesc *d = &desc[i];
 
-            if (!ecs_map_is_init(s)) {
+            if (d->kind != BiomeResourceStorageKindStorage ||
+                !ecs_map_is_init(&s->resources))
+            {
                 continue;
             }
 
-            mit = ecs_map_iter(s);
+            mit = ecs_map_iter(&s->resources);
             while (ecs_map_next(&mit)) {
                 ecs_entity_t resource = ecs_map_key(&mit);
 
@@ -60,13 +63,13 @@ static void BiomeResourceSumTotals(ecs_iter_t *it) {
     /* First make space, then up date totals */
     biome_playerAttr_set(it->real_world, "ResourceCapacityTotals", 
         &(ecs_value_t) {
-            .type = ecs_id(BiomeResourceStorage),
+            .type = ecs_id(BiomeResourceStorageMap),
             .ptr = &capacityTotals
         });
 
     biome_playerAttr_set(it->real_world, "ResourceTotals", 
         &(ecs_value_t) {
-            .type = ecs_id(BiomeResourceStorage),
+            .type = ecs_id(BiomeResourceStorageMap),
             .ptr = &totals
         });
 
@@ -77,31 +80,25 @@ static void BiomeResourceSumTotals(ecs_iter_t *it) {
 void biomeResourcesImport(ecs_world_t *world) {
     ECS_MODULE(world, biomeResources);
 
-    ecs_id(BiomeResourceSource) = ecs_map_type(world, {
+    ecs_id(BiomeResourceStorageMap) = ecs_map_type(world, {
         .entity = ecs_entity(world, {
-            .name = "Source",
-            .symbol = "BiomeResourceSource"
+            .name = "StorageMap",
+            .symbol = "BiomeResourceStorageMap"
         }),
         .key_type = ecs_id(ecs_entity_t),
         .type = ecs_id(ecs_i32_t)
     });
 
-    ecs_id(BiomeResourceStorage) = ecs_map_type(world, {
+    ecs_id(biome_resource_storageKind_t) = ecs_enum(world, {
         .entity = ecs_entity(world, {
-            .name = "Storage",
-            .symbol = "BiomeResourceStorage"
+            .name = "StorageKind",
+            .symbol = "biome_resource_storageKind_t"
         }),
-        .key_type = ecs_id(ecs_entity_t),
-        .type = ecs_id(ecs_i32_t)
-    });
-
-    ecs_id(BiomeResourceSink) = ecs_map_type(world, {
-        .entity = ecs_entity(world, {
-            .name = "Sink",
-            .symbol = "BiomeResourceSink"
-        }),
-        .key_type = ecs_id(ecs_entity_t),
-        .type = ecs_id(ecs_i32_t)
+        .constants = {
+            {"Source", BiomeResourceStorageKindSource},
+            {"Storage", BiomeResourceStorageKindStorage},
+            {"Sink", BiomeResourceStorageKindSink}
+        }
     });
 
     ecs_set_name_prefix(world, "Biome");
@@ -109,11 +106,8 @@ void biomeResourcesImport(ecs_world_t *world) {
     ECS_META_COMPONENT(world, BiomeRecipe);
 
     ecs_set_name_prefix(world, "BiomeResource");
-    ECS_META_COMPONENT(world, BiomeResourceSourceDesc);
     ECS_META_COMPONENT(world, BiomeResourceStorageDesc);
-    ECS_META_COMPONENT(world, BiomeResourceSinkDesc);
-    ECS_META_COMPONENT(world, BiomeResourceDeposit);
-    ECS_META_COMPONENT(world, BiomeResourceMiner);
+    ECS_META_COMPONENT(world, BiomeResourceStorage);
 
     ecs_system(world, {
         .query.terms = {

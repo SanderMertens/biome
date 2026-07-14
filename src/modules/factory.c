@@ -88,13 +88,18 @@ bool biome_factory_purchase(
     while (ecs_query_next(&it)) {
         BiomeResourceStorage *storage = ecs_field(
             &it, BiomeResourceStorage, 0);
+        const BiomeResourceStorageDesc *desc = ecs_field(
+            &it, BiomeResourceStorageDesc, 1);
         for (int32_t e = 0; e < it.count; e ++) {
-            if (!ecs_map_is_init(&storage[e])) {
+            if (desc[e].kind != BiomeResourceStorageKindStorage ||
+                !ecs_map_is_init(&storage[e].resources))
+            {
                 continue;
             }
 
             for (i = 0; i < num_inputs; i ++) {
-                ecs_map_val_t *v = ecs_map_get(&storage[e], resources[i]);
+                ecs_map_val_t *v = ecs_map_get(
+                    &storage[e].resources, resources[i]);
                 if (v) {
                     available[i] += *(int32_t*)v;
                 }
@@ -115,8 +120,12 @@ bool biome_factory_purchase(
         while (ecs_query_next(&it)) {
             BiomeResourceStorage *storage = ecs_field(
                 &it, BiomeResourceStorage, 0);
+            const BiomeResourceStorageDesc *desc = ecs_field(
+                &it, BiomeResourceStorageDesc, 1);
             for (int32_t e = 0; e < it.count; e ++) {
-                if (!ecs_map_is_init(&storage[e])) {
+                if (desc[e].kind != BiomeResourceStorageKindStorage ||
+                    !ecs_map_is_init(&storage[e].resources))
+                {
                     continue;
                 }
 
@@ -127,7 +136,7 @@ bool biome_factory_purchase(
                     }
 
                     ecs_map_val_t *v = ecs_map_get(
-                        &storage[e], resources[i]);
+                        &storage[e].resources, resources[i]);
                     if (!v) {
                         continue;
                     }
@@ -203,10 +212,12 @@ void biome_factory_refund(
     while (ecs_query_next(&it)) {
         BiomeResourceStorage *storage = ecs_field(
             &it, BiomeResourceStorage, 0);
-        BiomeResourceStorageDesc *desc = ecs_field(
+        const BiomeResourceStorageDesc *desc = ecs_field(
             &it, BiomeResourceStorageDesc, 1);
         for (int32_t e = 0; e < it.count; e ++) {
-            if (!ecs_map_is_init(&storage[e])) {
+            if (desc[e].kind != BiomeResourceStorageKindStorage ||
+                !ecs_map_is_init(&storage[e].resources))
+            {
                 continue;
             }
 
@@ -217,7 +228,8 @@ void biome_factory_refund(
                     continue;
                 }
 
-                ecs_map_val_t *v = ecs_map_get(&storage[e], resources[i]);
+                ecs_map_val_t *v = ecs_map_get(
+                    &storage[e].resources, resources[i]);
                 if (!v) {
                     continue;
                 }
