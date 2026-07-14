@@ -122,6 +122,46 @@ static void BiomeResourceMinerUpdateEmitter(ecs_iter_t *it) {
     }
 }
 
+static void biome_miner_postPickupRequests(
+    ecs_world_t *world,
+    ecs_entity_t miner,
+    ecs_entity_t resource_entity,
+    const BiomeResource *resource,
+    BiomeResourceStorage *storage,
+    int32_t stored)
+{
+    int32_t pickup_amount = resource->min_pickup_amount;
+    if (pickup_amount <= 0) {
+        return;
+    }
+
+    int32_t reserved_amount = 0;
+    int32_t *reserved = NULL;
+    if (ecs_map_is_init(&storage->reserved)) {
+        reserved = (int32_t*)ecs_map_get(
+            &storage->reserved, (ecs_map_key_t)resource_entity);
+        if (reserved) {
+            reserved_amount = *reserved;
+        }
+    }
+
+    while ((int64_t)stored - reserved_amount >= pickup_amount) {
+        if (!reserved) {
+            if (!ecs_map_is_init(&storage->reserved)) {
+                ecs_map_init(&storage->reserved, NULL);
+            }
+            reserved = (int32_t*)ecs_map_ensure(
+                &storage->reserved, (ecs_map_key_t)resource_entity);
+        }
+
+        reserved_amount += pickup_amount;
+        *reserved = reserved_amount;
+
+        biome_logistics_postRequest(world, BiomeRequestPickup,
+            miner, resource_entity, pickup_amount, 0);
+    }
+}
+
 static void BiomeResourceMinerUpdate(ecs_iter_t *it) {
     const BiomeResourceMiner *miners = ecs_field(
         it, BiomeResourceMiner, 0);
@@ -196,6 +236,8 @@ static void BiomeResourceMinerUpdate(ecs_iter_t *it) {
         }
 
         *stored += amount;
+        biome_miner_postPickupRequests(it->world, it->entities[i],
+            deposit->resource, resource, storage, *stored);
 
         BiomeResourceDeposit updated_deposit = *deposit;
         updated_deposit.amount -= amount;
@@ -210,6 +252,7 @@ void biomeMinerImport(ecs_world_t *world) {
     ECS_MODULE(world, biomeMiner);
 
     ECS_IMPORT(world, biomeResources);
+    ECS_IMPORT(world, biomeLogistics);
     ECS_IMPORT(world, biomeTerrainItemIndex);
 
     ecs_set_name_prefix(world, "BiomeResource");
