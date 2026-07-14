@@ -56,12 +56,18 @@ FlecsGpuMaterial flecsEngine_material_pack(
     const FlecsEmissive *emissive,
     const FlecsTransmission *transmission,
     const FlecsTextureTransform *tex_transform,
-    const FlecsTint *tint);
+    const FlecsActualTint *tint);
 
 FlecsGpuMaterial flecsEngine_material_tintShared(
     const FlecsEngineImpl *engine,
     uint32_t material_id,
-    const FlecsTint *tint);
+    const FlecsActualTint *tint);
+
+const FlecsRgba* flecsEngine_material_resolveRgba(
+    const ecs_world_t *world,
+    ecs_entity_t entity,
+    const FlecsRgba *fallback,
+    FlecsRgba *storage);
 
 flecsEngine_default_attr_cache_t* flecsEngine_defaultAttrCache_create(void);
 

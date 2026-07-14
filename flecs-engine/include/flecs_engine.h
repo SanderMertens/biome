@@ -37,6 +37,7 @@ extern ECS_COMPONENT_DECLARE(flecs_rgba_t);
 
 #include "modules/surface.h"
 #include "modules/engine.h"
+#include "modules/transition.h"
 #include "modules/renderer.h"
 #include "modules/render_batches.h"
 #include "modules/render_effects.h"

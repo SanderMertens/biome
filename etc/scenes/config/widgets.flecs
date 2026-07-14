@@ -1,6 +1,6 @@
 module biome.widgets
 
-using flecs.engine.ui
+using flecs.engine.*
 using flecs.engine.material
 
 export const FontSize: 18
@@ -37,6 +37,13 @@ template Button {
   if $this[WidgetState].lmb_down {
     Rgba: HighlightColor
   }
+
+  Transition: [
+      Rgba: {
+          duration: 0.5
+          timing_function: EaseInOut
+      }
+  ]
 
   label {
     Position: {x: 0, y: (height - size) / 2}

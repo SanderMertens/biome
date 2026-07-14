@@ -104,7 +104,9 @@ static void flecsEngine_sunShafts_fillUniform(
     if (shafts->light) {
         const FlecsRgba *light_color = ecs_get(world, shafts->light, FlecsRgba);
         if (light_color) {
-            light_rgb = *light_color;
+            FlecsRgba storage;
+            light_rgb = *flecsEngine_material_resolveRgba(
+                world, shafts->light, light_color, &storage);
             shaft_rgb = &light_rgb;
         }
     }

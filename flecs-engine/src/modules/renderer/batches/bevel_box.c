@@ -244,11 +244,20 @@ static void flecsEngine_bevel_box_extract(
             ecs_field(&it, FlecsWorldTransform3, 2);
 
         for (int32_t i = 0; i < it.count; i ++) {
-            float w = box[i].x, h = box[i].y, d = box[i].z;
-            float r = bevel[i].radius;
+            const FlecsBox *actual_box = flecs_transition_get(
+                world, it.entities[i], ecs_id(FlecsBox));
+            const FlecsBevel *actual_bevel = flecs_transition_get(
+                world, it.entities[i], ecs_id(FlecsBevel));
+            const FlecsWorldTransform3 *actual_wt = flecs_transition_get(
+                world, it.entities[i], ecs_id(FlecsWorldTransform3));
+            if (!actual_box) actual_box = &box[i];
+            if (!actual_bevel) actual_bevel = &bevel[i];
+            if (!actual_wt) actual_wt = &wt[i];
+            float w = actual_box->x, h = actual_box->y, d = actual_box->z;
+            float r = actual_bevel->radius;
             int32_t seg = flecsEngine_bevel_box_clampSegments(
-                bevel[i].segments);
-            int32_t sm = bevel[i].smooth ? 1 : 0;
+                actual_bevel->segments);
+            int32_t sm = actual_bevel->smooth ? 1 : 0;
 
             int32_t qi = ctx->quad_batch.view.offset + quad_fill;
             int32_t bi = ctx->bevel_batches[seg][sm].view.offset +
@@ -257,11 +266,11 @@ static void flecsEngine_bevel_box_extract(
                 corner_fill[seg][sm];
 
             flecsEngine_bevel_box_generateQuads(
-                buf->buffers.cpu_transforms, qi, &wt[i], w, h, d, r);
+                buf->buffers.cpu_transforms, qi, actual_wt, w, h, d, r);
             flecsEngine_bevel_box_generateBevels(
-                buf->buffers.cpu_transforms, bi, &wt[i], w, h, d, r);
+                buf->buffers.cpu_transforms, bi, actual_wt, w, h, d, r);
             flecsEngine_bevel_box_generateCorners(
-                buf->buffers.cpu_transforms, ci, &wt[i], w, h, d, r);
+                buf->buffers.cpu_transforms, ci, actual_wt, w, h, d, r);
 
             if (owns_material_data) {
                 const FlecsRgba *colors =
@@ -271,10 +280,16 @@ static void flecsEngine_bevel_box_extract(
                 const FlecsEmissive *emissives =
                     ecs_field(&it, FlecsEmissive, 5);
 
-                const FlecsRgba *c = colors ? &colors[i] : NULL;
-                const FlecsPbrMaterial *p = pbrs ? &pbrs[i] : NULL;
-                const FlecsEmissive *e = emissives ?
-                    &emissives[i] : NULL;
+                FlecsRgba color_storage;
+                const FlecsRgba *c = flecsEngine_material_resolveRgba(
+                    world, it.entities[i],
+                    colors ? &colors[i] : NULL, &color_storage);
+                const FlecsPbrMaterial *p = flecs_transition_get(
+                    world, it.entities[i], ecs_id(FlecsPbrMaterial));
+                const FlecsEmissive *e = flecs_transition_get(
+                    world, it.entities[i], ecs_id(FlecsEmissive));
+                if (!p && pbrs) p = &pbrs[i];
+                if (!e && emissives) e = &emissives[i];
 
                 flecsEngine_bevel_box_fillGpuMaterial(
                     buf, qi, FLECS_BEVEL_BOX_QUADS, engine, c, p, e);

@@ -1,0 +1,20 @@
+include resources
+
+using flecs.script
+using flecs.engine.*
+using biome.*
+using resources
+
+const droneGltf: "etc/assets/kaykit/space/Assets/gltf/lander_base.gltf"
+
+units {
+    prefab Drone {
+        Recipe: [
+            Iron: 100
+            Copper: 100
+            Silica: 100
+        ]
+
+        Gltf: {droneGltf}
+    }
+}

@@ -14,6 +14,9 @@ static void flecsEngine_extract_applyScaleAabb(
 }
 
 static void flecsEngine_extract_writeStaticEntry(
+    const ecs_world_t *world,
+    ecs_entity_t entity,
+    ecs_entity_t scale_component,
     const FlecsEngineImpl *engine,
     flecsEngine_batch_t *buf,
     flecsEngine_batch_group_t *ctx,
@@ -32,22 +35,30 @@ static void flecsEngine_extract_writeStaticEntry(
     const FlecsActualTint *tints)
 {
     flecsEngine_batch_buffers_t *bb = &buf->static_buffers;
+    const FlecsWorldTransform3 *actual_wt = flecs_transition_get(
+        world, entity, ecs_id(FlecsWorldTransform3));
+    const void *actual_scale = scale_data ? flecs_transition_get(
+        world, entity, scale_component) : NULL;
 
     FlecsAABB aabb = ctx->mesh.aabb;
     if (scale_aabb) {
         scale_aabb(&aabb,
-            scale_data ? ECS_ELEM(scale_data, scale_size, i) : NULL, 1);
+            actual_scale ? actual_scale :
+                (scale_data ? ECS_ELEM(scale_data, scale_size, i) : NULL), 1);
     }
-    flecsEngine_batch_worldAabb(&wt[i], aabb, &bb->cpu_aabb[slot]);
+    flecsEngine_batch_worldAabb(
+        actual_wt ? actual_wt : &wt[i], aabb, &bb->cpu_aabb[slot]);
 
     bb->cpu_slot_to_group[slot] = (uint32_t)ctx->static_view.group_idx;
 
     vec3 s = {1, 1, 1};
     if (scale_data) {
-        scale(ECS_ELEM(scale_data, scale_size, i), s);
+        scale(actual_scale ? actual_scale :
+            ECS_ELEM(scale_data, scale_size, i), s);
     }
     flecsEngine_batch_transformInstance(
-        &bb->cpu_transforms[slot], &wt[i], s[0], s[1], s[2]);
+        &bb->cpu_transforms[slot], actual_wt ? actual_wt : &wt[i],
+        s[0], s[1], s[2]);
 
     if (buf->flags & FLECS_BATCH_TINT) {
         bb->cpu_materials[slot] = flecsEngine_material_tintShared(
@@ -55,12 +66,24 @@ static void flecsEngine_extract_writeStaticEntry(
             material_id ? material_id[0].value : 0,
             tints ? &tints[i] : NULL);
     } else if (buf->flags & FLECS_BATCH_OWNS_MATERIAL) {
+        FlecsRgba color_storage;
+        const FlecsRgba *actual_color = flecsEngine_material_resolveRgba(
+            world, entity, colors ? &colors[i] : NULL, &color_storage);
+        const FlecsPbrMaterial *actual_material = flecs_transition_get(
+            world, entity, ecs_id(FlecsPbrMaterial));
+        const FlecsEmissive *actual_emissive = flecs_transition_get(
+            world, entity, ecs_id(FlecsEmissive));
+        const FlecsTransmission *actual_transmission = flecs_transition_get(
+            world, entity, ecs_id(FlecsTransmission));
         bb->cpu_materials[slot] = flecsEngine_material_pack(
             engine,
-            colors ? &colors[i] : NULL,
-            materials ? &materials[i] : NULL,
-            emissives ? &emissives[i] : NULL,
-            transmissions ? &transmissions[i] : NULL,
+            actual_color,
+            actual_material ? actual_material :
+                (materials ? &materials[i] : NULL),
+            actual_emissive ? actual_emissive :
+                (emissives ? &emissives[i] : NULL),
+            actual_transmission ? actual_transmission :
+                (transmissions ? &transmissions[i] : NULL),
             NULL,
             NULL);
     } else if (material_id) {
@@ -169,7 +192,9 @@ static void flecsEngine_batch_group_extractTable(
             }
 
             flecsEngine_extract_writeStaticEntry(
-                engine, buf, ctx, slot, i, wt, scale_data, scale_size,
+                it->world, e, ecs_field_id(it, 0), engine,
+                buf, ctx, slot, i, wt,
+                scale_data, scale_size,
                 scale, scale_aabb, material_id,
                 colors, materials, emissives, transmissions, tints);
 
@@ -202,27 +227,21 @@ static void flecsEngine_batch_group_extractTable(
         return;
     }
 
-    /* Build world AABBs into the padded GPU buffer. Apply optional primitive
-     * scale transformation to a copy of the mesh aabb per entity. */
-    FlecsAABB batch_aabb_tmp[256];
-    int32_t remaining = it->count;
-    int32_t src = 0;
-    while (remaining > 0) {
-        int32_t n = remaining > 256 ? 256 : remaining;
-        for (int32_t i = 0; i < n; i ++) {
-            batch_aabb_tmp[i] = mesh_aabb;
-        }
+    /* Build world AABBs from renderer-facing transition values. */
+    ecs_entity_t scale_component = ecs_field_id(it, 0);
+    for (int32_t i = 0; i < it->count; i ++) {
+        FlecsAABB aabb = mesh_aabb;
+        const void *actual_scale = scale_data ? flecs_transition_get(
+            it->world, it->entities[i], scale_component) : NULL;
         if (scale_aabb) {
-            scale_aabb(batch_aabb_tmp,
-                scale_data ? ECS_ELEM(scale_data, scale_size, src) : NULL, n);
+            scale_aabb(&aabb, actual_scale ? actual_scale :
+                (scale_data ? ECS_ELEM(scale_data, scale_size, i) : NULL), 1);
         }
-        for (int32_t i = 0; i < n; i ++) {
-            flecsEngine_batch_worldAabb(&wt[src + i], batch_aabb_tmp[i],
-                &buf->buffers.cpu_aabb[dst + i]);
-        }
-        src += n;
-        dst += n;
-        remaining -= n;
+        const FlecsWorldTransform3 *actual_wt = flecs_transition_get(
+            it->world, it->entities[i], ecs_id(FlecsWorldTransform3));
+        flecsEngine_batch_worldAabb(
+            actual_wt ? actual_wt : &wt[i], aabb,
+            &buf->buffers.cpu_aabb[dst ++]);
     }
 
     /* Fill slot_to_group */
@@ -235,12 +254,18 @@ static void flecsEngine_batch_group_extractTable(
     if (!owns_material) {
         for (int32_t i = 0; i < it->count; i ++) {
             vec3 s = {1, 1, 1};
+            const void *actual_scale = scale_data ? flecs_transition_get(
+                it->world, it->entities[i], scale_component) : NULL;
             if (scale_data) {
-                scale(ECS_ELEM(scale_data, scale_size, i), s);
+                scale(actual_scale ? actual_scale :
+                    ECS_ELEM(scale_data, scale_size, i), s);
             }
+            const FlecsWorldTransform3 *actual_wt = flecs_transition_get(
+                it->world, it->entities[i], ecs_id(FlecsWorldTransform3));
 
             flecsEngine_batch_transformInstance(
-                &buf->buffers.cpu_transforms[dst], &wt[i], s[0], s[1], s[2]);
+                &buf->buffers.cpu_transforms[dst],
+                actual_wt ? actual_wt : &wt[i], s[0], s[1], s[2]);
 
             buf->buffers.cpu_material_ids[dst] = material_id[0];
 
@@ -249,12 +274,18 @@ static void flecsEngine_batch_group_extractTable(
     } else {
         for (int32_t i = 0; i < it->count; i ++) {
             vec3 s = {1, 1, 1};
+            const void *actual_scale = scale_data ? flecs_transition_get(
+                it->world, it->entities[i], scale_component) : NULL;
             if (scale_data) {
-                scale(ECS_ELEM(scale_data, scale_size, i), s);
+                scale(actual_scale ? actual_scale :
+                    ECS_ELEM(scale_data, scale_size, i), s);
             }
+            const FlecsWorldTransform3 *actual_wt = flecs_transition_get(
+                it->world, it->entities[i], ecs_id(FlecsWorldTransform3));
 
             flecsEngine_batch_transformInstance(
-                &buf->buffers.cpu_transforms[dst], &wt[i], s[0], s[1], s[2]);
+                &buf->buffers.cpu_transforms[dst],
+                actual_wt ? actual_wt : &wt[i], s[0], s[1], s[2]);
 
             if (buf->flags & FLECS_BATCH_TINT) {
                 buf->buffers.cpu_materials[dst] =
@@ -263,12 +294,27 @@ static void flecsEngine_batch_group_extractTable(
                         material_id ? material_id[0].value : 0,
                         tints ? &tints[i] : NULL);
             } else {
+                FlecsRgba color_storage;
+                const FlecsRgba *actual_color =
+                    flecsEngine_material_resolveRgba(
+                        it->world, it->entities[i],
+                        colors ? &colors[i] : NULL, &color_storage);
+                const FlecsPbrMaterial *actual_material = flecs_transition_get(
+                    it->world, it->entities[i], ecs_id(FlecsPbrMaterial));
+                const FlecsEmissive *actual_emissive = flecs_transition_get(
+                    it->world, it->entities[i], ecs_id(FlecsEmissive));
+                const FlecsTransmission *actual_transmission =
+                    flecs_transition_get(it->world, it->entities[i],
+                        ecs_id(FlecsTransmission));
                 buf->buffers.cpu_materials[dst] = flecsEngine_material_pack(
                     engine,
-                    colors ? &colors[i] : NULL,
-                    materials ? &materials[i] : NULL,
-                    emissives ? &emissives[i] : NULL,
-                    transmissions ? &transmissions[i] : NULL,
+                    actual_color,
+                    actual_material ? actual_material :
+                        (materials ? &materials[i] : NULL),
+                    actual_emissive ? actual_emissive :
+                        (emissives ? &emissives[i] : NULL),
+                    actual_transmission ? actual_transmission :
+                        (transmissions ? &transmissions[i] : NULL),
                     NULL,
                     NULL);
             }

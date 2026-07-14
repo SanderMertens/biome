@@ -34,6 +34,8 @@ typedef struct {
     const FlecsPbrMaterial *pbr;
     const FlecsEmissive *emissive;
     const FlecsTint *tint;
+    FlecsRgba rgba_storage;
+    FlecsTint tint_storage;
     bool has_material;
     bool has_alpha;
 } flecsEngine_draw_override_t;
@@ -99,7 +101,7 @@ static const void* flecsEngine_draw_getFrom(
         if (src_out) {
             *src_out = node;
         }
-        return ecs_get_id(world, node, id);
+        return flecs_transition_get(world, node, id);
     }
     if (depth > FLECS_DRAW_MAX_DEPTH) {
         return NULL;
@@ -118,6 +120,57 @@ static const void* flecsEngine_draw_getFrom(
     return NULL;
 }
 
+static const void* flecsEngine_draw_getRawFrom(
+    const ecs_world_t *world,
+    ecs_entity_t node,
+    ecs_id_t id,
+    ecs_entity_t *src_out,
+    int32_t depth)
+{
+    if (ecs_owns_id(world, node, id)) {
+        if (src_out) {
+            *src_out = node;
+        }
+        return ecs_get_id(world, node, id);
+    }
+    if (depth > FLECS_DRAW_MAX_DEPTH) {
+        return NULL;
+    }
+    ecs_entity_t tgt;
+    int32_t i = 0;
+    while ((tgt = ecs_get_target(world, node, EcsIsA, i ++))) {
+        const void *ptr = flecsEngine_draw_getRawFrom(
+            world, tgt, id, src_out, depth + 1);
+        if (ptr) {
+            return ptr;
+        }
+    }
+    return NULL;
+}
+
+static const FlecsTint* flecsEngine_draw_resolveTint(
+    const ecs_world_t *world,
+    ecs_entity_t source,
+    const FlecsTint *fallback,
+    FlecsTint *storage)
+{
+    if (!source) {
+        return fallback;
+    }
+    const FlecsTransitionValue *value = flecs_transition_value_get(
+        world, source, ecs_id(FlecsTint));
+    if (!value) {
+        return fallback;
+    }
+    *storage = (FlecsTint){
+        (uint8_t)glm_clamp(value->value[0] + .5f, 0, 255),
+        (uint8_t)glm_clamp(value->value[1] + .5f, 0, 255),
+        (uint8_t)glm_clamp(value->value[2] + .5f, 0, 255),
+        (uint8_t)glm_clamp(value->value[3] + .5f, 0, 255)
+    };
+    return storage;
+}
+
 #define flecsEngine_draw_get(world, node, T) \
     ((const T*)flecsEngine_draw_getFrom(world, node, ecs_id(T), NULL, 0))
 
@@ -128,25 +181,43 @@ static void flecsEngine_draw_itemMaterial(
     const flecsEngine_draw_override_t *ov,
     flecsEngine_draw_item_t *item)
 {
-    const FlecsTint *tint = ov->tint ?
-        ov->tint : ecs_get(world, node, FlecsTint);
+    ecs_entity_t tint_src = 0;
+    const FlecsTint *raw_tint = flecsEngine_draw_getRawFrom(
+        world, node, ecs_id(FlecsTint), &tint_src, 0);
+    FlecsTint resolved_tint;
+    const FlecsTint *tint = ov->tint ? ov->tint :
+        flecsEngine_draw_resolveTint(
+            world, tint_src, raw_tint, &resolved_tint);
+    FlecsActualTint actual_tint;
+    const FlecsActualTint *tint_value = NULL;
+    if (tint) {
+        actual_tint = (FlecsActualTint){
+            (uint8_t)glm_clamp(tint->r + .5f, 0, 255),
+            (uint8_t)glm_clamp(tint->g + .5f, 0, 255),
+            (uint8_t)glm_clamp(tint->b + .5f, 0, 255),
+            (uint8_t)glm_clamp(tint->a + .5f, 0, 255)
+        };
+        tint_value = &actual_tint;
+    }
 
     item->texture_bucket = FLECS_ENGINE_BUCKET_UNSET;
 
     if (ov->has_material) {
         const FlecsPbrMaterial *pbr = ov->pbr ?
-            ov->pbr : ecs_get(world, node, FlecsPbrMaterial);
+            ov->pbr : flecs_transition_get(
+                world, node, ecs_id(FlecsPbrMaterial));
         const FlecsEmissive *emissive = ov->emissive ?
-            ov->emissive : ecs_get(world, node, FlecsEmissive);
+            ov->emissive : flecs_transition_get(
+                world, node, ecs_id(FlecsEmissive));
         item->material = flecsEngine_material_pack(
-            engine, ov->rgba, pbr, emissive, NULL, NULL, tint);
+            engine, ov->rgba, pbr, emissive, NULL, NULL, tint_value);
         return;
     }
 
     const FlecsMaterialId *mid = ecs_get(world, node, FlecsMaterialId);
     if (mid) {
         item->material = flecsEngine_material_tintShared(
-            engine, mid->value, tint);
+            engine, mid->value, tint_value);
         if (mid->value < engine->materials.count) {
             int8_t b = engine->materials.cpu_buckets[mid->value];
             if (b >= 0 && b < FLECS_ENGINE_TEXTURE_BUCKET_COUNT) {
@@ -154,11 +225,14 @@ static void flecsEngine_draw_itemMaterial(
             }
         }
     } else {
+        FlecsRgba rgba_storage;
         item->material = flecsEngine_material_pack(engine,
-            ecs_get(world, node, FlecsRgba),
-            ecs_get(world, node, FlecsPbrMaterial),
-            ecs_get(world, node, FlecsEmissive),
-            NULL, NULL, tint);
+            flecsEngine_material_resolveRgba(
+                world, node, ecs_get(world, node, FlecsRgba),
+                &rgba_storage),
+            flecs_transition_get(world, node, ecs_id(FlecsPbrMaterial)),
+            flecs_transition_get(world, node, ecs_id(FlecsEmissive)),
+            NULL, NULL, tint_value);
     }
 }
 
@@ -358,7 +432,8 @@ static void flecsEngine_draw_resolveNode(
 }
 
 #define flecsEngine_draw_owned(world, e, T) \
-    (ecs_owns(world, e, T) ? ecs_get(world, e, T) : NULL)
+    (ecs_owns(world, e, T) \
+        ? flecs_transition_get(world, e, ecs_id(T)) : NULL)
 
 static void flecsEngine_draw_resolvePrefab(
     const ecs_world_t *world,
@@ -371,12 +446,18 @@ static void flecsEngine_draw_resolvePrefab(
      * plain prefab variant with a color/tint set on it sufficient to render
      * a recolored version of the base prefab (e.g. placement ghosts). */
     flecsEngine_draw_override_t ov = {
-        .rgba = flecsEngine_draw_owned(world, prefab, FlecsRgba),
         .pbr = flecsEngine_draw_owned(world, prefab, FlecsPbrMaterial),
         .emissive = flecsEngine_draw_owned(world, prefab, FlecsEmissive),
-        .tint = flecsEngine_draw_owned(world, prefab, FlecsTint),
         .has_alpha = ecs_owns_id(world, prefab, FlecsAlphaBlend)
     };
+    const FlecsRgba *rgba = ecs_owns(world, prefab, FlecsRgba)
+        ? ecs_get(world, prefab, FlecsRgba) : NULL;
+    ov.rgba = flecsEngine_material_resolveRgba(
+        world, prefab, rgba, &ov.rgba_storage);
+    const FlecsTint *tint = ecs_owns(world, prefab, FlecsTint)
+        ? ecs_get(world, prefab, FlecsTint) : NULL;
+    ov.tint = tint ? flecsEngine_draw_resolveTint(
+        world, prefab, tint, &ov.tint_storage) : NULL;
     ov.has_material = ov.rgba || ov.pbr || ov.emissive;
 
     CGLM_ALIGN_MAT mat4 ident;

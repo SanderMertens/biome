@@ -38,22 +38,48 @@ static void FlecsMaterialDirty(
     impl->materials.dirty_version ++;
 }
 
+static void flecsEngine_materialAssignActualTint(
+    ecs_world_t *world,
+    ecs_entity_t entity,
+    const FlecsTint *t,
+    const FlecsTransitionValue *transition,
+    const FlecsActualTint *actual)
+{
+    float r = transition ? transition->value[0] : t->r;
+    float g = transition ? transition->value[1] : t->g;
+    float b = transition ? transition->value[2] : t->b;
+    float a = transition ? transition->value[3] : t->a;
+    FlecsActualTint value = {
+        .r = (uint8_t)glm_clamp(r + .5f, 0, 255),
+        .g = (uint8_t)glm_clamp(g + .5f, 0, 255),
+        .b = (uint8_t)glm_clamp(b + .5f, 0, 255),
+        .a = (uint8_t)glm_clamp(a + .5f, 0, 255)
+    };
+    if (actual && actual->r == value.r && actual->g == value.g &&
+        actual->b == value.b && actual->a == value.a)
+    {
+        return;
+    }
+    ecs_set_ptr(world, entity, FlecsActualTint, &value);
+}
+
 static void FlecsAssignActualTint(
     ecs_iter_t *it)
 {
-    const FlecsTint *tint = ecs_field(it, FlecsTint, 0);
     const FlecsActualTint *actual = ecs_field(it, FlecsActualTint, 1);
-    bool tint_self = ecs_field_is_self(it, 0);
+    ecs_entity_t tint_src = ecs_field_src(it, 0);
 
     for (int32_t i = 0; i < it->count; i ++) {
-        const FlecsTint *t = tint_self ? &tint[i] : tint;
-        if (actual && actual[i].r == t->r && actual[i].g == t->g &&
-            actual[i].b == t->b && actual[i].a == t->a)
-        {
+        ecs_entity_t source = tint_src ? tint_src : it->entities[i];
+        const FlecsTint *t = ecs_get(it->world, source, FlecsTint);
+        if (!t) {
             continue;
         }
-        ecs_set(it->world, it->entities[i], FlecsActualTint,
-            {t->r, t->g, t->b, t->a});
+        const FlecsTransitionValue *transition = flecs_transition_value_get(
+            it->world, source, ecs_id(FlecsTint));
+        flecsEngine_materialAssignActualTint(
+            it->world, it->entities[i], t, transition,
+            actual ? &actual[i] : NULL);
     }
 }
 
@@ -232,6 +258,15 @@ void FlecsEngineMaterialImport(
     ecs_observer(world, {
         .query.terms = {
             { .id = ecs_id(FlecsTextureTransform), .src.id = EcsSelf },
+            { .id = EcsPrefab, .src.id = EcsSelf }
+        },
+        .events = {EcsOnSet, EcsOnRemove},
+        .callback = FlecsMaterialDirty
+    });
+    ecs_observer(world, {
+        .query.terms = {
+            { .id = ecs_pair(ecs_id(FlecsTransitionValue), EcsWildcard),
+                .src.id = EcsSelf },
             { .id = EcsPrefab, .src.id = EcsSelf }
         },
         .events = {EcsOnSet, EcsOnRemove},

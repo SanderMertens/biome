@@ -106,7 +106,7 @@ FlecsGpuMaterial flecsEngine_material_pack(
     const FlecsEmissive *emissive,
     const FlecsTransmission *transmission,
     const FlecsTextureTransform *tex_transform,
-    const FlecsTint *tint)
+    const FlecsActualTint *tint)
 {
     FlecsRgba c = color ? *color :
         *flecsEngine_defaultAttrCache_getColor(engine, 1);
@@ -155,7 +155,7 @@ FlecsGpuMaterial flecsEngine_material_pack(
 FlecsGpuMaterial flecsEngine_material_tintShared(
     const FlecsEngineImpl *engine,
     uint32_t material_id,
-    const FlecsTint *tint)
+    const FlecsActualTint *tint)
 {
     FlecsGpuMaterial gm;
     if (engine->materials.cpu_materials &&
@@ -175,6 +175,26 @@ FlecsGpuMaterial flecsEngine_material_tintShared(
     }
 
     return gm;
+}
+
+const FlecsRgba* flecsEngine_material_resolveRgba(
+    const ecs_world_t *world,
+    ecs_entity_t entity,
+    const FlecsRgba *fallback,
+    FlecsRgba *storage)
+{
+    const FlecsTransitionValue *value = flecs_transition_value_get(
+        world, entity, ecs_id(FlecsRgba));
+    if (!value) {
+        return fallback;
+    }
+    *storage = (FlecsRgba){
+        (uint8_t)glm_clamp(value->value[0] + .5f, 0, 255),
+        (uint8_t)glm_clamp(value->value[1] + .5f, 0, 255),
+        (uint8_t)glm_clamp(value->value[2] + .5f, 0, 255),
+        (uint8_t)glm_clamp(value->value[3] + .5f, 0, 255)
+    };
+    return storage;
 }
 
 void flecsEngine_material_uploadBuffer(
@@ -248,14 +268,34 @@ redo: {
                 int32_t ei = emissives_self ? i : 0;
                 int32_t ti = transmissions_self ? i : 0;
                 int32_t tti = tex_transforms_self ? i : 0;
+                ecs_entity_t entity = it.entities[i];
+                FlecsRgba color_storage;
+                const FlecsRgba *actual_color =
+                    flecsEngine_material_resolveRgba(
+                        world, entity, &colors[ci], &color_storage);
+                const FlecsPbrMaterial *actual_material =
+                    flecs_transition_get(
+                        world, entity, ecs_id(FlecsPbrMaterial));
+                const FlecsEmissive *actual_emissive = flecs_transition_get(
+                    world, entity, ecs_id(FlecsEmissive));
+                const FlecsTransmission *actual_transmission =
+                    flecs_transition_get(
+                        world, entity, ecs_id(FlecsTransmission));
+                const FlecsTextureTransform *actual_tex_transform =
+                    flecs_transition_get(
+                        world, entity, ecs_id(FlecsTextureTransform));
 
                 impl->materials.cpu_materials[index] = flecsEngine_material_pack(
                     impl,
-                    &colors[ci],
-                    materials ? &materials[mi] : NULL,
-                    emissives ? &emissives[ei] : NULL,
-                    transmissions ? &transmissions[ti] : NULL,
-                    tex_transforms ? &tex_transforms[tti] : NULL,
+                    actual_color,
+                    actual_material ? actual_material :
+                        (materials ? &materials[mi] : NULL),
+                    actual_emissive ? actual_emissive :
+                        (emissives ? &emissives[ei] : NULL),
+                    actual_transmission ? actual_transmission :
+                        (transmissions ? &transmissions[ti] : NULL),
+                    actual_tex_transform ? actual_tex_transform :
+                        (tex_transforms ? &tex_transforms[tti] : NULL),
                     NULL);
             }
         }

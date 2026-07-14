@@ -694,7 +694,7 @@ void flecsEngine_batch_group_applyChanges(
         const FlecsBufferSlot *bs = ecs_get(world, e, FlecsBufferSlot);
         if (!bs || bs->group != ctx || bs->slot != slot) continue;
         const FlecsWorldTransform3 *wt =
-            ecs_get(world, e, FlecsWorldTransform3);
+            flecs_transition_get(world, e, ecs_id(FlecsWorldTransform3));
         if (!wt) continue;
         flecsEngine_batch_worldAabb(wt, mesh_aabb, &bb->cpu_aabb[slot]);
         flecsEngine_batch_transformInstance(
@@ -710,14 +710,17 @@ void flecsEngine_batch_group_applyChanges(
         } else if (owns_material) {
             const FlecsTransmission *transmission = NULL;
             if (buf->flags & FLECS_BATCH_OWNS_TRANSMISSION) {
-                transmission = ecs_get(world, e, FlecsTransmission);
+                transmission = flecs_transition_get(
+                    world, e, ecs_id(FlecsTransmission));
             }
-            const FlecsRgba *rgba = ecs_get(world, e, FlecsRgba);
+            FlecsRgba rgba_storage;
+            const FlecsRgba *rgba = flecsEngine_material_resolveRgba(
+                world, e, ecs_get(world, e, FlecsRgba), &rgba_storage);
             bb->cpu_materials[slot] = flecsEngine_material_pack(
                 engine,
                 rgba,
-                ecs_get(world, e, FlecsPbrMaterial),
-                ecs_get(world, e, FlecsEmissive),
+                flecs_transition_get(world, e, ecs_id(FlecsPbrMaterial)),
+                flecs_transition_get(world, e, ecs_id(FlecsEmissive)),
                 transmission,
                 NULL,
                 NULL);

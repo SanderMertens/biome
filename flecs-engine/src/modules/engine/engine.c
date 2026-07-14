@@ -2,6 +2,7 @@
 #include "engine.h"
 
 #include "../renderer/renderer.h"
+#include "../transition/transition.h"
 #include "../geometry3/geometry3.h"
 #include "../transform3/transform3.h"
 #include "../movement/movement.h"
@@ -256,6 +257,7 @@ void FlecsEngineImport(
 
     flecsEngine_surface_register(world);
 
+    ECS_IMPORT(world, FlecsEngineTransition);
     ECS_IMPORT(world, FlecsEngineLight);
     ECS_IMPORT(world, FlecsEngineStars);
     ECS_IMPORT(world, FlecsEngineTexture);

@@ -456,7 +456,9 @@ static void flecsEngine_renderView_writeLight(
     FlecsRgba rgb = {255, 255, 255, 255};
     const FlecsRgba *light_rgb = ecs_get(world, entity, FlecsRgba);
     if (light_rgb) {
-        rgb = *light_rgb;
+        FlecsRgba storage;
+        rgb = *flecsEngine_material_resolveRgba(
+            world, entity, light_rgb, &storage);
     }
 
     uniforms->light_color[0] =

@@ -21,7 +21,18 @@ const corridorGltf: "etc/assets/kaykit/space/Assets/gltf/tunnel_straight_A.gltf"
 const rockGltf = "etc/assets/kenney/nature-kit/Models/GLTF format/stone_largeC.glb"
 
 buildings {
-    prefab Base {
+    prefab PoweredBuilding {
+        Tint: {0, 0, 0, 0}
+
+        Transition: [
+            Tint: {
+                duration: 0.5
+                timing_function: EaseInOut
+            }
+        ]
+    }
+
+    prefab Base : PoweredBuilding {
         Building: {
             max_count: 1
             footprint: {2, 1}
@@ -159,7 +170,7 @@ buildings {
         Gltf: {lightsGltf}
     }
 
-    prefab Biome {
+    prefab Biome : PoweredBuilding {
         Building: {
             can_doze: true
             footprint: {3, 3}
@@ -190,7 +201,7 @@ buildings {
         Scale3: {6, 6, 6}
     }
 
-    prefab Depot {
+    prefab Depot : PoweredBuilding {
         Building: {
             can_doze: true
             footprint: {1, 1}
@@ -213,7 +224,7 @@ buildings {
         Scale3: {2, 2, 2}
     }
 
-    prefab Habitat {
+    prefab Habitat : PoweredBuilding {
         Building: {
             can_doze: true
             footprint: {1, 1}
@@ -283,7 +294,7 @@ buildings {
         Scale3: {4, 4, 4}
     }
 
-    prefab Drill : effects.DrillEmitter {
+    prefab Drill :  PoweredBuilding, effects.DrillEmitter {
         Building: {
             can_doze: true
             footprint: {1, 1}

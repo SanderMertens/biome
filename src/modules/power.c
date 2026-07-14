@@ -33,19 +33,25 @@ static void BiomePower_onSet(ecs_iter_t *it) {
 
 static void UpdatePowerTint(ecs_iter_t *it) {
     BiomePowerConsumer *c = ecs_field(it, BiomePowerConsumer, 0);
-    bool hasTint = ecs_field_is_set(it, 1);
 
-    if (hasTint) {
-        for (int i = 0; i < it->count; i ++) {
-            if (c[i].powered) {
-                ecs_remove(it->world, it->entities[i], FlecsTint);
+    for (int i = 0; i < it->count; i ++) {
+        bool owns_tint = ecs_owns(
+            it->world, it->entities[i], FlecsTint);
+        const FlecsTint *tint = owns_tint
+            ? ecs_get(it->world, it->entities[i], FlecsTint)
+            : NULL;
+        if (c[i].powered) {
+            if (tint && (tint->r != 0 || tint->g != 0 || tint->b != 0 ||
+                tint->a != 0))
+            {
+                ecs_set(it->world, it->entities[i], FlecsTint,
+                    {0, 0, 0, 0});
             }
-        }
-    } else {
-        for (int i = 0; i < it->count; i ++) {
-            if (!c[i].powered) {
-                ecs_set(it->world, it->entities[i], FlecsTint, {0, 0, 0, 230});
-            }
+        } else if (!tint || tint->r != 0 || tint->g != 0 || tint->b != 0 ||
+            tint->a != 230)
+        {
+            ecs_set(it->world, it->entities[i], FlecsTint,
+                {0, 0, 0, 230});
         }
     }
 }
@@ -595,6 +601,5 @@ void biomePowerImport(ecs_world_t *world) {
         [inout] BiomePowerGrid);
 
     ECS_SYSTEM(world, UpdatePowerTint, EcsPostUpdate,
-        [in] BiomePowerConsumer,
-        [in] ?flecs.engine.material.Tint);
+        [in] BiomePowerConsumer);
 }

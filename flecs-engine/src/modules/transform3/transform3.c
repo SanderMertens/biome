@@ -25,35 +25,18 @@ static void flecsEngine_transform3_rotationAndScale(
     ecs_iter_t *it,
     FlecsWorldTransform3 *t) 
 {
-    FlecsRotation3 *r = ecs_field(it, FlecsRotation3, 2);
-    FlecsScale3 *s = ecs_field(it, FlecsScale3, 3);
-    int i;
-
-    if (r) {
-        if (ecs_field_is_self(it, 2)) {
-            for (i = 0; i < it->count; i ++) {
-                CGLM_ALIGN_MAT mat4 rot;
-                glm_euler_xyz(*(vec3*)&r[i], rot);
-                glm_mul_rot(t[i].m, rot, t[i].m);
-            }
-        } else {
+    for (int32_t i = 0; i < it->count; i ++) {
+        const FlecsRotation3 *r = flecs_transition_get(
+            it->world, it->entities[i], ecs_id(FlecsRotation3));
+        const FlecsScale3 *s = flecs_transition_get(
+            it->world, it->entities[i], ecs_id(FlecsScale3));
+        if (r) {
             CGLM_ALIGN_MAT mat4 rot;
             glm_euler_xyz(*(vec3*)r, rot);
-            for (i = 0; i < it->count; i ++) {
-                glm_mul_rot(t[i].m, rot, t[i].m);
-            }
+            glm_mul_rot(t[i].m, rot, t[i].m);
         }
-    }
-
-    if (s) {
-        if (ecs_field_is_self(it, 3)) {
-            for (i = 0; i < it->count; i ++) {
-                glm_scale(t[i].m, *(vec3*)&s[i]);
-            }
-        } else {
-            for (i = 0; i < it->count; i ++) {
-                glm_scale(t[i].m, *(vec3*)s);
-            }
+        if (s) {
+            glm_scale(t[i].m, *(vec3*)s);
         }
     }
 }
@@ -63,29 +46,16 @@ static bool flecsEngine_transform3_childOf(ecs_iter_t *it) {
 
     while (ecs_query_next(it)) {
         FlecsWorldTransform3 *t = ecs_field(it, FlecsWorldTransform3, 0);
-        FlecsPosition3 *p = ecs_field(it, FlecsPosition3, 1);
         FlecsWorldTransform3 *t_parent = ecs_field(it, FlecsWorldTransform3, 4);
         int i;
 
-        if (!t_parent) {
-            if (ecs_field_is_self(it, 1)) {
-                for (i = 0; i < it->count; i ++) {
-                    glm_translate_make(t[i].m, *(vec3*)&p[i]);
-                }
+        for (i = 0; i < it->count; i ++) {
+            const FlecsPosition3 *p = flecs_transition_get(
+                it->world, it->entities[i], ecs_id(FlecsPosition3));
+            if (!t_parent) {
+                glm_translate_make(t[i].m, *(vec3*)p);
             } else {
-                for (i = 0; i < it->count; i ++) {
-                    glm_translate_make(t[i].m, *(vec3*)p);
-                }
-            }
-        } else {
-            if (ecs_field_is_self(it, 1)) {
-                for (i = 0; i < it->count; i ++) {
-                    glm_translate_to(t_parent[0].m, *(vec3*)&p[i], t[i].m);
-                }
-            } else {
-                for (i = 0; i < it->count; i ++) {
-                    glm_translate_to(t_parent[0].m, *(vec3*)p, t[i].m);
-                }
+                glm_translate_to(t_parent[0].m, *(vec3*)p, t[i].m);
             }
         }
 
@@ -103,12 +73,13 @@ static bool flecsEngine_transform3_parent(ecs_iter_t *it) {
 
     while (ecs_query_next(it)) {
         FlecsWorldTransform3 *t = ecs_field(it, FlecsWorldTransform3, 0);
-        FlecsPosition3 *p = ecs_field(it, FlecsPosition3, 1);
         EcsParent *parents = ecs_field(it, EcsParent, 4);
         int i;
 
         for (i = 0; i < it->count; i ++) {
             ecs_entity_t parent = parents[i].value;
+            const FlecsPosition3 *p = flecs_transition_get(
+                world, it->entities[i], ecs_id(FlecsPosition3));
             const FlecsWorldTransform3 *t_parent = ecs_get_mut(
                 world, parent, FlecsWorldTransform3);
 
@@ -121,17 +92,10 @@ static bool flecsEngine_transform3_parent(ecs_iter_t *it) {
             }
 
             if (!t_parent) {
-                if (ecs_field_is_self(it, 1)) {
-                    glm_translate_make((vec4*)t[i].m, *(vec3*)&p[i]);
-                } else {
-                    glm_translate_make((vec4*)t[i].m, *(vec3*)p);
-                }
+                glm_translate_make((vec4*)t[i].m, *(vec3*)p);
             } else {
-                if (ecs_field_is_self(it, 1)) {
-                    glm_translate_to((vec4*)t_parent[0].m, *(vec3*)&p[i], t[i].m);
-                } else {
-                    glm_translate_to((vec4*)t_parent[0].m, *(vec3*)p, t[i].m);
-                }
+                glm_translate_to(
+                    (vec4*)t_parent[0].m, *(vec3*)p, t[i].m);
             }
         }
 
@@ -148,7 +112,8 @@ static void flecsEngine_transform3_computeSingle(
     ecs_entity_t entity)
 {
     FlecsWorldTransform3 *t = ecs_get_mut(world, entity, FlecsWorldTransform3);
-    const FlecsPosition3 *p = ecs_get(world, entity, FlecsPosition3);
+    const FlecsPosition3 *p = flecs_transition_get(
+        world, entity, ecs_id(FlecsPosition3));
     if (!t || !p) return;
 
     /* Find parent transform via ChildOf hierarchy */
@@ -180,7 +145,8 @@ static void flecsEngine_transform3_computeSingle(
     }
 
     /* Rotation */
-    const FlecsRotation3 *r = ecs_get(world, entity, FlecsRotation3);
+    const FlecsRotation3 *r = flecs_transition_get(
+        world, entity, ecs_id(FlecsRotation3));
     if (r) {
         CGLM_ALIGN_MAT mat4 rot;
         glm_euler_xyz(*(vec3*)r, rot);
@@ -194,7 +160,8 @@ static void flecsEngine_transform3_computeSingle(
     }
 
     /* Scale */
-    const FlecsScale3 *s = ecs_get(world, entity, FlecsScale3);
+    const FlecsScale3 *s = flecs_transition_get(
+        world, entity, ecs_id(FlecsScale3));
     if (s) {
         glm_scale(t->m, *(vec3*)s);
     }
@@ -462,6 +429,47 @@ void FlecsEngineTransform3Import(
         },
         .events = { EcsOnSet },
         .yield_existing = true,
+        .callback = FlecsTransform3OnSet
+    });
+
+    /* Transition outputs change independently from their front-facing
+     * components. Keep static world transforms in sync with those values. */
+    ecs_observer(world, {
+        .entity = ecs_entity(world, {
+            .name = "Transform3OnTransitionPosition" }),
+        .query.terms = {
+            { .id = ecs_pair(ecs_id(FlecsTransitionValue),
+                ecs_id(FlecsPosition3)), .src.id = EcsSelf },
+            { .id = FlecsDynamicTransform, .oper = EcsNot },
+            { .id = FlecsManualTransform, .oper = EcsNot }
+        },
+        .events = { EcsOnSet },
+        .callback = FlecsTransform3OnSet
+    });
+
+    ecs_observer(world, {
+        .entity = ecs_entity(world, {
+            .name = "Transform3OnTransitionRotation" }),
+        .query.terms = {
+            { .id = ecs_pair(ecs_id(FlecsTransitionValue),
+                ecs_id(FlecsRotation3)), .src.id = EcsSelf },
+            { .id = FlecsDynamicTransform, .oper = EcsNot },
+            { .id = FlecsManualTransform, .oper = EcsNot }
+        },
+        .events = { EcsOnSet },
+        .callback = FlecsTransform3OnSet
+    });
+
+    ecs_observer(world, {
+        .entity = ecs_entity(world, {
+            .name = "Transform3OnTransitionScale" }),
+        .query.terms = {
+            { .id = ecs_pair(ecs_id(FlecsTransitionValue),
+                ecs_id(FlecsScale3)), .src.id = EcsSelf },
+            { .id = FlecsDynamicTransform, .oper = EcsNot },
+            { .id = FlecsManualTransform, .oper = EcsNot }
+        },
+        .events = { EcsOnSet },
         .callback = FlecsTransform3OnSet
     });
 }

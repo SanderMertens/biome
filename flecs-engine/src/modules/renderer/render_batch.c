@@ -787,6 +787,17 @@ void flecsEngine_renderBatch_register(
 
     ecs_observer(world, {
         .entity = ecs_entity(world, {
+            .name = "FlecsBufferSlotTransitionChanged" }),
+        .query.terms = {
+            { ecs_pair(ecs_id(FlecsTransitionValue), EcsWildcard) },
+            { ecs_id(FlecsBufferSlot), .inout = EcsInOutNone }
+        },
+        .events = { EcsOnSet },
+        .callback = FlecsBufferSlot_material_changed
+    });
+
+    ecs_observer(world, {
+        .entity = ecs_entity(world, {
             .name = "FlecsBufferSlotEmissiveRemoved" }),
         .query.terms = {
             { ecs_id(FlecsEmissive) },

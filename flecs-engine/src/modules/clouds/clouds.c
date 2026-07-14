@@ -1071,6 +1071,9 @@ static void flecs_clouds_fillUniform(
             const FlecsDirectionalLight *dl = ecs_get(
                 world, atm->sun, FlecsDirectionalLight);
             if (sun_rgb && dl) {
+                FlecsRgba storage;
+                sun_rgb = flecsEngine_material_resolveRgba(
+                    world, atm->sun, sun_rgb, &storage);
                 float scale = dl->intensity;
                 uniform->sun_color[0] =
                     flecsEngine_colorChannelToFloat(sun_rgb->r) * scale;

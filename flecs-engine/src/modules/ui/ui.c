@@ -258,6 +258,16 @@ static void flecs_ui_place(
         if (cptr) {
             color = *cptr;
         }
+        const FlecsTransitionValue *transition = flecs_transition_value_get(
+            world, e, ecs_id(FlecsRgba));
+        if (transition) {
+            color = (FlecsRgba){
+                (uint8_t)glm_clamp(transition->value[0] + .5f, 0, 255),
+                (uint8_t)glm_clamp(transition->value[1] + .5f, 0, 255),
+                (uint8_t)glm_clamp(transition->value[2] + .5f, 0, 255),
+                (uint8_t)glm_clamp(transition->value[3] + .5f, 0, 255)
+            };
+        }
 
         if (rect) {
             if (border) {
