@@ -56,9 +56,8 @@
     },
     "bundle": {
         "flecs": {
-            "repository": "/Users/sandermertens/GitHub/SanderMertens/flecs",
-            "branch": "script_string_format",
-            "commit": "d06ed25c5b2a8bd96c5216dd25d06e20af9c1134",
+            "repository": "../../flecs",
+            "commit": "0c78d100e820dec20d62811790542c34890b503e",
             "library": "flecs_static",
             "cmake-args": ["-DCMAKE_C_FLAGS=-DFLECS_SCRIPT_MATH", "-DFLECS_SHARED=OFF", "-DFLECS_STATIC=ON"]
         },

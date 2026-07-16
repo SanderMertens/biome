@@ -17,6 +17,26 @@ units {
             ]
         }
 
+        Behaviors: [
+            script {
+                const job = await acceptJob()
+
+                await takeOff()
+                await moveTo(job.src)
+                await land()
+                await pickUp(job.resource, job.amount, job.src, this)
+
+                await takeOff()
+                await moveTo(job.dst)
+                await land()
+                await dropOff(job.resource, job.amount, this, job.dst)
+
+                await takeOff()
+                await moveTo(this[Carrier].home)
+                await land()
+            }
+        ]
+
         Scale3: {1.5, 1.5, 1.5}
         Gltf: {droneGltf}
     }

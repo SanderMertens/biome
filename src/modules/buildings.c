@@ -4,7 +4,6 @@
 
 ECS_COMPONENT_DECLARE(BiomeBuildingBit);
 ECS_COMPONENT_DECLARE(BiomeBuildingRequirementMask);
-ECS_TAG_DECLARE(BiomeBuildingSpawned);
 
 static int8_t biome_last_building_bit = -1;
 
@@ -118,130 +117,17 @@ static void BiomeBuildingOnSet(ecs_iter_t *it) {
     }
 }
 
-static const EcsScriptFunction* biome_building_spawnFunction(
-    ecs_world_t *world,
-    ecs_entity_t building,
-    ecs_entity_t function)
-{
-    const EcsScriptFunction *f = ecs_get(
-        world, function, EcsScriptFunction);
-    const ecs_script_parameter_t *params = f
-        ? ecs_vec_first_t(&f->params, ecs_script_parameter_t)
-        : NULL;
-    if (!f || !f->callback || f->return_type != ecs_id(ecs_entity_t) ||
-        ecs_vec_count(&f->params) != 1 ||
-        params[0].type != ecs_id(ecs_entity_t))
-    {
-        ecs_warn("building '%s' has invalid spawn function '%s'",
-            ecs_get_name(world, building), ecs_get_name(world, function));
-        return NULL;
-    }
-
-    return f;
-}
-
-static ecs_entity_t biome_building_spawnWithFunction(
-    ecs_world_t *world,
-    ecs_entity_t function,
-    const EcsScriptFunction *f,
-    ecs_entity_t parent)
-{
-    ecs_entity_t result = 0;
-    ecs_value_t arg = {
-        .type = ecs_id(ecs_entity_t),
-        .ptr = &parent
-    };
-    ecs_value_t value = {
-        .type = ecs_id(ecs_entity_t),
-        .ptr = &result
-    };
-    ecs_function_ctx_t ctx = {
-        .world = world,
-        .function = function,
-        .ctx = f->ctx
-    };
-    f->callback(&ctx, 1, &arg, &value);
-    return result;
-}
-
 static void BiomeTerrainPositionOnSet(ecs_iter_t *it) {
-    biome_buildings_occupancy(it, true);
-
-    FlecsTerrainPosition *tp = ecs_field(it, FlecsTerrainPosition, 0);
-
-    for (int32_t i = 0; i < it->count; i ++) {
-        ecs_entity_t building = it->entities[i];
-        const BiomeBuilding *config = ecs_get(
-            it->world, building, BiomeBuilding);
-        if (!config || !config->spawn.prefab ||
-            !ecs_is_alive(it->world, config->spawn.prefab) ||
-            ecs_owns(it->world, building, BiomeBuildingSpawned))
-        {
-            continue;
-        }
-
-        const FlecsPosition3 *building_position = ecs_get(
-            it->world, building, FlecsPosition3);
-        const FlecsRotation3 *building_rotation = ecs_get(
-            it->world, building, FlecsRotation3);
-        if (!building_position) {
-            continue;
-        }
-
-        BiomeBuildingSpawn spawn = config->spawn;
-        float yaw = building_rotation ? building_rotation->y : tp[i].yaw;
-        float c = cosf(yaw);
-        float s = sinf(yaw);
-        const flecs_vec3_t *offset = &spawn.position;
-        const flecs_vec3_t *rotation = &spawn.rotation;
-
-        ecs_entity_t parent = ecs_get_parent(it->world, building);
-        if (!parent) {
-            parent = tp[i].terrain;
-        }
-
-        const EcsScriptFunction *function = ecs_get(
-            it->world, spawn.prefab, EcsScriptFunction);
-        if (function) {
-            function = biome_building_spawnFunction(
-                it->world, building, spawn.prefab);
-            if (!function) {
-                continue;
-            }
-        }
-
-        ecs_add(it->world, building, BiomeBuildingSpawned);
-
-        ecs_entity_t instance;
-        if (function) {
-            instance = biome_building_spawnWithFunction(
-                it->world, spawn.prefab, function, parent);
-        } else {
-            instance = ecs_new_w_pair(it->world, EcsIsA, spawn.prefab);
-            if (parent) {
-                ecs_add_pair(it->world, instance, EcsChildOf, parent);
-            }
-        }
-        if (!instance || !ecs_is_alive(it->world, instance)) {
-            ecs_warn("building '%s' spawn function returned an invalid entity",
-                ecs_get_name(it->world, building));
-            continue;
-        }
-
-        ecs_set(it->world, instance, FlecsPosition3, {
-            building_position->x + offset->x * c + offset->z * s,
-            building_position->y + offset->y,
-            building_position->z - offset->x * s + offset->z * c
-        });
-        ecs_set(it->world, instance, FlecsRotation3, {
-            (building_rotation ? building_rotation->x : 0) + rotation->x,
-            yaw + rotation->y,
-            (building_rotation ? building_rotation->z : 0) + rotation->z
-        });
+    if (it->event_id != ecs_id(FlecsTerrainPosition)) {
+        return;
     }
+    biome_buildings_occupancy(it, true);
 }
 
 static void BiomeTerrainPositionOnRemove(ecs_iter_t *it) {
+    if (it->event_id != ecs_id(FlecsTerrainPosition)) {
+        return;
+    }
     biome_buildings_occupancy(it, false);
 }
 
@@ -266,11 +152,6 @@ void biomeBuildingsImport(ecs_world_t *world) {
         }),
         .kind = EcsU64
     });
-    ECS_TAG_DEFINE(world, BiomeBuildingSpawned);
-
-    ecs_add_pair(world, ecs_id(BiomeBuildingSpawned),
-        EcsOnInstantiate, EcsDontInherit);
-
     ecs_set_hooks(world, BiomeBuilding, {
         .ctor = flecs_default_ctor,
         .on_set = BiomeBuildingOnSet

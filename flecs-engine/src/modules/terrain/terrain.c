@@ -527,6 +527,62 @@ static bool flecsEngine_terrain_isLocalTo(
     return ep && ep->value == terrain;
 }
 
+bool flecsEngine_terrainTileToPosition(
+    const ecs_world_t *world,
+    ecs_entity_t terrain,
+    int32_t x,
+    int32_t y,
+    int32_t span_x,
+    int32_t span_y,
+    const flecs_vec3_t *offset,
+    FlecsPosition3 *out)
+{
+    if (!out || !terrain || !ecs_is_alive(world, terrain)) {
+        return false;
+    }
+    const FlecsTerrain *t = ecs_get(world, terrain, FlecsTerrain);
+    if (!t || t->width <= 0 || t->depth <= 0 ||
+        ecs_vec_count(&t->heights) != (t->width + 1) * (t->depth + 1))
+    {
+        return false;
+    }
+
+    int32_t sx = span_x > 1 ? span_x : 1;
+    int32_t sy = span_y > 1 ? span_y : 1;
+    if (x < 0 || y < 0 || x + sx > t->width || y + sy > t->depth) {
+        return false;
+    }
+
+    float height = -FLT_MAX;
+    for (int32_t cy = y; cy < y + sy; cy ++) {
+        for (int32_t cx = x; cx < x + sx; cx ++) {
+            float cell_height = flecsEngine_terrainCellHeight(t, cx, cy);
+            if (cell_height > height) {
+                height = cell_height;
+            }
+        }
+    }
+
+    *out = (FlecsPosition3){
+        ((float)x + (float)sx * 0.5f) * t->cell_size,
+        height,
+        ((float)y + (float)sy * 0.5f) * t->cell_size
+    };
+    const FlecsPosition3 *terrain_position = ecs_get(
+        world, terrain, FlecsPosition3);
+    if (terrain_position) {
+        out->x += terrain_position->x;
+        out->y += terrain_position->y;
+        out->z += terrain_position->z;
+    }
+    if (offset) {
+        out->x += offset->x;
+        out->y += offset->y;
+        out->z += offset->z;
+    }
+    return true;
+}
+
 static void flecsEngine_terrain_applyPosition(
     ecs_world_t *world,
     ecs_entity_t e,

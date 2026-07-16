@@ -56,6 +56,16 @@ float flecsEngine_terrainSampleHeight(
     float x,
     float z);
 
+bool flecsEngine_terrainTileToPosition(
+    const ecs_world_t *world,
+    ecs_entity_t terrain,
+    int32_t x,
+    int32_t y,
+    int32_t span_x,
+    int32_t span_y,
+    const flecs_vec3_t *offset,
+    FlecsPosition3 *out);
+
 void* flecsEngine_terrainGetLayer(
     ecs_world_t *world,
     ecs_entity_t terrain,

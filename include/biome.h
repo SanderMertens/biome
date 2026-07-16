@@ -9,6 +9,7 @@
 #include "biome/wind.h"
 #include "biome/precipitation.h"
 #include "biome/cloud.h"
+#include "biome/behavior.h"
 #include "biome/resources.h"
 #include "biome/miner.h"
 #include "biome/logistics.h"

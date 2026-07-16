@@ -24,6 +24,13 @@ ECS_STRUCT(BiomeLogisticsCarrier, {
     ecs_entity_t home;
 });
 
+ECS_STRUCT(BiomeLogisticsJob, {
+    ecs_entity_t resource;
+    int32_t amount;
+    ecs_entity_t src;
+    ecs_entity_t dst;
+});
+
 void biome_logistics_postRequest(
     ecs_world_t *world,
     biome_logisticsRequestKind_t kind,
