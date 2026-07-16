@@ -23,7 +23,13 @@ void biome_playerAttr_addFlag(
         return;
     }
 
-    *(int64_t*)value.ptr |= flag;
+    int64_t *flags = value.ptr;
+    int64_t next = *flags | flag;
+    if (next == *flags) {
+        return;
+    }
+
+    *flags = next;
 
     ecs_const_var_modified(world, var);
 }

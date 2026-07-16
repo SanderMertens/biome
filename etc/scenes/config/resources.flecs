@@ -6,24 +6,24 @@ resources {
     Resource Iron(
         mine_time: 60
         mine_amount: 1
-        min_pickup_amount: 10
+        min_pickup_amount: 50
     )
 
     Resource Copper(
         mine_time: 60
         mine_amount: 1
-        min_pickup_amount: 10
+        min_pickup_amount: 50
     )
 
     Resource Silica(
         mine_time: 60
         mine_amount: 1
-        min_pickup_amount: 10
+        min_pickup_amount: 50
     )
 
     Resource Carbon(
         mine_time: 30
         mine_amount: 1
-        min_pickup_amount: 10
+        min_pickup_amount: 50
     )
 }

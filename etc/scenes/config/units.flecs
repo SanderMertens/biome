@@ -19,7 +19,7 @@ units {
 
         Behaviors: [
             script {
-                const speed: 0.2
+                const speed: 0.3
                 const job = await acceptJob()
 
                 await takeOff(speed)
