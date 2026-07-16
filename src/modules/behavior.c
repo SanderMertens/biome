@@ -37,7 +37,7 @@ ECS_DTOR(BiomeBehaviorRuntime, ptr, {
     BiomeBehaviorRuntime_fini(ptr);
 })
 
-static void biome_behavior_resume(
+static bool biome_behavior_resume(
     ecs_world_t *world,
     ecs_entity_t entity,
     ecs_script_task_t *task)
@@ -45,10 +45,14 @@ static void biome_behavior_resume(
     ecs_script_eval_result_t result = {0};
     ecs_script_task_status_t status = ecs_script_task_resume(task, &result);
     if (status == EcsScriptTaskError) {
+        char *path = ecs_get_path(world, entity);
         ecs_err("behavior for '%s' failed: %s",
-            ecs_get_name(world, entity), result.error);
+            path ? path : "<anonymous>",
+            result.error ? result.error : "unknown script error");
+        ecs_os_free(path);
     }
     ecs_os_free(result.error);
+    return status == EcsScriptTaskPending;
 }
 
 static void BiomeBehaviorStart(ecs_iter_t *it) {
@@ -74,9 +78,12 @@ static void BiomeBehaviorStart(ecs_iter_t *it) {
                     .entity = it->entities[i],
                     .loop = EcsScriptTaskLoopForever
                 });
-            if (runtime.tasks[t]) {
-                biome_behavior_resume(
-                    it->world, it->entities[i], runtime.tasks[t]);
+            ecs_script_task_t *task = runtime.tasks[t];
+            if (task && !biome_behavior_resume(
+                it->world, it->entities[i], task))
+            {
+                ecs_script_task_free(task);
+                runtime.tasks[t] = NULL;
             }
         }
 
@@ -93,7 +100,12 @@ static void BiomeBehaviorUpdate(ecs_iter_t *it) {
         for (int32_t t = 0; t < runtimes[i].count; t ++) {
             ecs_script_task_t *task = runtimes[i].tasks[t];
             if (task && ecs_script_task_is_ready(task)) {
-                biome_behavior_resume(it->world, it->entities[i], task);
+                if (!biome_behavior_resume(
+                    it->world, it->entities[i], task))
+                {
+                    ecs_script_task_free(task);
+                    runtimes[i].tasks[t] = NULL;
+                }
             }
         }
     }
