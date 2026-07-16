@@ -13,8 +13,16 @@ void biome_logistics_postRequest(
     ecs_entity_t jobs = ecs_lookup(world, "jobs");
     ecs_assert(jobs != 0, ECS_INTERNAL_ERROR, NULL);
 
+    const EcsConstants *request_kinds = ecs_get(world,
+        ecs_id(biome_logisticsRequestKind_t), EcsConstants);
+    ecs_assert(request_kinds != NULL, ECS_INTERNAL_ERROR, NULL);
+
+    const ecs_enum_constant_t *request_kind = ecs_map_get_deref(
+        request_kinds->constants, ecs_enum_constant_t, kind);
+    ecs_assert(request_kind != NULL, ECS_INVALID_PARAMETER, NULL);
+
     ecs_entity_t job = ecs_new_w_pair(world, EcsChildOf, jobs);
-    ecs_set(world, job, BiomeLogisticsRequest, {
+    ecs_set_pair(world, job, BiomeLogisticsRequest, request_kind->constant, {
         kind, source, resource, amount, priority
     });
 }

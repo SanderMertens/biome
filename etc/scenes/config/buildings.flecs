@@ -99,6 +99,12 @@ buildings {
         Rgba: {230, 230, 80, 255}
     }
 
+    prefab BaseDroneConnection {
+        Position3: {0, 0.2, 0}
+        Box: {5, 0.1, 0.1}
+        Rgba: {255, 0, 0, 255}
+    }
+
     prefab ElectricityPole {
         Building: {
             can_doze: true
@@ -330,7 +336,7 @@ buildings {
 
     fn createDrone(parent: entity) -> entity {
         new _ : units.Drone {
-            Carrier: { home: parent }
+            biome.logistics.Carrier: { home: parent }
         }
     }
 
@@ -374,9 +380,17 @@ buildings {
 
     BuildingRule2x1 (
         left: [ElectricityPole]
-        right: [Base, Depot, Habitat, Biome, Solar, Drill]
+        right: [Base, DronePad, Depot, Habitat, Biome, Solar, Drill]
         out: ElectricalConnection
         rotate: true
+    )
+
+    BuildingRule2x1 (
+        left: [Base, DronePad]
+        right: [Base, DronePad]
+        out: BaseDroneConnection
+        rotate: true
+        follow_slope: true
     )
 
     BuildingRule2x1 (
