@@ -7,12 +7,19 @@
 #endif
 
 /* Resource parameters */
+ECS_STRUCT(BiomeBuildingSpawn, {
+    ecs_entity_t prefab;
+    flecs_vec3_t position;
+    flecs_vec3_t rotation;
+});
+
 ECS_STRUCT(BiomeBuilding, {
     int32_t max_count;       /* Max number of times this building can be built */
     bool can_doze;           /* Can building be dozed */
     flecs_vec2_t footprint;  /* Footprint of building (measured in tiles) */
     float drag_stride;       /* Space between instances when dragging (measured in tiles)*/
     ecs_vec(ecs_entity_t) requires; /* Can only be placed on tile with specified building(s) */
+    BiomeBuildingSpawn spawn;
     ecs_entity_t rule;       /* Optional rule that must match before placement */
 });
 

@@ -1,9 +1,11 @@
 include resources
+include units
 
 using flecs.script
 using flecs.engine.*
 using biome.*
 using resources
+using units
 
 // const baseGltf: "etc/assets/kenney/kenney_space-kit/Models/GLTF format/hangar_largeB.glb"
 
@@ -326,16 +328,34 @@ buildings {
         Scale3: {2, 2, 2}
     }
 
+    fn createDrone(parent: entity) -> entity {
+        new _ : units.Drone {
+            Carrier: { home: parent }
+        }
+    }
+
     prefab DronePad {
         Building: {
             can_doze: true
             footprint: {1, 1}
+
+            spawn: {
+                prefab: createDrone,
+                position: {0, 1, 0}
+                rotation: {}
+            }
+
             rule: new {
                 BuildingRule3x1: {
                     left: [Base, Depot, DronePad]
                     rotate: true
                 }
             }
+        }
+
+        Power: {
+            demand: 25
+            conductor: true
         }
 
         Scale3: {2, 2, 2}

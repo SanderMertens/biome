@@ -20,6 +20,10 @@ ECS_STRUCT(BiomeLogisticsRequest, {
     int32_t priority;
 });
 
+ECS_STRUCT(BiomeLogisticsCarrier, {
+    ecs_entity_t home;
+});
+
 void biome_logistics_postRequest(
     ecs_world_t *world,
     biome_logisticsRequestKind_t kind,

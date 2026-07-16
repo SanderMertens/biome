@@ -29,6 +29,7 @@ void biomeLogisticsImport(ecs_world_t *world) {
 
     ECS_META_COMPONENT(world, biome_logisticsRequestKind_t);
     ECS_META_COMPONENT(world, BiomeLogisticsRequest);
+    ECS_META_COMPONENT(world, BiomeLogisticsCarrier);
 
     ecs_entity_t prev_scope = ecs_set_scope(world, 0);
     ecs_entity(world, { .name = "jobs" });
