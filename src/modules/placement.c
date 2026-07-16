@@ -68,7 +68,6 @@ static const EcsScriptFunction* biome_placement_spawnFunction(
 static ecs_entity_t biome_placement_spawnWithFunction(
     ecs_world_t *world,
     ecs_entity_t function,
-    const EcsScriptFunction *f,
     ecs_entity_t building)
 {
     ecs_entity_t result = 0;
@@ -80,12 +79,9 @@ static ecs_entity_t biome_placement_spawnWithFunction(
         .type = ecs_id(ecs_entity_t),
         .ptr = &result
     };
-    ecs_function_ctx_t ctx = {
-        .world = ECS_CONST_CAST(ecs_world_t*, ecs_get_world(world)),
-        .function = function,
-        .ctx = f->ctx
-    };
-    f->callback(&ctx, 1, &arg, &value);
+    if (ecs_function_call(world, function, 1, &arg, &value)) {
+        return 0;
+    }
     return result;
 }
 
@@ -135,7 +131,7 @@ static void biome_placement_spawn(
     ecs_entity_t instance;
     if (function) {
         instance = biome_placement_spawnWithFunction(
-            world, spawn.prefab, function, building);
+            world, spawn.prefab, building);
     } else {
         instance = ecs_new_w_pair(world, EcsIsA, spawn.prefab);
         if (parent) {

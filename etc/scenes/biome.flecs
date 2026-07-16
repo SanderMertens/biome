@@ -35,14 +35,6 @@ $ {
         max_height: 40 // meters, lowlands
     }
 
-    terrain.Scatter: {
-        prefab: buildings.IronOre
-        count: 250
-        position_variance: {1, 1}
-        rotation_variance: {y: 2 * math.PI}
-        cluster: 0.15
-    }
-
     weather.Atmosphere: {
         o2_content: 0.0
         co2_content: 0.05
@@ -59,8 +51,16 @@ $ {
 }
 
 terrain.Scatter(
+    prefab: buildings.IronOre
+    count: 100
+    position_variance: {1, 1}
+    rotation_variance: {y: 2 * math.PI}
+    cluster: 0.15
+)
+
+terrain.Scatter(
     prefab: buildings.CopperOre
-    count: 125
+    count: 100
     position_variance: {1, 1}
     rotation_variance: {y: 2 * math.PI}
     cluster: 0.15
@@ -68,7 +68,7 @@ terrain.Scatter(
 
 terrain.Scatter(
     prefab: buildings.IronOreLarge
-    count: 50
+    count: 25
     position_variance: {1, 1}
     rotation_variance: {y: 2 * math.PI}
     cluster: 0.15
@@ -76,7 +76,7 @@ terrain.Scatter(
 
 terrain.Scatter(
     prefab: buildings.CopperOreLarge
-    count: 50
+    count: 25
     position_variance: {1, 1}
     rotation_variance: {y: 2 * math.PI}
     cluster: 0.15
