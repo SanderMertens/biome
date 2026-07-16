@@ -187,7 +187,10 @@ static void BiomeLogisticsDispatch(ecs_iter_t *it) {
         };
         ecs_script_future_resolve(waiters[i].future, &value);
         ecs_remove(it->world, it->entities[i], BiomeLogisticsWaiter);
+
+        ecs_defer_suspend(it->world);
         ecs_delete(it->world, request);
+        ecs_defer_resume(it->world);
     }
 }
 
@@ -501,8 +504,10 @@ void biomeLogisticsImport(ecs_world_t *world) {
         .entity = ecs_entity(world, { .name = "Dispatch" }),
         .query.terms = {{ .id = ecs_id(BiomeLogisticsWaiter) }},
         .phase = EcsOnUpdate,
-        .callback = BiomeLogisticsDispatch
+        .callback = BiomeLogisticsDispatch,
+        .immediate = true
     });
+
     ecs_system(world, {
         .entity = ecs_entity(world, { .name = "Move" }),
         .query.terms = {{ .id = ecs_id(BiomeLogisticsMotion) }},
