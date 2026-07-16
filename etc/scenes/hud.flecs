@@ -21,7 +21,6 @@ hud {
     }
 
     if player.isBuildingPlaced(buildings.Solar) {
-      // ToolButton lights("LIGHT", hotKey: "4")
       ToolButton depot("DEPOT", hotKey: "5")
       ToolButton drill("DRILL", hotKey: "6")
       ToolButton habitat("HABITAT", hotKey: "7")
@@ -39,18 +38,5 @@ hud {
 
     ResourceGauge("IRON", Iron)
     ResourceGauge("COPPER", Copper)
-    // ResourceGauge("SILICA", Silica)
-    // ResourceGauge("CARBON", Carbon)
-  }
-
-  atmosphere {
-    Anchor: {h: Right, v: Top, x: -24, y: 24}
-    Layout: {direction: Column, padding: 0, spacing: 6}
-
-    Label("OXYGEN")
-    Gauge oxygen(width: 300, height: 27, value: 0)
-
-    Label("CO2")
-    Gauge co2(width: 300, height: 27, value: 0)
   }
 }

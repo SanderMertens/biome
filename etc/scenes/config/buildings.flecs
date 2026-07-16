@@ -87,7 +87,7 @@ buildings {
     prefab ElectricityWire {
         Position3: {0, 0.75, 0}
         Box: {5, 0.3, 0.3}
-        Rgba: {210, 230, 80, 255}
+        Rgba: {210, 180, 50, 255}
     }
 
     prefab ElectricalConnection {

@@ -9,7 +9,36 @@ typedef struct BiomeBehaviorRuntime {
     int32_t count;
 } BiomeBehaviorRuntime;
 
+typedef struct BiomeBehaviorAliveWaiter {
+    ecs_entity_t target;
+    ecs_script_future_t *future;
+} BiomeBehaviorAliveWaiter;
+
 ECS_COMPONENT_DECLARE(BiomeBehaviorRuntime);
+ECS_COMPONENT_DECLARE(BiomeBehaviorAliveWaiter);
+
+static void BiomeBehaviorAliveWaiter_fini(
+    BiomeBehaviorAliveWaiter *waiter)
+{
+    if (waiter->future) {
+        ecs_script_future_release(waiter->future);
+    }
+    ecs_os_zeromem(waiter);
+}
+
+ECS_CTOR(BiomeBehaviorAliveWaiter, ptr, {
+    ecs_os_zeromem(ptr);
+})
+
+ECS_MOVE(BiomeBehaviorAliveWaiter, dst, src, {
+    BiomeBehaviorAliveWaiter_fini(dst);
+    *dst = *src;
+    ecs_os_zeromem(src);
+})
+
+ECS_DTOR(BiomeBehaviorAliveWaiter, ptr, {
+    BiomeBehaviorAliveWaiter_fini(ptr);
+})
 
 static void BiomeBehaviorRuntime_fini(
     BiomeBehaviorRuntime *runtime)
@@ -53,6 +82,94 @@ static bool biome_behavior_resume(
     }
     ecs_os_free(result.error);
     return status == EcsScriptTaskPending;
+}
+
+static void biome_behavior_resolve(
+    ecs_script_future_t *future)
+{
+    int32_t result = 0;
+    ecs_script_future_resolve(future,
+        &(ecs_value_t){ecs_id(ecs_i32_t), &result});
+}
+
+static void biome_behavior_whileAlive(
+    const ecs_function_ctx_t *ctx,
+    int32_t argc,
+    const ecs_value_t *argv,
+    ecs_script_future_t *future)
+{
+    if (argc != 1) {
+        ecs_script_future_reject(future, "whileAlive expects an entity");
+        ecs_script_future_release(future);
+        return;
+    }
+
+    ecs_entity_t target = *(ecs_entity_t*)argv[0].ptr;
+    if (!ecs_is_alive(ctx->world, target)) {
+        biome_behavior_resolve(future);
+        ecs_script_future_release(future);
+        return;
+    }
+
+    ecs_entity_t waiter = ecs_new(ctx->world);
+    ecs_set(ctx->world, waiter, BiomeBehaviorAliveWaiter, {
+        target, future
+    });
+}
+
+static void biome_behavior_cancelWhileAlive(
+    const ecs_function_ctx_t *ctx,
+    ecs_script_future_t *future)
+{
+    ecs_query_t *query = ecs_query(ctx->world, {
+        .terms = {{ .id = ecs_id(BiomeBehaviorAliveWaiter) }}
+    });
+    ecs_iter_t it = ecs_query_iter(ctx->world, query);
+    while (ecs_query_next(&it)) {
+        const BiomeBehaviorAliveWaiter *waiters = ecs_field(
+            &it, BiomeBehaviorAliveWaiter, 0);
+        for (int32_t i = 0; i < it.count; i ++) {
+            if (waiters[i].future == future) {
+                ecs_delete(ctx->world, it.entities[i]);
+                ecs_iter_fini(&it);
+                ecs_query_fini(query);
+                return;
+            }
+        }
+    }
+    ecs_query_fini(query);
+}
+
+static void biome_behavior_delete(
+    const ecs_function_ctx_t *ctx,
+    int32_t argc,
+    const ecs_value_t *argv,
+    ecs_script_future_t *future)
+{
+    if (argc != 1) {
+        ecs_script_future_reject(future, "delete expects an entity");
+        ecs_script_future_release(future);
+        return;
+    }
+
+    ecs_entity_t entity = *(ecs_entity_t*)argv[0].ptr;
+    biome_behavior_resolve(future);
+    ecs_script_future_release(future);
+    if (ecs_is_alive(ctx->world, entity)) {
+        ecs_delete(ctx->world, entity);
+    }
+}
+
+static void BiomeBehaviorWaitWhileAlive(ecs_iter_t *it) {
+    const BiomeBehaviorAliveWaiter *waiters = ecs_field(
+        it, BiomeBehaviorAliveWaiter, 0);
+
+    for (int32_t i = 0; i < it->count; i ++) {
+        if (!ecs_is_alive(it->world, waiters[i].target)) {
+            biome_behavior_resolve(waiters[i].future);
+            ecs_delete(it->world, it->entities[i]);
+        }
+    }
 }
 
 static void BiomeBehaviorStart(ecs_iter_t *it) {
@@ -124,11 +241,44 @@ void biomeBehaviorImport(ecs_world_t *world) {
 
     ecs_set_name_prefix(world, "BiomeBehavior");
     ECS_COMPONENT_DEFINE(world, BiomeBehaviorRuntime);
+    ECS_COMPONENT_DEFINE(world, BiomeBehaviorAliveWaiter);
     ecs_set_hooks(world, BiomeBehaviorRuntime, {
         .ctor = ecs_ctor(BiomeBehaviorRuntime),
         .move = ecs_move(BiomeBehaviorRuntime),
         .dtor = ecs_dtor(BiomeBehaviorRuntime),
         .flags = ECS_TYPE_HOOK_COPY_ILLEGAL
+    });
+    ecs_set_hooks(world, BiomeBehaviorAliveWaiter, {
+        .ctor = ecs_ctor(BiomeBehaviorAliveWaiter),
+        .move = ecs_move(BiomeBehaviorAliveWaiter),
+        .dtor = ecs_dtor(BiomeBehaviorAliveWaiter),
+        .flags = ECS_TYPE_HOOK_COPY_ILLEGAL
+    });
+
+    ecs_entity_t module = ecs_id(biomeBehavior);
+    ecs_async_function(world, {
+        .name = "whileAlive",
+        .parent = module,
+        .return_type = ecs_id(ecs_i32_t),
+        .params = {{"entity", ecs_id(ecs_entity_t)}},
+        .callback = biome_behavior_whileAlive,
+        .cancel = biome_behavior_cancelWhileAlive
+    });
+    ecs_async_function(world, {
+        .name = "delete",
+        .parent = module,
+        .return_type = ecs_id(ecs_i32_t),
+        .params = {{"entity", ecs_id(ecs_entity_t)}},
+        .callback = biome_behavior_delete
+    });
+
+    ecs_system(world, {
+        .entity = ecs_entity(world, { .name = "WaitWhileAlive" }),
+        .query.terms = {
+            { .id = ecs_id(BiomeBehaviorAliveWaiter), .inout = EcsIn }
+        },
+        .phase = EcsPreUpdate,
+        .callback = BiomeBehaviorWaitWhileAlive
     });
 
     ecs_system(world, {

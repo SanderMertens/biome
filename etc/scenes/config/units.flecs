@@ -19,7 +19,7 @@ units {
 
         Behaviors: [
             script {
-                const speed: 0.3
+                const speed: 0.5
                 const job = await acceptJob()
 
                 await takeOff(speed)
@@ -35,6 +35,10 @@ units {
                 await takeOff(speed)
                 await moveTo(this[Carrier].home, speed)
                 await land(this[Carrier].home, speed)
+            },
+            script {
+                await whileAlive(this[Carrier].home)
+                await delete(this)
             }
         ]
 
