@@ -1,0 +1,52 @@
+include resources
+
+using flecs.script
+using flecs.engine.*
+using biome.*
+using resources
+
+const rockGltf = "etc/assets/kenney/nature-kit/Models/GLTF format/stone_largeC.glb"
+
+environment {
+    prefab IronOre {
+        Building
+        Deposit: {
+            resource: Iron
+            amount: 100 * 1000
+        }
+
+        Gltf: {rockGltf}
+        Scale3: {2, 2, 2}
+    }
+
+    prefab CopperOre {
+        Building
+        Deposit: {
+            resource: Copper
+            amount: 100 * 1000
+        }
+
+        Gltf: {rockGltf}
+        Tint: {255, 128, 0, 128}
+        Scale3: {2, 2, 2}
+    }
+
+    prefab IronOreLarge : IronOre {
+        Deposit: {
+            resource: Iron
+            amount: 1000 * 1000
+        }
+
+        Scale3: {4, 4, 4}
+    }
+
+    prefab CopperOreLarge : CopperOre {
+        Deposit: {
+            resource: Copper
+            amount: 1000 * 1000
+        }
+
+        Tint: {255, 128, 0, 128}
+        Scale3: {4, 4, 4}
+    }
+}

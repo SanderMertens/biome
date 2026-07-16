@@ -4,7 +4,7 @@ using biome.resources
 
 resources {
     Resource Iron(
-        mine_time: 60
+        mine_time: 30
         mine_amount: 1
         min_pickup_amount: 50
     )

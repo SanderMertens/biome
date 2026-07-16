@@ -2,8 +2,8 @@ include config/sky
 include config/view
 include config/assets
 include config/resources
-include config/effects
 include config/buildings
+include config/environment
 include player
 include hud
 
@@ -51,7 +51,7 @@ $ {
 }
 
 terrain.Scatter(
-    prefab: buildings.IronOre
+    prefab: environment.IronOre
     count: 100
     position_variance: {1, 1}
     rotation_variance: {y: 2 * math.PI}
@@ -59,7 +59,7 @@ terrain.Scatter(
 )
 
 terrain.Scatter(
-    prefab: buildings.CopperOre
+    prefab: environment.CopperOre
     count: 100
     position_variance: {1, 1}
     rotation_variance: {y: 2 * math.PI}
@@ -67,7 +67,7 @@ terrain.Scatter(
 )
 
 terrain.Scatter(
-    prefab: buildings.IronOreLarge
+    prefab: environment.IronOreLarge
     count: 25
     position_variance: {1, 1}
     rotation_variance: {y: 2 * math.PI}
@@ -75,7 +75,7 @@ terrain.Scatter(
 )
 
 terrain.Scatter(
-    prefab: buildings.CopperOreLarge
+    prefab: environment.CopperOreLarge
     count: 25
     position_variance: {1, 1}
     rotation_variance: {y: 2 * math.PI}

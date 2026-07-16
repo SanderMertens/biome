@@ -1,4 +1,6 @@
+include effects
 include resources
+include environment
 include units
 
 using flecs.script
@@ -20,7 +22,6 @@ const lightsGltf: "etc/assets/kaykit/space/Assets/gltf/lights.gltf"
 const domeGltf: "etc/assets/kaykit/space/Assets/gltf/dome.gltf"
 const farmGltf: "etc/assets/kaykit/space/Assets/gltf/space_farm_large_sprinkler.gltf"
 const corridorGltf: "etc/assets/kaykit/space/Assets/gltf/tunnel_straight_A.gltf"
-const rockGltf = "etc/assets/kenney/nature-kit/Models/GLTF format/stone_largeC.glb"
 
 buildings {
     prefab PoweredBuilding {
@@ -47,15 +48,13 @@ buildings {
 
         StorageDesc: {
             kind: Storage
-            capacity: 5000
+            capacity: 1000
         }
 
         Storage: {
             resources: [
-                Iron:   5000
-                Copper: 5000
-                Silica: 5000
-                Carbon: 5000
+                Iron:   500
+                Copper: 500
             ]
         }
 
@@ -88,7 +87,7 @@ buildings {
     prefab ElectricityWire {
         Position3: {0, 0.75, 0}
         Box: {5, 0.3, 0.3}
-        Rgba: {230, 230, 80, 255}
+        Rgba: {210, 230, 80, 255}
     }
 
     prefab ElectricalConnection {
@@ -116,7 +115,7 @@ buildings {
 
         Recipe: {
             inputs: [
-                Copper: 25
+                Copper: 5
             ]
         }
 
@@ -260,53 +259,14 @@ buildings {
         Scale3: {2, 2, 2}
     }
 
-    prefab IronOre {
-        Building
-        Deposit: {
-            resource: Iron
-            amount: 100 * 1000
-        }
-
-        Gltf: {rockGltf}
-        Scale3: {2, 2, 2}
-    }
-
-    prefab CopperOre {
-        Building
-        Deposit: {
-            resource: Copper
-            amount: 100 * 1000
-        }
-
-        Gltf: {rockGltf}
-        Tint: {255, 128, 0, 128}
-        Scale3: {2, 2, 2}
-    }
-
-    prefab IronOreLarge : IronOre {
-        Deposit: {
-            resource: Iron
-            amount: 1000 * 1000
-        }
-
-        Scale3: {4, 4, 4}
-    }
-
-    prefab CopperOreLarge : CopperOre {
-        Deposit: {
-            resource: Copper
-            amount: 1000 * 1000
-        }
-
-        Tint: {255, 128, 0, 128}
-        Scale3: {4, 4, 4}
-    }
-
     prefab Drill :  PoweredBuilding, effects.DrillEmitter {
         Building: {
             can_doze: true
             footprint: {1, 1}
-            requires: [IronOre, CopperOre]
+            requires: [
+                environment.IronOre, 
+                environment.CopperOre
+            ]
         }
 
         StorageDesc: {
@@ -323,7 +283,7 @@ buildings {
 
         Recipe: {
             inputs: [
-                Iron: 200
+                Iron: 100
                 Copper: 0
                 Silica: 0
             ]
