@@ -13,6 +13,7 @@ ECS_STRUCT(BiomeBuilding, {
     flecs_vec2_t footprint;  /* Footprint of building (measured in tiles) */
     float drag_stride;       /* Space between instances when dragging (measured in tiles)*/
     ecs_vec(ecs_entity_t) requires; /* Can only be placed on tile with specified building(s) */
+    ecs_entity_t rule;       /* Optional rule that must match before placement */
 });
 
 typedef int8_t BiomeBuildingBit;

@@ -30,6 +30,19 @@ ECS_STRUCT(BiomeBuildingRule2x1, {
     bool follow_slope; /* Apply rotation that follows the terrain slope */
 });
 
+/* Matches a 3x1 pattern centered on the tile where a building is about to be
+ * placed. Left/right describe its horizontal neighbors, while top/bottom
+ * describe its vertical neighbors. Empty slots are wildcards. When rotate is
+ * true, a left/right pattern is also matched right/left, top/bottom and
+ * bottom/top. This rule is intended for placement of 1x1 buildings. */
+ECS_STRUCT(BiomeBuildingRule3x1, {
+    ecs_vec(ecs_entity_t) left;
+    ecs_vec(ecs_entity_t) right;
+    ecs_vec(ecs_entity_t) top;
+    ecs_vec(ecs_entity_t) bottom;
+    bool rotate;
+});
+
 /* Instantiated by implementation after setting BiomeBuildingRule2x1 */
 ECS_STRUCT(BiomeBuildingRule2x1Impl, {
     /* Mask that is built from the rule. If an element is 0, it is treated as a
@@ -63,11 +76,28 @@ ECS_STRUCT(BiomeBuildingRule2x1Impl, {
     ecs_map_t instances; /* map<uint64_t, vec<ecs_entity_t>> */
 });
 
+/* Instantiated by implementation after setting BiomeBuildingRule3x1. */
+typedef struct BiomeBuildingRule3x1Impl {
+    uint64_t building_masks[4]; /* left, right, top, bottom */
+    uint8_t populated_slots;
+    bool valid;
+} BiomeBuildingRule3x1Impl;
+
+extern ECS_COMPONENT_DECLARE(BiomeBuildingRule3x1Impl);
+
 /* Observer context for a rule */
 typedef struct BiomeBuildingRule2x1ObserverCtx {
     ecs_entity_t rule;
     int32_t slot;
 } BiomeBuildingRule2x1ObserverCtx;
+
+bool biomeBuildingRuleMatches(
+    const ecs_world_t *world,
+    ecs_entity_t rule,
+    const FlecsTerrain *terrain,
+    const TerrainOccupancy *occupancy,
+    int32_t x,
+    int32_t y);
 
 void biomeBuilding_ruleImport(ecs_world_t *world);
 

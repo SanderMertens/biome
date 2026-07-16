@@ -35,7 +35,7 @@ buildings {
     prefab Base : PoweredBuilding {
         Building: {
             max_count: 1
-            footprint: {2, 1}
+            footprint: {1, 1}
         }
 
         Power: {
@@ -57,17 +57,8 @@ buildings {
             ]
         }
 
-        {
-            Position3: {x: 2}
-            Scale3: {2, 2, 2}
-            Gltf: {baseGltf}
-        }
-
-        {
-            Position3: {x: -2}
-            Scale3: {2, 2, 2}
-            Gltf: {droneLandingPadGltf}
-        }
+        Scale3: {2, 2, 2}
+        Gltf: {baseGltf}
     }
 
     prefab Solar {
@@ -333,6 +324,22 @@ buildings {
 
         Gltf: {drillGltf}
         Scale3: {2, 2, 2}
+    }
+
+    prefab DronePad {
+        Building: {
+            can_doze: true
+            footprint: {1, 1}
+            rule: new {
+                BuildingRule3x1: {
+                    left: [Base, Depot, DronePad]
+                    rotate: true
+                }
+            }
+        }
+
+        Scale3: {2, 2, 2}
+        Gltf: {droneLandingPadGltf}
     }
 
     // Rules

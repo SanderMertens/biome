@@ -6,6 +6,8 @@
 
 #define BIOME_RULE_PI (3.14159265358979323846f)
 
+ECS_COMPONENT_DECLARE(BiomeBuildingRule3x1Impl);
+
 enum {
     BiomeBuildingRuleLeft,
     BiomeBuildingRuleRight,
@@ -98,6 +100,116 @@ static bool biome_building_rule_slot_matches(
     uint64_t mask)
 {
     return !mask || (occupancy[index].buildings & mask) != 0;
+}
+
+static bool biome_building_rule_placement_slot_matches(
+    const FlecsTerrain *terrain,
+    const TerrainOccupancy *occupancy,
+    int32_t x,
+    int32_t y,
+    uint64_t mask)
+{
+    if (!mask) {
+        return true;
+    }
+    if (!occupancy || x < 0 || y < 0 ||
+        x >= terrain->width || y >= terrain->depth)
+    {
+        return false;
+    }
+
+    return (occupancy[y * terrain->width + x].buildings & mask) != 0;
+}
+
+static bool biome_building_rule_3x1_matches_pattern(
+    const FlecsTerrain *terrain,
+    const TerrainOccupancy *occupancy,
+    int32_t first_x,
+    int32_t first_y,
+    int32_t second_x,
+    int32_t second_y,
+    uint64_t first_mask,
+    uint64_t second_mask)
+{
+    return biome_building_rule_placement_slot_matches(
+        terrain, occupancy, first_x, first_y, first_mask) &&
+        biome_building_rule_placement_slot_matches(
+            terrain, occupancy, second_x, second_y, second_mask);
+}
+
+bool biomeBuildingRuleMatches(
+    const ecs_world_t *world,
+    ecs_entity_t rule_entity,
+    const FlecsTerrain *terrain,
+    const TerrainOccupancy *occupancy,
+    int32_t x,
+    int32_t y)
+{
+    if (!rule_entity) {
+        return true;
+    }
+    if (!terrain || !ecs_is_alive(world, rule_entity)) {
+        return false;
+    }
+
+    const BiomeBuildingRule3x1 *rule = ecs_get(
+        world, rule_entity, BiomeBuildingRule3x1);
+    const BiomeBuildingRule3x1Impl *impl = ecs_get(
+        world, rule_entity, BiomeBuildingRule3x1Impl);
+    if (!rule || !impl || !impl->valid) {
+        return false;
+    }
+
+    bool horizontal = impl->populated_slots &
+        ((1u << BiomeBuildingRuleLeft) |
+         (1u << BiomeBuildingRuleRight));
+    bool vertical = impl->populated_slots &
+        ((1u << BiomeBuildingRuleTop) |
+         (1u << BiomeBuildingRuleBottom));
+    uint64_t left = impl->building_masks[BiomeBuildingRuleLeft];
+    uint64_t right = impl->building_masks[BiomeBuildingRuleRight];
+    uint64_t top = impl->building_masks[BiomeBuildingRuleTop];
+    uint64_t bottom = impl->building_masks[BiomeBuildingRuleBottom];
+
+    if (horizontal && biome_building_rule_3x1_matches_pattern(
+        terrain, occupancy, x - 1, y, x + 1, y, left, right))
+    {
+        return true;
+    }
+    if (horizontal && rule->rotate &&
+        biome_building_rule_3x1_matches_pattern(
+            terrain, occupancy, x - 1, y, x + 1, y, right, left))
+    {
+        return true;
+    }
+    if (vertical && biome_building_rule_3x1_matches_pattern(
+        terrain, occupancy, x, y - 1, x, y + 1, top, bottom))
+    {
+        return true;
+    }
+    if (vertical && rule->rotate &&
+        biome_building_rule_3x1_matches_pattern(
+            terrain, occupancy, x, y - 1, x, y + 1, bottom, top))
+    {
+        return true;
+    }
+
+    /* Preserve the 2x1 rule convention where rotate also applies a configured
+     * left/right pattern vertically when no explicit vertical pattern exists. */
+    if (!vertical && horizontal && rule->rotate) {
+        if (biome_building_rule_3x1_matches_pattern(
+            terrain, occupancy, x, y - 1, x, y + 1, left, right))
+        {
+            return true;
+        }
+        if (biome_building_rule_3x1_matches_pattern(
+            terrain, occupancy, x, y - 1, x, y + 1, right, left))
+        {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 static int32_t biome_building_rule_matching_rotations(
@@ -591,14 +703,60 @@ static void BiomeBuildingRule2x1OnSet(ecs_iter_t *it) {
     }
 }
 
+static void BiomeBuildingRule3x1OnSet(ecs_iter_t *it) {
+    for (int32_t i = 0; i < it->count; i ++) {
+        ecs_entity_t rule_entity = it->entities[i];
+        const BiomeBuildingRule3x1 *rule = ecs_get(
+            it->world, rule_entity, BiomeBuildingRule3x1);
+        if (!rule) {
+            continue;
+        }
+
+        const ecs_vec_t *slots[BiomeBuildingRuleSlotCount] = {
+            &rule->left,
+            &rule->right,
+            &rule->top,
+            &rule->bottom
+        };
+        BiomeBuildingRule3x1Impl value = {0};
+        bool has_invalid_slot = false;
+        for (int32_t slot = 0;
+            slot < BiomeBuildingRuleSlotCount;
+            slot ++)
+        {
+            int32_t count = ecs_vec_count(slots[slot]);
+            if (!count) {
+                continue;
+            }
+
+            value.populated_slots |= (uint8_t)(1u << slot);
+            value.building_masks[slot] = biome_building_rule_mask(
+                it->world, rule_entity, slots[slot]);
+            has_invalid_slot |= !value.building_masks[slot];
+        }
+
+        value.valid = value.populated_slots && !has_invalid_slot;
+        if (!value.populated_slots) {
+            const char *name = ecs_get_name(it->world, rule_entity);
+            ecs_warn("building placement rule '%s' has no populated slots",
+                name ? name : "<unnamed>");
+        }
+
+        ecs_set_ptr(it->world, rule_entity,
+            BiomeBuildingRule3x1Impl, &value);
+    }
+}
+
 void biomeBuilding_ruleImport(ecs_world_t *world) {
     ECS_MODULE(world, biomeBuilding_rule);
 
     ecs_set_name_prefix(world, "Biome");
     ECS_META_COMPONENT(world, BiomeBuildingRule2x1);
+    ECS_META_COMPONENT(world, BiomeBuildingRule3x1);
     /* The implementation contains an opaque map and is intentionally not
      * reflected/serialized. */
     ECS_COMPONENT_DEFINE(world, BiomeBuildingRule2x1Impl);
+    ECS_COMPONENT_DEFINE(world, BiomeBuildingRule3x1Impl);
 
     ecs_set_hooks(world, BiomeBuildingRule2x1Impl, {
         .ctor = BiomeBuildingRule2x1Impl_ctor,
@@ -606,5 +764,8 @@ void biomeBuilding_ruleImport(ecs_world_t *world) {
     });
     ecs_set_hooks(world, BiomeBuildingRule2x1, {
         .on_set = BiomeBuildingRule2x1OnSet
+    });
+    ecs_set_hooks(world, BiomeBuildingRule3x1, {
+        .on_set = BiomeBuildingRule3x1OnSet
     });
 }
