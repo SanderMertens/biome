@@ -37,6 +37,63 @@ static void FlecsMesh3_fini(
     ecs_vec_fini_t(NULL, &ptr->colors, flecs_rgba_t);
 }
 
+static void flecsEngine_objectWorldAABB_add(
+    const ecs_world_t *world,
+    ecs_entity_t entity,
+    FlecsAABB *out,
+    bool *found)
+{
+    const FlecsMesh3Impl *mesh = ecs_get(world, entity, FlecsMesh3Impl);
+    const FlecsWorldTransform3 *transform = ecs_get(
+        world, entity, FlecsWorldTransform3);
+    if (mesh && transform) {
+        FlecsAABB bounds;
+        for (int32_t i = 0; i < 3; i ++) {
+            bounds.min[i] = bounds.max[i] = transform->m[3][i];
+            for (int32_t j = 0; j < 3; j ++) {
+                float a = transform->m[j][i] * mesh->aabb.min[j];
+                float b = transform->m[j][i] * mesh->aabb.max[j];
+                bounds.min[i] += a < b ? a : b;
+                bounds.max[i] += a > b ? a : b;
+            }
+        }
+        if (!*found) {
+            *out = bounds;
+            *found = true;
+        } else {
+            for (int32_t i = 0; i < 3; i ++) {
+                if (bounds.min[i] < out->min[i]) {
+                    out->min[i] = bounds.min[i];
+                }
+                if (bounds.max[i] > out->max[i]) {
+                    out->max[i] = bounds.max[i];
+                }
+            }
+        }
+    }
+
+    ecs_iter_t it = ecs_children(world, entity);
+    while (ecs_children_next(&it)) {
+        for (int32_t i = 0; i < it.count; i ++) {
+            flecsEngine_objectWorldAABB_add(
+                world, it.entities[i], out, found);
+        }
+    }
+}
+
+bool flecsEngine_objectWorldAABB(
+    const ecs_world_t *world,
+    ecs_entity_t entity,
+    FlecsAABB *out)
+{
+    if (!out || !entity || !ecs_is_alive(world, entity)) {
+        return false;
+    }
+    bool found = false;
+    flecsEngine_objectWorldAABB_add(world, entity, out, &found);
+    return found;
+}
+
 ECS_CTOR(FlecsMesh3, ptr, {
     ecs_vec_init_t(NULL, &ptr->vertices, flecs_vec3_t, 0);
     ecs_vec_init_t(NULL, &ptr->normals, flecs_vec3_t, 0);

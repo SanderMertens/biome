@@ -26,4 +26,9 @@ void flecsEngine_mesh3_updateColors(
     ecs_world_t *world,
     ecs_entity_t mesh_entity);
 
+bool flecsEngine_objectWorldAABB(
+    const ecs_world_t *world,
+    ecs_entity_t entity,
+    FlecsAABB *out);
+
 #endif

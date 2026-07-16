@@ -220,14 +220,26 @@ static void biome_logistics_startMotion(
     const ecs_function_ctx_t *ctx,
     ecs_script_future_t *future,
     const FlecsPosition3 *target,
-    int32_t duration)
+    float speed)
 {
+    if (speed <= 0) {
+        ecs_script_future_reject(
+            future, "motion speed must be greater than zero");
+        return;
+    }
     const FlecsPosition3 *position = ecs_get(
         ctx->world, ctx->entity, FlecsPosition3);
-    if (!position || duration <= 0) {
-        if (target) {
-            ecs_set_ptr(ctx->world, ctx->entity, FlecsPosition3, target);
-        }
+    if (!position) {
+        biome_logistics_resolve(future);
+        return;
+    }
+    float dx = target->x - position->x;
+    float dy = target->y - position->y;
+    float dz = target->z - position->z;
+    float distance = sqrtf(dx * dx + dy * dy + dz * dz);
+    int32_t duration = (int32_t)ceilf(distance / speed);
+    if (!duration) {
+        ecs_set_ptr(ctx->world, ctx->entity, FlecsPosition3, target);
         biome_logistics_resolve(future);
         return;
     }
@@ -242,8 +254,10 @@ static void biome_logistics_takeOff(
     const ecs_value_t *argv,
     ecs_script_future_t *future)
 {
-    (void)argc;
-    (void)argv;
+    if (argc != 1) {
+        ecs_script_future_reject(future, "takeOff expects a speed");
+        return;
+    }
     const FlecsPosition3 *position = ecs_get(
         ctx->world, ctx->entity, FlecsPosition3);
     if (!position) {
@@ -252,7 +266,8 @@ static void biome_logistics_takeOff(
     }
     FlecsPosition3 target = *position;
     target.y += 5.0f;
-    biome_logistics_startMotion(ctx, future, &target, 60);
+    biome_logistics_startMotion(
+        ctx, future, &target, *(float*)argv[0].ptr);
 }
 
 static void biome_logistics_land(
@@ -261,17 +276,35 @@ static void biome_logistics_land(
     const ecs_value_t *argv,
     ecs_script_future_t *future)
 {
-    (void)argc;
-    (void)argv;
-    const FlecsPosition3 *position = ecs_get(
-        ctx->world, ctx->entity, FlecsPosition3);
-    if (!position) {
-        biome_logistics_resolve(future);
+    if (argc != 2) {
+        ecs_script_future_reject(
+            future, "land expects a destination and speed");
         return;
     }
-    FlecsPosition3 target = *position;
-    target.y -= 5.0f;
-    biome_logistics_startMotion(ctx, future, &target, 60);
+    ecs_entity_t dst = *(ecs_entity_t*)argv[0].ptr;
+    const FlecsPosition3 *position = ecs_get(
+        ctx->world, ctx->entity, FlecsPosition3);
+    const FlecsPosition3 *dst_position = ecs_get(
+        ctx->world, dst, FlecsPosition3);
+    FlecsAABB dst_aabb;
+    FlecsAABB drone_aabb;
+    if (!position || !dst_position ||
+        !flecsEngine_objectWorldAABB(ctx->world, dst, &dst_aabb) ||
+        !flecsEngine_objectWorldAABB(
+            ctx->world, ctx->entity, &drone_aabb))
+    {
+        ecs_script_future_reject(
+            future, "land destination or drone has no renderable bounds");
+        return;
+    }
+    float drone_bottom_offset = position->y - drone_aabb.min[1];
+    FlecsPosition3 target = {
+        dst_position->x,
+        dst_aabb.max[1] + drone_bottom_offset,
+        dst_position->z
+    };
+    biome_logistics_startMotion(
+        ctx, future, &target, *(float*)argv[1].ptr);
 }
 
 static void biome_logistics_moveTo(
@@ -280,8 +313,9 @@ static void biome_logistics_moveTo(
     const ecs_value_t *argv,
     ecs_script_future_t *future)
 {
-    if (argc != 1) {
-        ecs_script_future_reject(future, "moveTo expects a destination");
+    if (argc != 2) {
+        ecs_script_future_reject(
+            future, "moveTo expects a destination and speed");
         return;
     }
     ecs_entity_t dst = *(ecs_entity_t*)argv[0].ptr;
@@ -296,12 +330,8 @@ static void biome_logistics_moveTo(
     FlecsPosition3 target = {
         dst_position->x, dst_position->y + 6.0f, dst_position->z
     };
-    float dx = target.x - position->x;
-    float dy = target.y - position->y;
-    float dz = target.z - position->z;
-    float distance = sqrtf(dx * dx + dy * dy + dz * dz);
-    int32_t duration = (int32_t)ceilf(distance * 12.0f);
-    biome_logistics_startMotion(ctx, future, &target, duration);
+    biome_logistics_startMotion(
+        ctx, future, &target, *(float*)argv[1].ptr);
 }
 
 static void biome_logistics_cancelMotion(
@@ -457,6 +487,7 @@ void biomeLogisticsImport(ecs_world_t *world) {
         .name = "takeOff",
         .parent = module,
         .return_type = ecs_id(ecs_i32_t),
+        .params = {{"speed", ecs_id(ecs_f32_t)}},
         .callback = biome_logistics_takeOff,
         .cancel = biome_logistics_cancelMotion
     });
@@ -464,7 +495,10 @@ void biomeLogisticsImport(ecs_world_t *world) {
         .name = "moveTo",
         .parent = module,
         .return_type = ecs_id(ecs_i32_t),
-        .params = {{"dst", ecs_id(ecs_entity_t)}},
+        .params = {
+            {"dst", ecs_id(ecs_entity_t)},
+            {"speed", ecs_id(ecs_f32_t)}
+        },
         .callback = biome_logistics_moveTo,
         .cancel = biome_logistics_cancelMotion
     });
@@ -472,6 +506,10 @@ void biomeLogisticsImport(ecs_world_t *world) {
         .name = "land",
         .parent = module,
         .return_type = ecs_id(ecs_i32_t),
+        .params = {
+            {"dst", ecs_id(ecs_entity_t)},
+            {"speed", ecs_id(ecs_f32_t)}
+        },
         .callback = biome_logistics_land,
         .cancel = biome_logistics_cancelMotion
     });

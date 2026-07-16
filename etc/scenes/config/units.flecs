@@ -19,21 +19,22 @@ units {
 
         Behaviors: [
             script {
+                const speed: 0.2
                 const job = await acceptJob()
 
-                await takeOff()
-                await moveTo(job.src)
-                await land()
+                await takeOff(speed)
+                await moveTo(job.src, speed)
+                await land(job.src, speed)
                 await pickUp(job.resource, job.amount, job.src, this)
 
-                await takeOff()
-                await moveTo(job.dst)
-                await land()
+                await takeOff(speed)
+                await moveTo(job.dst, speed)
+                await land(job.dst, speed)
                 await dropOff(job.resource, job.amount, this, job.dst)
 
-                await takeOff()
-                await moveTo(this[Carrier].home)
-                await land()
+                await takeOff(speed)
+                await moveTo(this[Carrier].home, speed)
+                await land(this[Carrier].home, speed)
             }
         ]
 
