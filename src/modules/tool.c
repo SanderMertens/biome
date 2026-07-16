@@ -429,116 +429,6 @@ static float biome_tool_maxHeight(
     return height;
 }
 
-static const EcsScriptFunction* biome_tool_spawnFunction(
-    ecs_world_t *world,
-    ecs_entity_t building,
-    ecs_entity_t function)
-{
-    const EcsScriptFunction *f = ecs_get(
-        world, function, EcsScriptFunction);
-    const ecs_script_parameter_t *params = f
-        ? ecs_vec_first_t(&f->params, ecs_script_parameter_t)
-        : NULL;
-    if (!f || !f->callback || f->return_type != ecs_id(ecs_entity_t) ||
-        ecs_vec_count(&f->params) != 1 ||
-        params[0].type != ecs_id(ecs_entity_t))
-    {
-        ecs_warn("building '%s' has invalid spawn function '%s'",
-            ecs_get_name(world, building), ecs_get_name(world, function));
-        return NULL;
-    }
-    return f;
-}
-
-static ecs_entity_t biome_tool_spawnWithFunction(
-    ecs_world_t *world,
-    ecs_entity_t function,
-    const EcsScriptFunction *f,
-    ecs_entity_t building)
-{
-    ecs_entity_t result = 0;
-    ecs_value_t arg = {
-        .type = ecs_id(ecs_entity_t),
-        .ptr = &building
-    };
-    ecs_value_t value = {
-        .type = ecs_id(ecs_entity_t),
-        .ptr = &result
-    };
-    ecs_function_ctx_t ctx = {
-        .world = ECS_CONST_CAST(ecs_world_t*, ecs_get_world(world)),
-        .function = function,
-        .ctx = f->ctx
-    };
-    f->callback(&ctx, 1, &arg, &value);
-    return result;
-}
-
-static void biome_tool_spawn(
-    ecs_world_t *world,
-    ecs_entity_t building,
-    ecs_entity_t parent,
-    ecs_entity_t terrain,
-    int32_t x,
-    int32_t y,
-    int32_t span_x,
-    int32_t span_y,
-    const BiomeBuilding *config)
-{
-    BiomeBuildingSpawn spawn = config->spawn;
-    if (!spawn.prefab || !ecs_is_alive(world, spawn.prefab)) {
-        return;
-    }
-
-    const EcsScriptFunction *function = ecs_get(
-        world, spawn.prefab, EcsScriptFunction);
-    if (function) {
-        function = biome_tool_spawnFunction(
-            world, building, spawn.prefab);
-        if (!function) {
-            return;
-        }
-    }
-
-    FlecsPosition3 position;
-    if (!flecsEngine_terrainTileToPosition(
-        world, terrain, x, y, span_x, span_y,
-        &spawn.position, &position))
-    {
-        return;
-    }
-    if (!function && parent == terrain) {
-        const FlecsPosition3 *terrain_position = ecs_get(
-            world, terrain, FlecsPosition3);
-        if (terrain_position) {
-            position.x -= terrain_position->x;
-            position.y -= terrain_position->y;
-            position.z -= terrain_position->z;
-        }
-    }
-
-    ecs_entity_t instance;
-    if (function) {
-        instance = biome_tool_spawnWithFunction(
-            world, spawn.prefab, function, building);
-    } else {
-        instance = ecs_new_w_pair(world, EcsIsA, spawn.prefab);
-        if (parent) {
-            ecs_add_pair(world, instance, EcsChildOf, parent);
-        }
-    }
-    if (!instance || !ecs_is_alive(world, instance)) {
-        ecs_warn("building '%s' spawn function returned an invalid entity",
-            ecs_get_name(world, building));
-        return;
-    }
-
-    ecs_set_ptr(world, instance, FlecsPosition3, &position);
-    ecs_set(world, instance, FlecsRotation3, {
-        spawn.rotation.x, spawn.rotation.y, spawn.rotation.z
-    });
-}
-
 static void biome_tool_ghostInstance(
     const FlecsTerrain *t,
     const FlecsPosition3 *terrain_pos,
@@ -906,10 +796,7 @@ void BiomeToolUpdate(ecs_iter_t *it) {
         }
 
         const FlecsTerrain *t = ecs_get(world, terrain, FlecsTerrain);
-        const BiomeBuilding *building_config = ecs_get(
-            world, tool->building, BiomeBuilding);
         TerrainOccupancy *occ = biome_tool_occupancy(world, terrain);
-        uint64_t mask = biome_tool_buildingMask(world, tool->building);
         uint64_t requirement_mask = biome_tool_buildingRequirementMask(
             world, tool->building);
         ecs_entity_t building_rule = biome_tool_buildingRule(
@@ -930,26 +817,6 @@ void BiomeToolUpdate(ecs_iter_t *it) {
             return;
         }
 
-        const FlecsParticleBurst *place_burst = NULL;
-        FlecsParticleBurst burst;
-        if (tool->place_effect) {
-            place_burst = ecs_get(
-                world, tool->place_effect, FlecsParticleBurst);
-        }
-        if (place_burst) {
-            burst = *place_burst;
-            burst.count = place_burst->count * fw * fh;
-            burst.spread.x = place_burst->spread.x +
-                (float)(fw - 1) * t->cell_size;
-            burst.spread.z = place_burst->spread.z +
-                (float)(fh - 1) * t->cell_size;
-        }
-
-        ecs_entity_t parent = ecs_lookup(world, "scene.buildings");
-        if (!parent) {
-            parent = terrain;
-        }
-
         int32_t placed = 0;
         for (int32_t sy = y0; sy <= y1; sy += step_y) {
             for (int32_t sx = x0; sx <= x1; sx += step_x) {
@@ -963,43 +830,13 @@ void BiomeToolUpdate(ecs_iter_t *it) {
                     continue;
                 }
 
-                if (fw > 1 || fh > 1) {
-                    float target_height = biome_tool_maxHeight(
-                        t, sx, sy, fw, fh);
-                    flecsEngine_terrain_setHeight(
-                        world, terrain, sx, sy, fw, fh, target_height);
+                if (biomePlaceBuilding(
+                    world, tool->building, terrain, sx, sy, fw, fh,
+                    tool->place_effect))
+                {
+                    placed ++;
                 }
-
-                ecs_entity_t building = ecs_new_w_pair(
-                    world, EcsIsA, tool->building);
-                ecs_add_pair(world, building, EcsChildOf, parent);
-                ecs_set(world, building, FlecsTerrainPosition, {
-                    .terrain = terrain, .x = sx, .y = sy,
-                    .span_x = fw, .span_y = fh });
-                if (building_config) {
-                    biome_tool_spawn(world, building, parent, terrain,
-                        sx, sy, fw, fh, building_config);
-                }
-                if (place_burst) {
-                    ecs_set_ptr(world, building, FlecsParticleBurst, &burst);
-                }
-
-                if (occ) {
-                    for (int32_t cy = sy; cy < sy + fh; cy ++) {
-                        for (int32_t cx = sx; cx < sx + fw; cx ++) {
-                            occ[cy * t->width + cx].buildings |= mask;
-                        }
-                    }
-                }
-
-                biome_terrainItemIndex_place(world, building);
-
-                placed ++;
             }
-        }
-
-        if (placed) {
-            biome_playerAttr_addFlag(world, "BuildingsPlaced", mask);
         }
 
         if (maxCount > 0 && (curCount + placed) >= maxCount) {
