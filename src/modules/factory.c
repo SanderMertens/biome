@@ -200,6 +200,20 @@ static void BiomeFactoryUpdate(ecs_iter_t *it) {
     }
 }
 
+static void BiomeFactoryUpdateEmitter(ecs_iter_t *it) {
+    const BiomeFactoryProgress *progress = ecs_field(
+        it, BiomeFactoryProgress, 0);
+    const BiomePowerConsumer *power = ecs_field(
+        it, BiomePowerConsumer, 1);
+    FlecsParticleEmitter *emitters = ecs_field(
+        it, FlecsParticleEmitter, 2);
+
+    for (int32_t i = 0; i < it->count; i ++) {
+        emitters[i].enabled =
+            power[i].powered && progress[i].remaining > 0;
+    }
+}
+
 int32_t biome_factory_canAfford(
     const ecs_world_t *world,
     ecs_entity_t item)
@@ -494,5 +508,16 @@ void biomeFactoryImport(ecs_world_t *world) {
         },
         .phase = EcsOnUpdate,
         .callback = BiomeFactoryUpdate
+    });
+
+    ecs_system(world, {
+        .entity = ecs_entity(world, { .name = "UpdateEmitter" }),
+        .query.terms = {
+            { .id = ecs_id(BiomeFactoryProgress), .inout = EcsIn },
+            { .id = ecs_id(BiomePowerConsumer), .inout = EcsIn },
+            { .id = ecs_id(FlecsParticleEmitter) }
+        },
+        .phase = EcsOnUpdate,
+        .callback = BiomeFactoryUpdateEmitter
     });
 }

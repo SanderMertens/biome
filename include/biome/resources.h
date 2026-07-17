@@ -37,6 +37,7 @@ typedef ecs_map_t BiomeResourceStorageMap;
 ECS_STRUCT(BiomeResourceStorage, {
     BiomeResourceStorageMap resources;  /* Resources available in storage */
     BiomeResourceStorageMap reserved;   /* Resources reserved for pickup */
+    ecs_vec_t outstsanding_requests;    /* Vector with outstanding unaccepted requests. */
 });
 
 /* Component that describes how to create a resource */

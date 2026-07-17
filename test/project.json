@@ -1,0 +1,21 @@
+{
+    "id": "biome_test",
+    "type": "application",
+    "value": {
+        "description": "Tests for Biome",
+        "public": false,
+        "use": [
+            "flecs_engine"
+        ]
+    },
+    "test": {
+        "testsuites": [
+            {
+                "id": "Logistics",
+                "testcases": [
+                    "first_come_first_serve"
+                ]
+            }
+        ]
+    }
+}

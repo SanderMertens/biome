@@ -161,117 +161,133 @@ static ecs_entity_t biome_logistics_findSourceStorage(
     return result;
 }
 
-static ecs_entity_t biome_logistics_findRequest(
+static bool biome_logistics_tryRequest(
     ecs_world_t *world,
+    ecs_entity_t request_entity,
+    bool reserve,
     BiomeLogisticsJob *job)
 {
-    ecs_query_t *query = ecs_query(world, {
-        .terms = {{
-            .id = ecs_pair(
-                ecs_id(BiomeLogisticsRequest), EcsWildcard),
-            .inout = EcsIn
-        }}
-    });
-    ecs_entity_t result = 0;
-    int32_t priority = INT32_MIN;
-    bool factory_request = false;
-    ecs_iter_t it = ecs_query_iter(world, query);
+    ecs_entity_t request_kind = ecs_get_target(
+        world, request_entity, ecs_id(BiomeLogisticsRequest), 0);
+    const BiomeLogisticsRequest *request = request_kind
+        ? ecs_get_id(world, request_entity, ecs_pair(
+            ecs_id(BiomeLogisticsRequest), request_kind))
+        : NULL;
+    if (!request ||
+        request->kind != BiomeRequestPickup ||
+        request->amount <= 0 ||
+        !ecs_is_alive(world, request->source))
+    {
+        return false;
+    }
 
-    while (ecs_query_next(&it)) {
-        const BiomeLogisticsRequest *requests = ecs_field(
-            &it, BiomeLogisticsRequest, 0);
+    bool factory_request = ecs_has(
+        world, request->source, BiomeFactory);
+    ecs_entity_t src = request->source;
+    ecs_entity_t dst;
+    if (factory_request) {
+        dst = request->source;
+        if (!ecs_has(world, dst, BiomeResourceStorage)) {
+            return false;
+        }
+        src = biome_logistics_findSourceStorage(
+            world, request->resource, request->amount, reserve);
+        if (!src) {
+            return false;
+        }
+    } else {
+        dst = biome_logistics_findStorage(
+            world, request->resource, request->amount, reserve);
+        if (!dst) {
+            return false;
+        }
+    }
+
+    *job = (BiomeLogisticsJob){
+        request->resource,
+        request->amount,
+        src,
+        dst
+    };
+    return true;
+}
+
+static void biome_logistics_collectRequests(
+    ecs_world_t *world,
+    ecs_vec_t *requests)
+{
+    ecs_entity_t jobs = ecs_lookup(world, "jobs");
+    ecs_assert(jobs != 0, ECS_INTERNAL_ERROR, NULL);
+
+    ecs_iter_t it = ecs_children(world, jobs);
+    while (ecs_children_next(&it)) {
         for (int32_t i = 0; i < it.count; i ++) {
-            const BiomeLogisticsRequest *request = &requests[i];
-            bool candidate_factory = ecs_has(
-                world, request->source, BiomeFactory);
-            if (request->kind != BiomeRequestPickup ||
-                request->amount <= 0 ||
-                !ecs_is_alive(world, request->source) ||
-                (result && candidate_factory < factory_request) ||
-                (result && candidate_factory == factory_request &&
-                    request->priority < priority))
+            BiomeLogisticsJob job;
+            if (biome_logistics_tryRequest(
+                world, it.entities[i], false, &job))
+            {
+                *ecs_vec_append_t(NULL, requests, ecs_entity_t) =
+                    it.entities[i];
+            }
+        }
+    }
+}
+
+static void BiomeLogisticsDispatch(ecs_iter_t *it) {
+    ecs_vec_t requests;
+    ecs_vec_init_t(NULL, &requests, ecs_entity_t, 0);
+    biome_logistics_collectRequests(it->world, &requests);
+
+    int32_t request_index = 0;
+    int32_t request_count = ecs_vec_count(&requests);
+    ecs_entity_t *request_entities = ecs_vec_first_t(
+        &requests, ecs_entity_t);
+
+    while (request_index < request_count && ecs_query_next(it)) {
+        BiomeLogisticsWaiter *waiters = ecs_field(
+            it, BiomeLogisticsWaiter, 0);
+
+        for (int32_t i = 0;
+            i < it->count && request_index < request_count;
+            i ++)
+        {
+            const BiomeLogisticsCarrier *carrier = ecs_get(
+                it->world, it->entities[i], BiomeLogisticsCarrier);
+            if (carrier && carrier->home &&
+                !biome_logistics_entityPowered(it->world, carrier->home))
             {
                 continue;
             }
 
-            ecs_entity_t src = request->source;
-            ecs_entity_t dst;
-            if (candidate_factory) {
-                src = biome_logistics_findSourceStorage(
-                    world, request->resource, request->amount, false);
-                dst = request->source;
-                if (!src || !ecs_has(
-                    world, dst, BiomeResourceStorage))
+            BiomeLogisticsJob job;
+            ecs_entity_t request = 0;
+            while (request_index < request_count) {
+                ecs_entity_t candidate =
+                    request_entities[request_index ++];
+                if (biome_logistics_tryRequest(
+                    it->world, candidate, true, &job))
                 {
-                    continue;
-                }
-            } else {
-                dst = biome_logistics_findStorage(
-                    world, request->resource, request->amount, false);
-                if (!dst) {
-                    continue;
+                    request = candidate;
+                    break;
                 }
             }
+            if (!request) {
+                break;
+            }
 
-            result = it.entities[i];
-            priority = request->priority;
-            factory_request = candidate_factory;
-            *job = (BiomeLogisticsJob){
-                request->resource,
-                request->amount,
-                src,
-                dst
+            ecs_value_t value = {
+                ecs_id(BiomeLogisticsJob), &job
             };
+            ecs_script_future_resolve(waiters[i].future, &value);
+            ecs_remove(it->world, it->entities[i], BiomeLogisticsWaiter);
+
+            ecs_defer_suspend(it->world);
+            ecs_delete(it->world, request);
+            ecs_defer_resume(it->world);
         }
     }
 
-    ecs_query_fini(query);
-    if (result) {
-        if (factory_request) {
-            job->src = biome_logistics_findSourceStorage(
-                world, job->resource, job->amount, true);
-            if (!job->src) {
-                result = 0;
-            }
-        } else {
-            job->dst = biome_logistics_findStorage(
-                world, job->resource, job->amount, true);
-            if (!job->dst) {
-                result = 0;
-            }
-        }
-    }
-    return result;
-}
-
-static void BiomeLogisticsDispatch(ecs_iter_t *it) {
-    BiomeLogisticsWaiter *waiters = ecs_field(
-        it, BiomeLogisticsWaiter, 0);
-
-    for (int32_t i = 0; i < it->count; i ++) {
-        const BiomeLogisticsCarrier *carrier = ecs_get(
-            it->world, it->entities[i], BiomeLogisticsCarrier);
-        if (carrier && carrier->home &&
-            !biome_logistics_entityPowered(it->world, carrier->home))
-        {
-            continue;
-        }
-        BiomeLogisticsJob job = {0};
-        ecs_entity_t request = biome_logistics_findRequest(
-            it->world, &job);
-        if (!request) {
-            continue;
-        }
-        ecs_value_t value = {
-            ecs_id(BiomeLogisticsJob), &job
-        };
-        ecs_script_future_resolve(waiters[i].future, &value);
-        ecs_remove(it->world, it->entities[i], BiomeLogisticsWaiter);
-
-        ecs_defer_suspend(it->world);
-        ecs_delete(it->world, request);
-        ecs_defer_resume(it->world);
-    }
+    ecs_vec_fini_t(NULL, &requests, ecs_entity_t);
 }
 
 static void biome_logistics_acceptJob(
@@ -622,7 +638,7 @@ void biomeLogisticsImport(ecs_world_t *world) {
         .entity = ecs_entity(world, { .name = "Dispatch" }),
         .query.terms = {{ .id = ecs_id(BiomeLogisticsWaiter) }},
         .phase = EcsOnUpdate,
-        .callback = BiomeLogisticsDispatch,
+        .run = BiomeLogisticsDispatch,
         .immediate = true
     });
 
@@ -634,6 +650,7 @@ void biomeLogisticsImport(ecs_world_t *world) {
     });
 
     ecs_entity_t prev_scope = ecs_set_scope(world, 0);
-    ecs_entity(world, { .name = "jobs" });
+    ecs_entity_t jobs = ecs_entity(world, { .name = "jobs" });
+    ecs_add_id(world, jobs, EcsOrderedChildren);
     ecs_set_scope(world, prev_scope);
 }

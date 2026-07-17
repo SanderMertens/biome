@@ -292,7 +292,7 @@ buildings {
         Scale3: {2, 2, 2}
     }
 
-    prefab Burner {
+    prefab Burner : effects.SmokeEmitter {
         Building: {
             can_doze: true
             footprint: {1, 1}
