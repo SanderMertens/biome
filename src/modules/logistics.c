@@ -63,6 +63,7 @@ static ecs_entity_t biome_logistics_findStorage(
     ecs_world_t *world,
     ecs_entity_t resource,
     int32_t amount,
+    ecs_entity_t exclude,
     bool reserve)
 {
     ecs_query_t *query = ecs_query(world, {
@@ -80,7 +81,8 @@ static ecs_entity_t biome_logistics_findStorage(
         const BiomeResourceStorageDesc *descs = ecs_field(
             &it, BiomeResourceStorageDesc, 1);
         for (int32_t i = 0; i < it.count; i ++) {
-            if (descs[i].kind != BiomeResourceStorageKindStorage ||
+            if (it.entities[i] == exclude ||
+                descs[i].kind != BiomeResourceStorageKindStorage ||
                 !biome_logistics_entityPowered(world, it.entities[i]))
             {
                 continue;
@@ -114,6 +116,7 @@ static ecs_entity_t biome_logistics_findSourceStorage(
     ecs_world_t *world,
     ecs_entity_t resource,
     int32_t amount,
+    ecs_entity_t exclude,
     bool reserve)
 {
     ecs_query_t *query = ecs_query(world, {
@@ -131,7 +134,8 @@ static ecs_entity_t biome_logistics_findSourceStorage(
         const BiomeResourceStorageDesc *descs = ecs_field(
             &it, BiomeResourceStorageDesc, 1);
         for (int32_t i = 0; i < it.count; i ++) {
-            if (descs[i].kind != BiomeResourceStorageKindStorage ||
+            if (it.entities[i] == exclude ||
+                descs[i].kind != BiomeResourceStorageKindStorage ||
                 !biome_logistics_entityPowered(world, it.entities[i]))
             {
                 continue;
@@ -161,11 +165,10 @@ static ecs_entity_t biome_logistics_findSourceStorage(
     return result;
 }
 
-static bool biome_logistics_tryRequest(
-    ecs_world_t *world,
+static bool biome_logistics_getRequest(
+    const ecs_world_t *world,
     ecs_entity_t request_entity,
-    bool reserve,
-    BiomeLogisticsJob *job)
+    BiomeLogisticsRequest *result)
 {
     ecs_entity_t request_kind = ecs_get_target(
         world, request_entity, ecs_id(BiomeLogisticsRequest), 0);
@@ -174,41 +177,172 @@ static bool biome_logistics_tryRequest(
             ecs_id(BiomeLogisticsRequest), request_kind))
         : NULL;
     if (!request ||
-        request->kind != BiomeRequestPickup ||
+        (request->kind != BiomeRequestPickup &&
+            request->kind != BiomeRequestDropOff) ||
         request->amount <= 0 ||
         !ecs_is_alive(world, request->source))
     {
         return false;
     }
 
-    bool factory_request = ecs_has(
-        world, request->source, BiomeFactory);
-    ecs_entity_t src = request->source;
+    *result = *request;
+    return true;
+}
+
+static bool biome_logistics_requestEndpointFits(
+    const ecs_world_t *world,
+    const BiomeLogisticsRequest *request,
+    int32_t amount)
+{
+    const BiomeResourceStorage *storage = ecs_get(
+        world, request->source, BiomeResourceStorage);
+    const BiomeResourceStorageDesc *desc = ecs_get(
+        world, request->source, BiomeResourceStorageDesc);
+    if (!storage || !desc) {
+        return false;
+    }
+
+    int32_t stored = biome_logistics_mapValue(
+        &storage->resources, request->resource);
+    if (request->kind == BiomeRequestPickup) {
+        return stored >= amount;
+    }
+    if (request->kind == BiomeRequestDropOff) {
+        return desc->capacity - stored >= amount;
+    }
+    return false;
+}
+
+static bool biome_logistics_resolveRequest(
+    ecs_world_t *world,
+    const BiomeLogisticsRequest *request,
+    int32_t amount,
+    bool reserve,
+    BiomeLogisticsJob *job)
+{
+    if (amount <= 0 ||
+        !biome_logistics_requestEndpointFits(world, request, amount))
+    {
+        return false;
+    }
+
+    ecs_entity_t src;
     ecs_entity_t dst;
-    if (factory_request) {
-        dst = request->source;
-        if (!ecs_has(world, dst, BiomeResourceStorage)) {
-            return false;
-        }
-        src = biome_logistics_findSourceStorage(
-            world, request->resource, request->amount, reserve);
-        if (!src) {
-            return false;
-        }
-    } else {
+    if (request->kind == BiomeRequestPickup) {
+        src = request->source;
         dst = biome_logistics_findStorage(
-            world, request->resource, request->amount, reserve);
-        if (!dst) {
-            return false;
-        }
+            world, request->resource, amount, request->source, reserve);
+    } else if (request->kind == BiomeRequestDropOff) {
+        dst = request->source;
+        src = biome_logistics_findSourceStorage(
+            world, request->resource, amount, request->source, reserve);
+    } else {
+        return false;
+    }
+    if (!src || !dst) {
+        return false;
     }
 
     *job = (BiomeLogisticsJob){
         request->resource,
-        request->amount,
+        amount,
         src,
         dst
     };
+    return true;
+}
+
+static bool biome_logistics_tryRequest(
+    ecs_world_t *world,
+    ecs_entity_t request_entity,
+    bool reserve,
+    BiomeLogisticsJob *job)
+{
+    BiomeLogisticsRequest request;
+    return biome_logistics_getRequest(
+        world, request_entity, &request) &&
+        biome_logistics_resolveRequest(
+            world, &request, request.amount, reserve, job);
+}
+
+static bool biome_logistics_acceptRequest(
+    ecs_world_t *world,
+    ecs_entity_t request_entity,
+    ecs_vec_t *accepted,
+    BiomeLogisticsJob *job)
+{
+    ecs_vec_clear(accepted);
+
+    BiomeLogisticsRequest request;
+    if (!biome_logistics_getRequest(
+        world, request_entity, &request))
+    {
+        return false;
+    }
+
+    int32_t max_amount = request.amount;
+    const BiomeResource *resource = ecs_get(
+        world, request.resource, BiomeResource);
+    if (resource && resource->max_drone_amount > max_amount) {
+        max_amount = resource->max_drone_amount;
+    }
+
+    int32_t amount = request.amount;
+    *ecs_vec_append_t(NULL, accepted, ecs_entity_t) = request_entity;
+
+    const BiomeResourceStorage *storage = ecs_get(
+        world, request.source, BiomeResourceStorage);
+    if (storage) {
+        int32_t count = ecs_vec_count(&storage->outstanding_requests);
+        const ecs_entity_t *requests = ecs_vec_first_t(
+            &storage->outstanding_requests, ecs_entity_t);
+        bool found = false;
+
+        for (int32_t i = 0; i < count; i ++) {
+            ecs_entity_t candidate_entity = requests[i];
+            if (candidate_entity == request_entity) {
+                found = true;
+                continue;
+            }
+            if (!found) {
+                continue;
+            }
+
+            BiomeLogisticsRequest candidate;
+            if (!biome_logistics_getRequest(
+                    world, candidate_entity, &candidate) ||
+                candidate.source != request.source ||
+                candidate.kind != request.kind ||
+                candidate.resource != request.resource ||
+                candidate.amount > max_amount - amount)
+            {
+                continue;
+            }
+
+            BiomeLogisticsJob combined_job;
+            if (!biome_logistics_resolveRequest(
+                world, &request, amount + candidate.amount,
+                false, &combined_job))
+            {
+                continue;
+            }
+
+            amount += candidate.amount;
+            *ecs_vec_append_t(NULL, accepted, ecs_entity_t) =
+                candidate_entity;
+            if (amount == max_amount) {
+                break;
+            }
+        }
+    }
+
+    if (!biome_logistics_resolveRequest(
+        world, &request, amount, true, job))
+    {
+        ecs_vec_clear(accepted);
+        return false;
+    }
+
     return true;
 }
 
@@ -233,10 +367,57 @@ static void biome_logistics_collectRequests(
     }
 }
 
+static void biome_logistics_removeOutstandingRequest(
+    ecs_world_t *world,
+    ecs_entity_t source,
+    ecs_entity_t request)
+{
+    BiomeResourceStorage *storage = ecs_get_mut(
+        world, source, BiomeResourceStorage);
+    if (!storage) {
+        return;
+    }
+
+    int32_t count = ecs_vec_count(&storage->outstanding_requests);
+    ecs_entity_t *requests = ecs_vec_first_t(
+        &storage->outstanding_requests, ecs_entity_t);
+    for (int32_t i = 0; i < count; i ++) {
+        if (requests[i] == request) {
+            ecs_vec_remove_ordered_t(
+                &storage->outstanding_requests, ecs_entity_t, i);
+            ecs_modified_id(
+                world, source, ecs_id(BiomeResourceStorage));
+            return;
+        }
+    }
+}
+
+static void biome_logistics_finishRequests(
+    ecs_world_t *world,
+    ecs_vec_t *accepted)
+{
+    int32_t accepted_count = ecs_vec_count(accepted);
+    ecs_entity_t *accepted_requests = ecs_vec_first_t(
+        accepted, ecs_entity_t);
+    for (int32_t r = 0; r < accepted_count; r ++) {
+        BiomeLogisticsRequest accepted_request;
+        if (biome_logistics_getRequest(
+            world, accepted_requests[r], &accepted_request))
+        {
+            biome_logistics_removeOutstandingRequest(
+                world, accepted_request.source, accepted_requests[r]);
+        }
+        ecs_delete(world, accepted_requests[r]);
+    }
+}
+
 static void BiomeLogisticsDispatch(ecs_iter_t *it) {
     ecs_vec_t requests;
     ecs_vec_init_t(NULL, &requests, ecs_entity_t, 0);
     biome_logistics_collectRequests(it->world, &requests);
+
+    ecs_vec_t accepted;
+    ecs_vec_init_t(NULL, &accepted, ecs_entity_t, 0);
 
     int32_t request_index = 0;
     int32_t request_count = ecs_vec_count(&requests);
@@ -264,8 +445,8 @@ static void BiomeLogisticsDispatch(ecs_iter_t *it) {
             while (request_index < request_count) {
                 ecs_entity_t candidate =
                     request_entities[request_index ++];
-                if (biome_logistics_tryRequest(
-                    it->world, candidate, true, &job))
+                if (biome_logistics_acceptRequest(
+                    it->world, candidate, &accepted, &job))
                 {
                     request = candidate;
                     break;
@@ -282,11 +463,12 @@ static void BiomeLogisticsDispatch(ecs_iter_t *it) {
             ecs_remove(it->world, it->entities[i], BiomeLogisticsWaiter);
 
             ecs_defer_suspend(it->world);
-            ecs_delete(it->world, request);
+            biome_logistics_finishRequests(it->world, &accepted);
             ecs_defer_resume(it->world);
         }
     }
 
+    ecs_vec_fini_t(NULL, &accepted, ecs_entity_t);
     ecs_vec_fini_t(NULL, &requests, ecs_entity_t);
 }
 
@@ -538,6 +720,10 @@ void biome_logistics_postRequest(
     int32_t amount,
     int32_t priority)
 {
+    if (amount <= 0) {
+        return;
+    }
+
     ecs_entity_t jobs = ecs_lookup(world, "jobs");
     ecs_assert(jobs != 0, ECS_INTERNAL_ERROR, NULL);
 
@@ -549,10 +735,34 @@ void biome_logistics_postRequest(
         request_kinds->constants, ecs_enum_constant_t, kind);
     ecs_assert(request_kind != NULL, ECS_INVALID_PARAMETER, NULL);
 
-    ecs_entity_t job = ecs_new_w_pair(world, EcsChildOf, jobs);
-    ecs_set_pair(world, job, BiomeLogisticsRequest, request_kind->constant, {
-        kind, source, resource, amount, priority
-    });
+    int32_t max_amount = amount;
+    const BiomeResource *resource_config = ecs_get(
+        world, resource, BiomeResource);
+    if (resource_config && resource_config->max_drone_amount > 0) {
+        max_amount = resource_config->max_drone_amount;
+    }
+
+    while (amount > 0) {
+        int32_t request_amount = amount < max_amount ? amount : max_amount;
+        ecs_entity_t job = ecs_new_w_pair(world, EcsChildOf, jobs);
+        ecs_set_pair(
+            world, job, BiomeLogisticsRequest, request_kind->constant, {
+                kind, source, resource, request_amount, priority
+            });
+
+        BiomeResourceStorage *storage = ecs_get_mut(
+            world, source, BiomeResourceStorage);
+        if (storage) {
+            ecs_vec_init_if_t(
+                &storage->outstanding_requests, ecs_entity_t);
+            *ecs_vec_append_t(
+                NULL, &storage->outstanding_requests, ecs_entity_t) = job;
+            ecs_modified_id(
+                world, source, ecs_id(BiomeResourceStorage));
+        }
+
+        amount -= request_amount;
+    }
 }
 
 void biomeLogisticsImport(ecs_world_t *world) {

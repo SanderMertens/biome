@@ -304,7 +304,7 @@ buildings {
 
         StorageDesc: {
             kind: Sink
-            capacity: 100
+            capacity: 500
         }
 
         Factory: {

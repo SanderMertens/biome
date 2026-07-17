@@ -20,7 +20,8 @@ typedef enum {
 ECS_STRUCT(BiomeResource, {
     int32_t mine_time;          /* Time it takes for an extractor to mine a resource in frames. */
     int32_t mine_amount;        /* Number of resources mined after mine_time (or however many are left). */
-    int32_t min_pickup_amount;  /* Minimum number of resources for a pickup (drones won't consider storages with less than this) */
+    int32_t min_drone_amount;  /* Minimum number of resources for a pickup (drones won't consider storages with less than this) */
+    int32_t max_drone_amount;  /* Maximum number of resources a drone can carry for resource. Drones will combine outstanding requests up to this amount. */
     float green_house_gass;
     float toxic_gass;
 });
@@ -37,7 +38,7 @@ typedef ecs_map_t BiomeResourceStorageMap;
 ECS_STRUCT(BiomeResourceStorage, {
     BiomeResourceStorageMap resources;  /* Resources available in storage */
     BiomeResourceStorageMap reserved;   /* Resources reserved for pickup */
-    ecs_vec_t outstsanding_requests;    /* Vector with outstanding unaccepted requests. */
+    ecs_vec(ecs_entity_t) outstanding_requests;    /* Vector with outstanding unaccepted requests. */
 });
 
 /* Component that describes how to create a resource */

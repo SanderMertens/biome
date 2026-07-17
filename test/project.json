@@ -13,7 +13,12 @@
             {
                 "id": "Logistics",
                 "testcases": [
-                    "first_come_first_serve"
+                    "first_come_first_serve",
+                    "combine_requests",
+                    "track_outstanding_requests",
+                    "combine_pickup_requests",
+                    "combine_dropoff_requests",
+                    "combine_matching_resources_only"
                 ]
             }
         ]

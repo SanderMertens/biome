@@ -4,6 +4,7 @@
 
 typedef struct BiomeFactoryProgress {
     float remaining;
+    float total;
 } BiomeFactoryProgress;
 
 ECS_COMPONENT_DECLARE(BiomeFactoryProgress);
@@ -94,7 +95,7 @@ static void biome_factory_requestInputs(
         int32_t *value = biome_factory_mapEnsure(
             &storage->reserved, resource);
         *value += amount;
-        biome_logistics_postRequest(world, BiomeRequestPickup,
+        biome_logistics_postRequest(world, BiomeRequestDropOff,
             factory, resource, amount, 0);
         modified = true;
     }
@@ -169,6 +170,7 @@ static void BiomeFactoryUpdate(ecs_iter_t *it) {
             if (p->remaining < 1) {
                 p->remaining = 1;
             }
+            p->total = p->remaining;
             ecs_modified_id(
                 it->world, entity, ecs_id(BiomeResourceStorage));
             biome_factory_requestInputs(
@@ -192,6 +194,7 @@ static void BiomeFactoryUpdate(ecs_iter_t *it) {
             if (p->remaining < 1) {
                 p->remaining = 1;
             }
+            p->total = p->remaining;
             ecs_modified_id(
                 it->world, entity, ecs_id(BiomeResourceStorage));
         }
@@ -492,6 +495,16 @@ void biomeFactoryImport(ecs_world_t *world) {
     });
     ECS_META_COMPONENT(world, BiomeFactory);
     ECS_COMPONENT_DEFINE(world, BiomeFactoryProgress);
+
+    ecs_struct(world, {
+        .entity = ecs_id(BiomeFactoryProgress),
+        .members = {
+            { .name = "remaining", .type = ecs_id(ecs_f32_t),
+                .offset = offsetof(BiomeFactoryProgress, remaining) },
+            { .name = "total", .type = ecs_id(ecs_f32_t),
+                .offset = offsetof(BiomeFactoryProgress, total) }
+        }
+    });
 
     ecs_add_pair(world, ecs_id(BiomeFactory),
         EcsWith, ecs_id(BiomeResourceStorage));

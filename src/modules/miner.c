@@ -130,7 +130,7 @@ static void biome_miner_postPickupRequests(
     BiomeResourceStorage *storage,
     int32_t stored)
 {
-    int32_t pickup_amount = resource->min_pickup_amount;
+    int32_t pickup_amount = resource->min_drone_amount;
     if (pickup_amount <= 0) {
         return;
     }
