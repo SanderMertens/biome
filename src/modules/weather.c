@@ -547,8 +547,14 @@ void WeatherUpdate(ecs_iter_t *it) {
     int32_t cells = w * d;
     float cs = (t->cell_size > 0 ? t->cell_size : 1.0f) * scale;
 
+    float terrain_surface = (float)t->width * (float)t->depth *
+        t->cell_size * t->cell_size;
+    float atmosphere_volume = terrain_surface * atm->atmosphere_height;
+    float co2_content = atmosphere_volume > 0
+        ? atm->co2_quantity / atmosphere_volume
+        : 0;
     float opacity_base = WeatherGreenhousePerCo2 *
-        weather_clamp(atm->co2_content, 0, 1.0f);
+        weather_clamp(co2_content, 0, 1.0f);
 
     if (ecs_vec_count(&b->ground_buffer) != cells) {
         ecs_vec_set_count_t(NULL, &b->ground_buffer, WeatherGroundTile, cells);

@@ -37,7 +37,7 @@ ECS_STRUCT(WeatherConfig, {
  * slow-moving values that are set outside of the weather simulation. */
 ECS_STRUCT(WeatherAtmosphere, {
     float o2_content;
-    float co2_content;
+    float co2_quantity;
     float vapor_content;            /* Set by weather simulation (sum of all air tiles) */
     float temperature;              /* Set by weather simulation: (average of all air tiles) */
     float atmosphere_height;        /* Determines how much atmosphere is above a tile */

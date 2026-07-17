@@ -13,18 +13,18 @@ hud {
     Rgba: PanelColor
     
     if !player.isBuildingPlaced(buildings.Base) {
-      ToolButton base("BASE", hotKey: "0")
+      ToolButton base("BASE", buildings.Base, hotKey: "0")
     } else {
-      ToolButton wire("WIRE", hotKey: "1")
-      ToolButton solar("SOLAR", hotKey: "2")
-      ToolButton drone_pad("DRONE", hotKey: "3")
+      ToolButton wire("WIRE", buildings.ElectricityPole, hotKey: "1")
+      ToolButton solar("SOLAR", buildings.Solar hotKey: "2")
+      ToolButton drone_pad("DRONE", buildings.DronePad, hotKey: "3")
     }
 
     if player.isBuildingPlaced(buildings.Solar) {
-      ToolButton depot("DEPOT", hotKey: "5")
-      ToolButton drill("DRILL", hotKey: "6")
-      ToolButton habitat("HABITAT", hotKey: "7")
-      ToolButton biome("BIOME", hotKey: "8")
+      ToolButton depot("DEPOT", buildings.Depot, hotKey: "5")
+      ToolButton drill("DRILL", buildings.Drill, hotKey: "6")
+      ToolButton habitat("HABITAT", buildings.Habitat, hotKey: "7")
+      ToolButton biome("BIOME", buildings.Biome, hotKey: "8")
     }
 
     if player.isBuildingPlaced(buildings.Base) {

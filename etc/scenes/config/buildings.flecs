@@ -22,6 +22,7 @@ const lightsGltf: "etc/assets/kaykit/space/Assets/gltf/lights.gltf"
 const domeGltf: "etc/assets/kaykit/space/Assets/gltf/dome.gltf"
 const farmGltf: "etc/assets/kaykit/space/Assets/gltf/space_farm_large_sprinkler.gltf"
 const corridorGltf: "etc/assets/kaykit/space/Assets/gltf/tunnel_straight_A.gltf"
+const burnerGltf = "etc/assets/kenney/city-kit-industrial/Models/GLTF format/chimney-large.glb"
 
 buildings {
     prefab PoweredBuilding {
@@ -84,17 +85,19 @@ buildings {
         Scale3: {3, 3, 3}
     }
 
+    const ElectricityWireColor = Rgba: {210, 150, 50}
+
     prefab ElectricityWire {
         Position3: {0, 0.75, 0}
         Box: {5, 0.3, 0.3}
-        Rgba: {210, 180, 50, 255}
+        Rgba: ElectricityWireColor
     }
 
     prefab ElectricalConnection {
         Position3: {-1.25, 0.3, 0}
         Rotation3: {0, 0, -0.3456}
         Box: {2.66, 0.3, 0.3}
-        Rgba: {230, 230, 80, 255}
+        Rgba: ElectricityWireColor
     }
 
     prefab BaseDroneConnection {
@@ -265,7 +268,8 @@ buildings {
             footprint: {1, 1}
             requires: [
                 environment.IronOre, 
-                environment.CopperOre
+                environment.CopperOre,
+                environment.Graphite,
             ]
         }
 
@@ -290,6 +294,27 @@ buildings {
         }
 
         Gltf: {drillGltf}
+        Scale3: {2, 2, 2}
+    }
+
+    prefab Burner {
+        Building: {
+            can_doze: true
+            footprint: {1, 1}
+        }
+
+        Power: {
+            demand: 100
+        }
+
+        Recipe: {
+            inputs: [
+                Iron: 500
+                Copper: 0
+            ]
+        }
+
+        Gltf: {burnerGltf}
         Scale3: {2, 2, 2}
     }
 

@@ -21,10 +21,9 @@ static void biome_ui_dozeButtonUp(
 
 static void biome_ui_bindDozeButton(
     ecs_world_t *world,
-    const char *button_path)
+    ecs_entity_t button)
 {
-    ecs_entity_t button = ecs_lookup(world, button_path);
-    if (!button || ecs_has(world, button, FlecsUiEventListener)) {
+    if (ecs_has(world, button, FlecsUiEventListener)) {
         return;
     }
 
@@ -35,16 +34,10 @@ static void biome_ui_bindDozeButton(
 
 static void biome_ui_bindToolButton(
     ecs_world_t *world,
-    const char *button_path,
-    const char *building_path)
+    ecs_entity_t button,
+    ecs_entity_t building)
 {
-    ecs_entity_t button = ecs_lookup(world, button_path);
-    if (!button || ecs_has(world, button, FlecsUiEventListener)) {
-        return;
-    }
-
-    ecs_entity_t building = ecs_lookup(world, building_path);
-    if (!building) {
+    if (ecs_has(world, button, FlecsUiEventListener)) {
         return;
     }
 
@@ -55,16 +48,37 @@ static void biome_ui_bindToolButton(
 }
 
 void BiomeUiBind(ecs_iter_t *it) {
-    biome_ui_bindToolButton(it->world, "hud.toolbar.base", "buildings.Base");
-    biome_ui_bindToolButton(it->world, "hud.toolbar.solar", "buildings.Solar");
-    biome_ui_bindToolButton(it->world, "hud.toolbar.drone_pad", "buildings.DronePad");
-    biome_ui_bindToolButton(it->world, "hud.toolbar.drill", "buildings.Drill");
-    biome_ui_bindToolButton(it->world, "hud.toolbar.depot", "buildings.Depot");
-    biome_ui_bindToolButton(it->world, "hud.toolbar.habitat", "buildings.Habitat");
-    biome_ui_bindToolButton(it->world, "hud.toolbar.lights", "buildings.Lights");
-    biome_ui_bindToolButton(it->world, "hud.toolbar.biome", "buildings.Biome");
-    biome_ui_bindToolButton(it->world, "hud.toolbar.wire", "buildings.ElectricityPole");
-    biome_ui_bindDozeButton(it->world, "hud.toolbar.doze");
+    ecs_world_t *world = it->world;
+    ecs_entity_t tool_button = ecs_lookup(
+        world, "biome.widgets.ToolButton");
+    if (!tool_button) {
+        return;
+    }
+
+    ecs_member_t *building_member = ecs_struct_get_member(
+        world, tool_button, "building");
+    if (!building_member) {
+        return;
+    }
+
+    ecs_iter_t buttons = ecs_each_id(world, tool_button);
+    while (ecs_each_next(&buttons)) {
+        for (int32_t i = 0; i < buttons.count; i ++) {
+            ecs_entity_t button = buttons.entities[i];
+            const void *data = ecs_get_id(world, button, tool_button);
+            if (!data) {
+                continue;
+            }
+
+            ecs_entity_t building = *(const ecs_entity_t*)ECS_OFFSET(
+                data, building_member->offset);
+            if (building && ecs_is_alive(world, building)) {
+                biome_ui_bindToolButton(world, button, building);
+            } else if (!building) {
+                biome_ui_bindDozeButton(world, button);
+            }
+        }
+    }
 }
 
 void biomeUiImport(ecs_world_t *world) {

@@ -92,6 +92,7 @@ template Gauge {
 
 template ToolButton {
   prop text = "Button"
+  prop building = entity: 0
   prop hotKey = ""
 
   Button: {text: text, width: 80, height: 60}

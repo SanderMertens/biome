@@ -37,7 +37,7 @@ $ {
 
     weather.Atmosphere: {
         o2_content: 0.0
-        co2_content: 0.05
+        co2_quantity: 2048000
         atmosphere_height: 100
     }
 
@@ -63,7 +63,7 @@ terrain.Scatter(
     count: 100
     position_variance: {1, 1}
     rotation_variance: {y: 2 * math.PI}
-    cluster: 0.15
+    cluster: 0.2
 )
 
 terrain.Scatter(
@@ -79,5 +79,21 @@ terrain.Scatter(
     count: 100
     position_variance: {1, 1}
     rotation_variance: {y: 2 * math.PI}
-    cluster: 0.15
+    cluster: 0.2
+)
+
+terrain.Scatter(
+    prefab: [
+        environment.GraphiteAssets.A
+        environment.GraphiteAssets.B
+        environment.GraphiteAssets.C
+        environment.GraphiteAssets.D
+        environment.GraphiteAssets.E
+        environment.GraphiteAssets.F
+    ]
+
+    count: 100
+    position_variance: {1, 1}
+    rotation_variance: {y: 2 * math.PI}
+    cluster: 0.2
 )
