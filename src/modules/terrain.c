@@ -2,6 +2,8 @@
 
 #include "biome.h"
 
+ECS_COMPONENT_DECLARE(TerrainScatterAssets);
+
 float biomeHash2(int32_t x, int32_t z) {
     uint32_t h = (uint32_t)x * 0x27d4eb2du;
     h ^= h >> 15;
@@ -423,9 +425,24 @@ static void TerrainScatterOnSet(ecs_iter_t *it) {
         }
         const FlecsTerrain *t = ecs_get(world, terrain, FlecsTerrain);
         if (!t || t->width <= 0 || t->depth <= 0 ||
-            scatter[i].count <= 0 || !scatter[i].prefab ||
-            !ecs_is_alive(world, scatter[i].prefab))
+            scatter[i].count <= 0)
         {
+            continue;
+        }
+
+        int32_t prefab_count = ecs_vec_count(&scatter[i].prefab);
+        ecs_entity_t *prefabs = ecs_vec_first_t(
+            &scatter[i].prefab, ecs_entity_t);
+        ecs_entity_t *valid_prefabs = ecs_os_malloc_n(
+            ecs_entity_t, prefab_count);
+        int32_t valid_prefab_count = 0;
+        for (int32_t p = 0; p < prefab_count; p ++) {
+            if (prefabs[p] && ecs_is_alive(world, prefabs[p])) {
+                valid_prefabs[valid_prefab_count ++] = prefabs[p];
+            }
+        }
+        if (!valid_prefab_count) {
+            ecs_os_free(valid_prefabs);
             continue;
         }
 
@@ -433,12 +450,14 @@ static void TerrainScatterOnSet(ecs_iter_t *it) {
         if (cell_count_64 > INT32_MAX ||
             ecs_vec_count(&t->layerTypes) <= TerrainOccupancyIndex)
         {
+            ecs_os_free(valid_prefabs);
             continue;
         }
 
         const TerrainOccupancy *occupancy = flecsEngine_terrain_getLayer(
             world, terrain, TerrainOccupancyIndex, TerrainOccupancy);
         if (!occupancy) {
+            ecs_os_free(valid_prefabs);
             continue;
         }
 
@@ -461,11 +480,16 @@ static void TerrainScatterOnSet(ecs_iter_t *it) {
         uint32_t selection_random = 0x9e3779b9u;
         selection_random ^= (uint32_t)t->width * 0x85ebca6bu;
         selection_random ^= (uint32_t)t->depth * 0xc2b2ae35u;
-        selection_random ^= (uint32_t)scatter[i].prefab;
+        selection_random ^= (uint32_t)valid_prefabs[0];
+        for (int32_t p = 1; p < valid_prefab_count; p ++) {
+            selection_random ^= (uint32_t)valid_prefabs[p] *
+                (0x85ebca6bu + (uint32_t)p * 0xc2b2ae35u);
+        }
         if (!selection_random) {
             selection_random = 1;
         }
         uint32_t variance_random = selection_random ^ 0xa511e9b3u;
+        uint32_t prefab_random = selection_random ^ 0x63d83595u;
         float cluster = scatter[i].cluster;
         if (!(cluster > 0)) {
             cluster = 0;
@@ -473,13 +497,6 @@ static void TerrainScatterOnSet(ecs_iter_t *it) {
         biomeScatterClusterCells(available, available_count,
             t->width, t->depth, cluster, scatter[i].cluster_scale,
             &selection_random);
-
-        FlecsScale3 base_scale = {1, 1, 1};
-        const FlecsScale3 *prefab_scale = ecs_get(
-            world, scatter[i].prefab, FlecsScale3);
-        if (prefab_scale) {
-            base_scale = *prefab_scale;
-        }
 
         bool was_deferred = ecs_is_deferred(world);
         if (was_deferred) {
@@ -515,8 +532,11 @@ static void TerrainScatterOnSet(ecs_iter_t *it) {
             float scale_z = biomeScatterVariance(
                 &variance_random, scatter[i].scale_variance.z);
 
+            ecs_entity_t prefab = valid_prefabs[
+                biomeScatterRandom(&prefab_random) %
+                    (uint32_t)valid_prefab_count];
             ecs_entity_t instance = ecs_new_w_pair(
-                world, EcsIsA, scatter[i].prefab);
+                world, EcsIsA, prefab);
             ecs_add_pair(world, instance, EcsChildOf, terrain);
             ecs_set(world, instance, FlecsTerrainPosition, {
                 .terrain = terrain,
@@ -538,6 +558,12 @@ static void TerrainScatterOnSet(ecs_iter_t *it) {
                 });
             }
             if (scale_x || scale_y || scale_z) {
+                FlecsScale3 base_scale = {1, 1, 1};
+                const FlecsScale3 *prefab_scale = ecs_get(
+                    world, prefab, FlecsScale3);
+                if (prefab_scale) {
+                    base_scale = *prefab_scale;
+                }
                 ecs_set(world, instance, FlecsScale3, {
                     base_scale.x + scale_x,
                     base_scale.y + scale_y,
@@ -551,6 +577,7 @@ static void TerrainScatterOnSet(ecs_iter_t *it) {
         }
 
         ecs_os_free(available);
+        ecs_os_free(valid_prefabs);
     }
 }
 
@@ -567,6 +594,13 @@ void biomeTerrainImport(ecs_world_t *world) {
 
     ECS_META_COMPONENT(world, TerrainSoil);
     ECS_META_COMPONENT(world, TerrainOccupancy);
+    ecs_id(TerrainScatterAssets) = ecs_vector(world, {
+        .entity = ecs_entity(world, {
+            .name = "ScatterAssets",
+            .symbol = "TerrainScatterAssets"
+        }),
+        .type = ecs_id(ecs_entity_t)
+    });
     ECS_META_COMPONENT(world, TerrainScatter);
 
     ecs_set_hooks(world, Terrain, {

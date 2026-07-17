@@ -51,7 +51,15 @@ $ {
 }
 
 terrain.Scatter(
-    prefab: environment.IronOre
+    prefab: [
+        environment.IronOreAssets.A
+        environment.IronOreAssets.B
+        environment.IronOreAssets.C
+        environment.IronOreAssets.D
+        environment.IronOreAssets.E
+        environment.IronOreAssets.F
+    ]
+
     count: 100
     position_variance: {1, 1}
     rotation_variance: {y: 2 * math.PI}
@@ -59,24 +67,16 @@ terrain.Scatter(
 )
 
 terrain.Scatter(
-    prefab: environment.CopperOre
+    prefab: [
+        environment.CopperOreAssets.A
+        environment.CopperOreAssets.B
+        environment.CopperOreAssets.C
+        environment.CopperOreAssets.D
+        environment.CopperOreAssets.E
+        environment.CopperOreAssets.F
+    ]
+
     count: 100
-    position_variance: {1, 1}
-    rotation_variance: {y: 2 * math.PI}
-    cluster: 0.15
-)
-
-terrain.Scatter(
-    prefab: environment.IronOreLarge
-    count: 25
-    position_variance: {1, 1}
-    rotation_variance: {y: 2 * math.PI}
-    cluster: 0.15
-)
-
-terrain.Scatter(
-    prefab: environment.CopperOreLarge
-    count: 25
     position_variance: {1, 1}
     rotation_variance: {y: 2 * math.PI}
     cluster: 0.15

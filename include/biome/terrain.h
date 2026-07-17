@@ -30,9 +30,12 @@ ECS_STRUCT(TerrainOccupancy, {
     uint64_t buildings;
 });
 
+extern ECS_COMPONENT_DECLARE(TerrainScatterAssets);
+typedef ecs_vec_t TerrainScatterAssets;
+
 /* Scatter prefab across terrain in unoccupied cells */
 ECS_STRUCT(TerrainScatter,  {
-    ecs_entity_t prefab;
+    TerrainScatterAssets prefab;
     int32_t count;
     flecs_vec2_t position_variance; /* +/- x/z offset; 0 disables per axis */
     flecs_vec2_t rotation_variance; /* +/- x/y angle; 0 disables per axis */

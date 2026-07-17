@@ -5,7 +5,12 @@ using flecs.engine.*
 using biome.*
 using resources
 
-const rockGltf = "etc/assets/kenney/nature-kit/Models/GLTF format/stone_largeC.glb"
+const rockAGltf = "etc/assets/kenney/nature-kit/Models/GLTF format/stone_largeA.glb"
+const rockBGltf = "etc/assets/kenney/nature-kit/Models/GLTF format/stone_largeB.glb"
+const rockCGltf = "etc/assets/kenney/nature-kit/Models/GLTF format/stone_largeC.glb"
+const rockDGltf = "etc/assets/kenney/nature-kit/Models/GLTF format/stone_largeD.glb"
+const rockEGltf = "etc/assets/kenney/nature-kit/Models/GLTF format/stone_largeE.glb"
+const rockFGltf = "etc/assets/kenney/nature-kit/Models/GLTF format/stone_largeF.glb"
 
 environment {
     prefab IronOre {
@@ -15,8 +20,16 @@ environment {
             amount: 100 * 1000
         }
 
-        Gltf: {rockGltf}
         Scale3: {2, 2, 2}
+    }
+
+    IronOreAssets {
+        prefab A : IronOre { Gltf: {rockAGltf} }
+        prefab B : IronOre { Gltf: {rockBGltf} }
+        prefab C : IronOre { Gltf: {rockCGltf} }
+        prefab D : IronOre { Gltf: {rockDGltf} }
+        prefab E : IronOre { Gltf: {rockEGltf} }
+        prefab F : IronOre { Gltf: {rockFGltf} }
     }
 
     prefab CopperOre {
@@ -26,27 +39,16 @@ environment {
             amount: 100 * 1000
         }
 
-        Gltf: {rockGltf}
         Tint: {255, 128, 0, 128}
         Scale3: {2, 2, 2}
     }
 
-    prefab IronOreLarge : IronOre {
-        Deposit: {
-            resource: Iron
-            amount: 1000 * 1000
-        }
-
-        Scale3: {4, 4, 4}
-    }
-
-    prefab CopperOreLarge : CopperOre {
-        Deposit: {
-            resource: Copper
-            amount: 1000 * 1000
-        }
-
-        Tint: {255, 128, 0, 128}
-        Scale3: {4, 4, 4}
+    CopperOreAssets {
+        prefab A : CopperOre { Gltf: {rockAGltf} }
+        prefab B : CopperOre { Gltf: {rockBGltf} }
+        prefab C : CopperOre { Gltf: {rockCGltf} }
+        prefab D : CopperOre { Gltf: {rockDGltf} }
+        prefab E : CopperOre { Gltf: {rockEGltf} }
+        prefab F : CopperOre { Gltf: {rockFGltf} }
     }
 }
