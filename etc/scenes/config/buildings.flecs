@@ -309,7 +309,7 @@ buildings {
 
         Recipe: {
             inputs: [
-                Iron: 500
+                Iron: 10
                 Copper: 0
             ]
         }

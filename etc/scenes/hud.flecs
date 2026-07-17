@@ -23,7 +23,8 @@ hud {
     if player.isBuildingPlaced(buildings.Solar) {
       ToolButton depot("DEPOT", buildings.Depot, hotKey: "5")
       ToolButton drill("DRILL", buildings.Drill, hotKey: "6")
-      ToolButton habitat("HABITAT", buildings.Habitat, hotKey: "7")
+      ToolButton burner("BURNER", buildings.Burner, hotKey: "6")
+      // ToolButton habitat("HABITAT", buildings.Habitat, hotKey: "7")
       ToolButton biome("BIOME", buildings.Biome, hotKey: "8")
     }
 

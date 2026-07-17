@@ -10,6 +10,22 @@ export const HoverColor = Rgba: {58, 66, 74, 255}
 export const HighlightColor = Rgba: {66, 185, 131, 255}
 export const DangerColor = Rgba: {220, 60, 50, 255}
 
+// struct Style {
+//   color = Rgba
+//   hover = Rgba
+//   pressed = Rgba
+//   active = Rgba
+// }
+
+// defaultStyle {
+//   Style: {
+//     color: ButtonColor
+//     hover: HoverColor
+//     pressed: HighlightColor
+//     active: ButtonColor
+//   }
+// }
+
 template Label {
   prop text: "Label"
   prop size: FontSize
@@ -22,6 +38,7 @@ template Button {
   prop text: "Button"
   prop width: 120
   prop height: 32
+  prop color = ButtonColor
   prop size: FontSize
 
   OrderedChildren
@@ -29,7 +46,7 @@ template Button {
 
   Rect: {width: width, height: height}
   Border: {width: 1, color: ButtonColor, radius: 6}
-  Rgba: ButtonColor
+  Rgba: color
 
   if $this[WidgetState].hover {
     Rgba: HoverColor
@@ -76,10 +93,15 @@ template Gauge {
   Border: {width: 1, color: ButtonColor, radius: 8}
   Rgba: {24, 28, 36, 235}
 
+  const maxNorm = match max > 0 {
+    true: max
+    false: 1
+  }
+
   fill {
     Position: {x: 2, y: 2}
     Border: {width: 1, color: HighlightColor, radius: 6}
-    Rect: {width: (width - 4) * (value / max), height: height - 4}
+    Rect: {width: (width - 4) * (value / maxNorm), height: height - 4}
     Rgba: HighlightColor
   }
 
@@ -94,6 +116,8 @@ template ToolButton {
   prop text = "Button"
   prop building = entity: 0
   prop hotKey = ""
+
+  mut active: false
 
   Button: {text: text, width: 80, height: 60}
   Hotkey: {key: hotKey}
