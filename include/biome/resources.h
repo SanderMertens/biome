@@ -21,6 +21,8 @@ ECS_STRUCT(BiomeResource, {
     int32_t mine_time;          /* Time it takes for an extractor to mine a resource in frames. */
     int32_t mine_amount;        /* Number of resources mined after mine_time (or however many are left). */
     int32_t min_pickup_amount;  /* Minimum number of resources for a pickup (drones won't consider storages with less than this) */
+    float green_house_gass;
+    float toxic_gass;
 });
 
 /* Resource storage specification. */
@@ -40,6 +42,7 @@ ECS_STRUCT(BiomeResourceStorage, {
 /* Component that describes how to create a resource */
 ECS_STRUCT(BiomeRecipe, {
     BiomeResourceStorageMap inputs;
+    ecs_entity_t output;
     float craft_time;
 });
 

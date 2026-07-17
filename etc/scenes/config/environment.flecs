@@ -72,4 +72,24 @@ environment {
         prefab E : Graphite { Gltf: {rockEGltf} }
         prefab F : Graphite { Gltf: {rockFGltf} }
     }
+
+    prefab ChemicalDeposit {
+        Building
+        Deposit: {
+            resource: Chemicals
+            amount: 100 * 1000
+        }
+
+        Tint: {255, 32, 128, 230}
+        Scale3: {2, 2, 2}
+    }
+
+    ChemicalsAssets {
+        prefab A : ChemicalDeposit { Gltf: {rockAGltf} }
+        prefab B : ChemicalDeposit { Gltf: {rockBGltf} }
+        prefab C : ChemicalDeposit { Gltf: {rockCGltf} }
+        prefab D : ChemicalDeposit { Gltf: {rockDGltf} }
+        prefab E : ChemicalDeposit { Gltf: {rockEGltf} }
+        prefab F : ChemicalDeposit { Gltf: {rockFGltf} }
+    }
 }

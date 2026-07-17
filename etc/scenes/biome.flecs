@@ -37,7 +37,7 @@ $ {
 
     weather.Atmosphere: {
         o2_content: 0.0
-        co2_quantity: 2048000
+        green_house_gass: 2048000
         atmosphere_height: 100
     }
 
@@ -63,7 +63,7 @@ terrain.Scatter(
     count: 100
     position_variance: {1, 1}
     rotation_variance: {y: 2 * math.PI}
-    cluster: 0.2
+    cluster: 0.15
 )
 
 terrain.Scatter(
@@ -76,10 +76,10 @@ terrain.Scatter(
         environment.CopperOreAssets.F
     ]
 
-    count: 100
+    count: 75
     position_variance: {1, 1}
     rotation_variance: {y: 2 * math.PI}
-    cluster: 0.2
+    cluster: 0.15
 )
 
 terrain.Scatter(
@@ -92,8 +92,24 @@ terrain.Scatter(
         environment.GraphiteAssets.F
     ]
 
-    count: 100
+    count: 50
     position_variance: {1, 1}
     rotation_variance: {y: 2 * math.PI}
     cluster: 0.2
+)
+
+terrain.Scatter(
+    prefab: [
+        environment.ChemicalsAssets.A
+        environment.ChemicalsAssets.B
+        environment.ChemicalsAssets.C
+        environment.ChemicalsAssets.D
+        environment.ChemicalsAssets.E
+        environment.ChemicalsAssets.F
+    ]
+
+    count: 50
+    position_variance: {1, 1}
+    rotation_variance: {y: 2 * math.PI}
+    cluster: 0.1
 )

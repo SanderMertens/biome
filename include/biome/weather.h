@@ -33,11 +33,10 @@ ECS_STRUCT(WeatherConfig, {
     float seed_variation;
 });
 
-/* Changeable weather values. O2, CO2 are not tracked per tile, but are
- * slow-moving values that are set outside of the weather simulation. */
 ECS_STRUCT(WeatherAtmosphere, {
     float o2_content;
-    float co2_quantity;
+    float green_house_gass;
+    float toxic_gass;
     float vapor_content;            /* Set by weather simulation (sum of all air tiles) */
     float temperature;              /* Set by weather simulation: (average of all air tiles) */
     float atmosphere_height;        /* Determines how much atmosphere is above a tile */

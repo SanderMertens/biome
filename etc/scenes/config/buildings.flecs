@@ -9,8 +9,6 @@ using biome.*
 using resources
 using units
 
-// const baseGltf: "etc/assets/kenney/kenney_space-kit/Models/GLTF format/hangar_largeB.glb"
-
 const baseGltf: "etc/assets/kaykit/space/Assets/gltf/basemodule_F.gltf"
 const habitatGltf: "etc/assets/kaykit/space/Assets/gltf/basemodule_B.gltf"
 const droneLandingPadGltf: "etc/assets/kaykit/space/Assets/gltf/landingpad_small.gltf"
@@ -22,7 +20,7 @@ const lightsGltf: "etc/assets/kaykit/space/Assets/gltf/lights.gltf"
 const domeGltf: "etc/assets/kaykit/space/Assets/gltf/dome.gltf"
 const farmGltf: "etc/assets/kaykit/space/Assets/gltf/space_farm_large_sprinkler.gltf"
 const corridorGltf: "etc/assets/kaykit/space/Assets/gltf/tunnel_straight_A.gltf"
-const burnerGltf = "etc/assets/kenney/city-kit-industrial/Models/GLTF format/chimney-large.glb"
+const burnerGltf = "etc/assets/kenney/city-kit-industrial/Models/GLB format/chimney-large.glb"
 
 buildings {
     prefab PoweredBuilding {
@@ -188,7 +186,6 @@ buildings {
             inputs: [
                 Iron: 1000
                 Copper: 500
-                Silica: 500
             ]
         }
 
@@ -226,7 +223,6 @@ buildings {
             inputs: [
                 Iron: 50
                 Copper: 0
-                Silica: 0
             ]
         }
 
@@ -249,7 +245,6 @@ buildings {
             inputs: [
                 Iron: 100
                 Copper: 50
-                Silica: 50
             ]
         }
 
@@ -270,6 +265,7 @@ buildings {
                 environment.IronOre, 
                 environment.CopperOre,
                 environment.Graphite,
+                environment.ChemicalDeposit
             ]
         }
 
@@ -289,7 +285,6 @@ buildings {
             inputs: [
                 Iron: 100
                 Copper: 0
-                Silica: 0
             ]
         }
 
@@ -307,6 +302,16 @@ buildings {
             demand: 100
         }
 
+        StorageDesc: {
+            kind: Sink
+            capacity: 100
+        }
+
+        Factory: {
+            recipe: GreenHouseGassRecipe
+            output_mode: Vent // other option: Store
+        }
+
         Recipe: {
             inputs: [
                 Iron: 10
@@ -315,7 +320,8 @@ buildings {
         }
 
         Gltf: {burnerGltf}
-        Scale3: {2, 2, 2}
+        Tint: {0, 0, 0, 128}
+        Scale3: {4, 4, 4}
     }
 
     fn createDrone(parent: entity) -> entity {

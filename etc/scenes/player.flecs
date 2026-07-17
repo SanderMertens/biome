@@ -13,13 +13,13 @@ player {
         Iron: 0
         Copper: 0
         Carbon: 0
-        Silica: 0
+        Chemicals: 0
     ]
 
     export const ResourceCapacityTotals = StorageMap: [
         Iron: 0
         Copper: 0
         Carbon: 0
-        Silica: 0
+        Chemicals: 0
     ]
 }

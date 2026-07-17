@@ -110,6 +110,57 @@ static ecs_entity_t biome_logistics_findStorage(
     return result;
 }
 
+static ecs_entity_t biome_logistics_findSourceStorage(
+    ecs_world_t *world,
+    ecs_entity_t resource,
+    int32_t amount,
+    bool reserve)
+{
+    ecs_query_t *query = ecs_query(world, {
+        .terms = {
+            { .id = ecs_id(BiomeResourceStorage) },
+            { .id = ecs_id(BiomeResourceStorageDesc), .inout = EcsIn }
+        }
+    });
+    ecs_entity_t result = 0;
+    ecs_iter_t it = ecs_query_iter(world, query);
+
+    while (!result && ecs_query_next(&it)) {
+        BiomeResourceStorage *storages = ecs_field(
+            &it, BiomeResourceStorage, 0);
+        const BiomeResourceStorageDesc *descs = ecs_field(
+            &it, BiomeResourceStorageDesc, 1);
+        for (int32_t i = 0; i < it.count; i ++) {
+            if (descs[i].kind != BiomeResourceStorageKindStorage ||
+                !biome_logistics_entityPowered(world, it.entities[i]))
+            {
+                continue;
+            }
+            int32_t stored = biome_logistics_mapValue(
+                &storages[i].resources, resource);
+            int32_t reserved = biome_logistics_mapValue(
+                &storages[i].reserved, resource);
+            if (stored - reserved >= amount) {
+                if (reserve) {
+                    biome_logistics_addMapValue(
+                        &storages[i].reserved, resource, amount);
+                    ecs_modified_id(world, it.entities[i],
+                        ecs_id(BiomeResourceStorage));
+                }
+                result = it.entities[i];
+                break;
+            }
+        }
+    }
+
+    if (result) {
+        ecs_iter_fini(&it);
+    }
+
+    ecs_query_fini(query);
+    return result;
+}
+
 static ecs_entity_t biome_logistics_findRequest(
     ecs_world_t *world,
     BiomeLogisticsJob *job)
@@ -123,6 +174,7 @@ static ecs_entity_t biome_logistics_findRequest(
     });
     ecs_entity_t result = 0;
     int32_t priority = INT32_MIN;
+    bool factory_request = false;
     ecs_iter_t it = ecs_query_iter(world, query);
 
     while (ecs_query_next(&it)) {
@@ -130,24 +182,44 @@ static ecs_entity_t biome_logistics_findRequest(
             &it, BiomeLogisticsRequest, 0);
         for (int32_t i = 0; i < it.count; i ++) {
             const BiomeLogisticsRequest *request = &requests[i];
+            bool candidate_factory = ecs_has(
+                world, request->source, BiomeFactory);
             if (request->kind != BiomeRequestPickup ||
                 request->amount <= 0 ||
                 !ecs_is_alive(world, request->source) ||
-                request->priority < priority)
+                (result && candidate_factory < factory_request) ||
+                (result && candidate_factory == factory_request &&
+                    request->priority < priority))
             {
                 continue;
             }
-            ecs_entity_t dst = biome_logistics_findStorage(
-                world, request->resource, request->amount, false);
-            if (!dst) {
-                continue;
+
+            ecs_entity_t src = request->source;
+            ecs_entity_t dst;
+            if (candidate_factory) {
+                src = biome_logistics_findSourceStorage(
+                    world, request->resource, request->amount, false);
+                dst = request->source;
+                if (!src || !ecs_has(
+                    world, dst, BiomeResourceStorage))
+                {
+                    continue;
+                }
+            } else {
+                dst = biome_logistics_findStorage(
+                    world, request->resource, request->amount, false);
+                if (!dst) {
+                    continue;
+                }
             }
+
             result = it.entities[i];
             priority = request->priority;
+            factory_request = candidate_factory;
             *job = (BiomeLogisticsJob){
                 request->resource,
                 request->amount,
-                request->source,
+                src,
                 dst
             };
         }
@@ -155,10 +227,18 @@ static ecs_entity_t biome_logistics_findRequest(
 
     ecs_query_fini(query);
     if (result) {
-        job->dst = biome_logistics_findStorage(
-            world, job->resource, job->amount, true);
-        if (!job->dst) {
-            result = 0;
+        if (factory_request) {
+            job->src = biome_logistics_findSourceStorage(
+                world, job->resource, job->amount, true);
+            if (!job->src) {
+                result = 0;
+            }
+        } else {
+            job->dst = biome_logistics_findStorage(
+                world, job->resource, job->amount, true);
+            if (!job->dst) {
+                result = 0;
+            }
         }
     }
     return result;

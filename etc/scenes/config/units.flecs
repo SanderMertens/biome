@@ -9,14 +9,6 @@ const droneGltf: "etc/assets/kaykit/space/Assets/gltf/lander_base.gltf"
 
 units {
     prefab Drone {
-        Recipe: {
-            inputs: [
-                Iron: 100
-                Copper: 100
-                Silica: 100
-            ]
-        }
-
         Behaviors: [
             script {
                 const speed: 0.5
