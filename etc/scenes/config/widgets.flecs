@@ -10,21 +10,23 @@ export const HoverColor = Rgba: {58, 66, 74, 255}
 export const HighlightColor = Rgba: {66, 185, 131, 255}
 export const DangerColor = Rgba: {220, 60, 50, 255}
 
-// struct Style {
-//   color = Rgba
-//   hover = Rgba
-//   pressed = Rgba
-//   active = Rgba
-// }
+struct Style {
+  color = Rgba
+  hover = Rgba
+  pressed = Rgba
+  active = Rgba
+  font_size = u8
+}
 
-// defaultStyle {
-//   Style: {
-//     color: ButtonColor
-//     hover: HoverColor
-//     pressed: HighlightColor
-//     active: ButtonColor
-//   }
-// }
+DefaultStyle {
+  Style: {
+    color: ButtonColor
+    hover: HoverColor
+    pressed: HighlightColor
+    active: ButtonColor
+    font_size: FontSize
+  }
+}
 
 template Label {
   prop text: "Label"
@@ -38,21 +40,20 @@ template Button {
   prop text: "Button"
   prop width: 120
   prop height: 32
-  prop color = ButtonColor
-  prop size: FontSize
+  prop style: DefaultStyle
 
   OrderedChildren
   WidgetState
 
   Rect: {width: width, height: height}
-  Border: {width: 1, color: ButtonColor, radius: 6}
-  Rgba: color
+  Border: {width: 1, color: style[Style].color, radius: 6}
+  Rgba: style[Style].color
 
   if $this[WidgetState].hover {
-    Rgba: HoverColor
+    Rgba: style[Style].hover
   }
   if $this[WidgetState].lmb_down {
-    Rgba: HighlightColor
+    Rgba: style[Style].pressed
   }
 
   Transition: [
@@ -63,8 +64,8 @@ template Button {
   ]
 
   label {
-    Position: {x: 0, y: (height - size) / 2}
-    Text: {text: text, size: size, align: Center}
+    Position: {x: 0, y: (height - style[Style].font_size) / 2}
+    Text: {text: text, size: style[Style].font_size, align: Center}
     Rgba: {235, 238, 245, 255}
   }
 }
