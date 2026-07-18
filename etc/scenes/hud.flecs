@@ -23,7 +23,7 @@ hud {
       ToolButton drill("DRILL", buildings.Drill, hotKey: "3")
       ToolButton burner("BURNER", buildings.Burner, hotKey: "4")
       ToolButton depot("DEPOT", buildings.Depot, hotKey: "5")
-      ToolButton drone_pad("DRONE", buildings.DronePad, hotKey: "3")
+      ToolButton drone_pad("DRONE", buildings.DronePad, hotKey: "6")
       // ToolButton habitat("HABITAT", buildings.Habitat, hotKey: "8")
       // ToolButton biome("BIOME", buildings.Biome, hotKey: "9")
     }

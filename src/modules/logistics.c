@@ -10,6 +10,9 @@ typedef struct BiomeLogisticsMotion {
     ecs_script_future_t *future;
     FlecsPosition3 start;
     FlecsPosition3 target;
+    ecs_entity_t terrain;
+    float start_clearance;
+    float target_clearance;
     int32_t elapsed;
     int32_t duration;
 } BiomeLogisticsMotion;
@@ -371,6 +374,22 @@ static void biome_logistics_collectRequests(
     }
 }
 
+static void biome_logistics_collectPendingRequests(
+    ecs_world_t *world,
+    ecs_vec_t *requests)
+{
+    ecs_entity_t jobs = ecs_lookup(world, "jobs");
+    ecs_assert(jobs != 0, ECS_INTERNAL_ERROR, NULL);
+
+    ecs_iter_t it = ecs_children(world, jobs);
+    while (ecs_children_next(&it)) {
+        for (int32_t i = 0; i < it.count; i ++) {
+            *ecs_vec_append_t(NULL, requests, ecs_entity_t) =
+                it.entities[i];
+        }
+    }
+}
+
 static void biome_logistics_removeOutstandingRequest(
     ecs_world_t *world,
     ecs_entity_t source,
@@ -418,17 +437,24 @@ static void biome_logistics_finishRequests(
 static void BiomeLogisticsDispatch(ecs_iter_t *it) {
     ecs_vec_t requests;
     ecs_vec_init_t(NULL, &requests, ecs_entity_t, 0);
-    biome_logistics_collectRequests(it->world, &requests);
 
     ecs_vec_t accepted;
     ecs_vec_init_t(NULL, &accepted, ecs_entity_t, 0);
 
     int32_t request_index = 0;
-    int32_t request_count = ecs_vec_count(&requests);
-    ecs_entity_t *request_entities = ecs_vec_first_t(
-        &requests, ecs_entity_t);
+    int32_t request_count = 0;
+    ecs_entity_t *request_entities = NULL;
+    bool requests_collected = false;
 
     while (ecs_query_next(it)) {
+        if (!requests_collected) {
+            biome_logistics_collectPendingRequests(it->world, &requests);
+            request_count = ecs_vec_count(&requests);
+            request_entities = ecs_vec_first_t(
+                &requests, ecs_entity_t);
+            requests_collected = true;
+        }
+
         if (request_index >= request_count) {
             continue;
         }
@@ -506,6 +532,7 @@ static void biome_logistics_startMotion(
     const ecs_function_ctx_t *ctx,
     ecs_script_future_t *future,
     const FlecsPosition3 *target,
+    ecs_entity_t terrain,
     float speed)
 {
     if (speed <= 0) {
@@ -529,8 +556,29 @@ static void biome_logistics_startMotion(
         biome_logistics_resolve(future);
         return;
     }
+    float start_clearance = 0;
+    float target_clearance = 0;
+    if (terrain) {
+        const FlecsTerrain *t = ecs_get(ctx->world, terrain, FlecsTerrain);
+        const FlecsPosition3 *terrain_position = ecs_get(
+            ctx->world, terrain, FlecsPosition3);
+        if (t) {
+            float terrain_x = terrain_position ? terrain_position->x : 0;
+            float terrain_y = terrain_position ? terrain_position->y : 0;
+            float terrain_z = terrain_position ? terrain_position->z : 0;
+            start_clearance = position->y - terrain_y -
+                flecsEngine_terrainSampleHeight(
+                    t, position->x - terrain_x, position->z - terrain_z);
+            target_clearance = target->y - terrain_y -
+                flecsEngine_terrainSampleHeight(
+                    t, target->x - terrain_x, target->z - terrain_z);
+        } else {
+            terrain = 0;
+        }
+    }
     ecs_set(ctx->world, ctx->entity, BiomeLogisticsMotion, {
-        future, *position, *target, 0, duration
+        future, *position, *target, terrain,
+        start_clearance, target_clearance, 0, duration
     });
 }
 
@@ -553,7 +601,7 @@ static void biome_logistics_takeOff(
     FlecsPosition3 target = *position;
     target.y += 5.0f;
     biome_logistics_startMotion(
-        ctx, future, &target, *(float*)argv[0].ptr);
+        ctx, future, &target, 0, *(float*)argv[0].ptr);
 }
 
 static void biome_logistics_land(
@@ -590,7 +638,7 @@ static void biome_logistics_land(
         dst_position->z
     };
     biome_logistics_startMotion(
-        ctx, future, &target, *(float*)argv[1].ptr);
+        ctx, future, &target, 0, *(float*)argv[1].ptr);
 }
 
 static void biome_logistics_moveTo(
@@ -616,8 +664,12 @@ static void biome_logistics_moveTo(
     FlecsPosition3 target = {
         dst_position->x, dst_position->y + 6.0f, dst_position->z
     };
+    const FlecsTerrainPosition *terrain_position = ecs_get(
+        ctx->world, dst, FlecsTerrainPosition);
     biome_logistics_startMotion(
-        ctx, future, &target, *(float*)argv[1].ptr);
+        ctx, future, &target,
+        terrain_position ? terrain_position->terrain : 0,
+        *(float*)argv[1].ptr);
 }
 
 static void biome_logistics_cancelMotion(
@@ -647,6 +699,28 @@ static void BiomeLogisticsMove(ecs_iter_t *it) {
             motion->start.y + (motion->target.y - motion->start.y) * t,
             motion->start.z + (motion->target.z - motion->start.z) * t
         };
+        if (motion->terrain) {
+            const FlecsTerrain *terrain = ecs_get(
+                it->world, motion->terrain, FlecsTerrain);
+            const FlecsPosition3 *terrain_position = ecs_get(
+                it->world, motion->terrain, FlecsPosition3);
+            if (terrain) {
+                float terrain_x = terrain_position
+                    ? terrain_position->x : 0;
+                float terrain_y = terrain_position
+                    ? terrain_position->y : 0;
+                float terrain_z = terrain_position
+                    ? terrain_position->z : 0;
+                float clearance = motion->start_clearance +
+                    (motion->target_clearance -
+                        motion->start_clearance) * t;
+                position.y = terrain_y +
+                    flecsEngine_terrainSampleHeight(
+                        terrain, position.x - terrain_x,
+                        position.z - terrain_z) +
+                    clearance;
+            }
+        }
         ecs_set_ptr(it->world, it->entities[i], FlecsPosition3, &position);
         if (motion->elapsed >= motion->duration) {
             ecs_script_future_t *future = motion->future;
