@@ -28,6 +28,12 @@ DefaultStyle {
   }
 }
 
+ToolButtonStyle : DefaultStyle {
+  Style: {
+    active: {66, 185, 131, 128}
+  }
+}
+
 template Label {
   prop text: "Label"
   prop size: FontSize
@@ -42,6 +48,8 @@ template Button {
   prop height: 32
   prop style: DefaultStyle
 
+  mut active: false
+
   OrderedChildren
   WidgetState
 
@@ -54,6 +62,9 @@ template Button {
   }
   if $this[WidgetState].lmb_down {
     Rgba: style[Style].pressed
+  }
+  if active {
+    Rgba: style[Style].active
   }
 
   Transition: [
@@ -118,9 +129,7 @@ template ToolButton {
   prop building = entity: 0
   prop hotKey = ""
 
-  mut active: false
-
-  Button: {text: text, width: 80, height: 60}
+  Button: {text: text, width: 80, height: 60, style: ToolButtonStyle}
   Hotkey: {key: hotKey}
 }
 

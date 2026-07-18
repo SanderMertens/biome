@@ -61,6 +61,15 @@ void BiomeUiBind(ecs_iter_t *it) {
         return;
     }
 
+    ecs_entity_t button_type = ecs_lookup(
+        world, "biome.widgets.Button");
+    ecs_entity_t button_mut = button_type
+        ? ecs_lookup_child(world, button_type, "mut")
+        : 0;
+    ecs_member_t *active_member = button_mut
+        ? ecs_struct_get_member(world, button_mut, "active")
+        : NULL;
+    const BiomeTool *tool = ecs_singleton_get(world, BiomeTool);
     ecs_iter_t buttons = ecs_each_id(world, tool_button);
     while (ecs_each_next(&buttons)) {
         for (int32_t i = 0; i < buttons.count; i ++) {
@@ -72,6 +81,25 @@ void BiomeUiBind(ecs_iter_t *it) {
 
             ecs_entity_t building = *(const ecs_entity_t*)ECS_OFFSET(
                 data, building_member->offset);
+            const void *mut_data = active_member
+                ? ecs_get_id(world, button, button_mut)
+                : NULL;
+            if (mut_data) {
+                const bool *active = ECS_OFFSET(
+                    mut_data, active_member->offset);
+                bool value = tool && (building
+                    ? tool->building == building
+                    : tool->doze);
+                if (*active != value) {
+                    mut_data = ecs_get_mut_id(
+                        world, button, button_mut);
+                    bool *active_mut = ECS_OFFSET(
+                        mut_data, active_member->offset);
+                    *active_mut = value;
+                    ecs_modified_id(world, button, button_mut);
+                }
+            }
+
             if (building && ecs_is_alive(world, building)) {
                 biome_ui_bindToolButton(world, button, building);
             } else if (!building) {

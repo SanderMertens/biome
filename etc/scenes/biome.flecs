@@ -44,9 +44,9 @@ $ {
     weather.Config: {
         sun: sky.sun
 
-        seed_ground: {temperature: 20, moisture: 0, water: 1, frozen: 0}
-        seed_air: {temperature: 20, vapor: 0.0}
-        seed_variation: 0.1
+        seed_ground: {temperature: 30, moisture: 0, water: 1, frozen: 0}
+        seed_air: {temperature: 30, vapor: 0.0}
+        seed_variation: 1
     }
 }
 
