@@ -31,6 +31,12 @@
                     "request_drone_amount",
                     "request_drone_amount_edge_cases"
                 ]
+            },
+            {
+                "id": "BuildingRule",
+                "testcases": [
+                    "self_referencing_drag"
+                ]
             }
         ]
     }

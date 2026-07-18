@@ -24,6 +24,9 @@ void Logistics_closest_storage(void);
 void Factory_request_drone_amount(void);
 void Factory_request_drone_amount_edge_cases(void);
 
+// Testsuite 'BuildingRule'
+void BuildingRule_self_referencing_drag(void);
+
 bake_test_case Logistics_testcases[] = {
     {
         "first_come_first_serve",
@@ -78,6 +81,13 @@ bake_test_case Factory_testcases[] = {
     }
 };
 
+bake_test_case BuildingRule_testcases[] = {
+    {
+        "self_referencing_drag",
+        BuildingRule_self_referencing_drag
+    }
+};
+
 static bake_test_suite suites[] = {
     {
         "Logistics",
@@ -92,9 +102,16 @@ static bake_test_suite suites[] = {
         NULL,
         2,
         Factory_testcases
+    },
+    {
+        "BuildingRule",
+        NULL,
+        NULL,
+        1,
+        BuildingRule_testcases
     }
 };
 
 int main(int argc, char *argv[]) {
-    return bake_test_run("biome_test", argc, argv, suites, 2);
+    return bake_test_run("biome_test", argc, argv, suites, 3);
 }

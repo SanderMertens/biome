@@ -213,16 +213,14 @@ static void biome_tool_footprint(
     }
 }
 
-static bool biome_tool_slotFree(
-    const ecs_world_t *world,
+static bool biome_tool_slotAvailable(
     const FlecsTerrain *t,
     const TerrainOccupancy *occ,
     int32_t x,
     int32_t y,
     int32_t fw,
     int32_t fh,
-    uint64_t requirement_mask,
-    ecs_entity_t building_rule)
+    uint64_t requirement_mask)
 {
     if (x < 0 || y < 0 || (x + fw) > t->width || (y + fh) > t->depth) {
         return false;
@@ -244,8 +242,7 @@ static bool biome_tool_slotFree(
         return false;
     }
 
-    return biomeBuildingRuleMatches(
-        world, building_rule, t, occ, x, y);
+    return true;
 }
 
 typedef struct biome_tool_region_t {
@@ -267,7 +264,7 @@ static bool biome_tool_regionContains(
     int32_t x,
     int32_t y);
 
-static int32_t biome_tool_freeSlots(
+static BiomeBuildingRulePlacement* biome_tool_plan(
     const ecs_world_t *world,
     const FlecsTerrain *t,
     const TerrainOccupancy *occ,
@@ -277,23 +274,33 @@ static int32_t biome_tool_freeSlots(
     int32_t step_x,
     int32_t step_y,
     uint64_t requirement_mask,
-    ecs_entity_t building_rule)
+    ecs_entity_t building_rule,
+    uint64_t building_mask,
+    int32_t *active_count)
 {
-    int32_t result = 0;
+    int32_t count = region->count;
+    BiomeBuildingRulePlacement *result = ecs_os_malloc_n(
+        BiomeBuildingRulePlacement, count);
+    int32_t p = 0;
     for (int32_t sy = region->y0; sy <= region->y1; sy += step_y) {
         for (int32_t sx = region->x0; sx <= region->x1; sx += step_x) {
             if (!biome_tool_regionContains(region, sx, sy)) {
                 continue;
             }
-            if (biome_tool_slotFree(
-                world, t, occ, sx, sy, fw, fh, requirement_mask,
-                building_rule))
-            {
-                result ++;
-            }
+            result[p ++] = (BiomeBuildingRulePlacement) {
+                .x = sx,
+                .y = sy,
+                .width = fw,
+                .height = fh,
+                .active = biome_tool_slotAvailable(
+                    t, occ, sx, sy, fw, fh, requirement_mask)
+            };
         }
     }
 
+    ecs_assert(p == count, ECS_INTERNAL_ERROR, NULL);
+    *active_count = biomeBuildingRuleFilterPlacements(
+        world, building_rule, t, occ, building_mask, result, count);
     return result;
 }
 
@@ -634,11 +641,14 @@ void BiomeToolPreview(ecs_iter_t *it) {
             world, tool->building);
         ecs_entity_t building_rule = biome_tool_buildingRule(
             world, tool->building);
+        uint64_t building_mask = biome_tool_buildingMask(
+            world, tool->building);
         int32_t maxCount = biome_tool_buildingMaxCount(world, tool->building);
         int32_t curCount = biome_tool_buildingCount(world, tool->building);
-        int32_t freeSlots = biome_tool_freeSlots(
+        int32_t freeSlots;
+        BiomeBuildingRulePlacement *placements = biome_tool_plan(
             world, &t[i], occ, &region, fw, fh, step_x, step_y,
-            requirement_mask, building_rule);
+            requirement_mask, building_rule, building_mask, &freeSlots);
         int32_t affordable = biome_factory_canAfford(world, tool->building);
         bool tooMany = (maxCount > 0 &&
             (freeSlots + curCount) > maxCount) ||
@@ -646,15 +656,14 @@ void BiomeToolPreview(ecs_iter_t *it) {
 
         if (ecs_vec_count(&t[i].colors) == t[i].width * t[i].depth) {
             flecs_rgba_t *colors = ecs_vec_first_t(&t[i].colors, flecs_rgba_t);
+            int32_t p = 0;
             for (int32_t sy = y0; sy <= y1; sy += step_y) {
                 for (int32_t sx = x0; sx <= x1; sx += step_x) {
                     if (!biome_tool_regionContains(&region, sx, sy)) {
                         continue;
                     }
-                    bool free = biome_tool_slotFree(
-                        world, &t[i], occ, sx, sy, fw, fh,
-                        requirement_mask, building_rule);
-                    flecs_rgba_t color = (tooMany || !free)
+                    BiomeBuildingRulePlacement *placement = &placements[p ++];
+                    flecs_rgba_t color = (tooMany || !placement->active)
                         ? (flecs_rgba_t){ 220, 60, 50, 230 }
                         : (flecs_rgba_t){ 90, 210, 90, 230 };
                     int32_t cy0 = sy < 0 ? 0 : sy;
@@ -673,6 +682,8 @@ void BiomeToolPreview(ecs_iter_t *it) {
 
         if (tooMany) {
             count = 0;
+        } else {
+            count = freeSlots;
         }
 
         if (count > BiomeToolMaxGhosts) {
@@ -689,24 +700,18 @@ void BiomeToolPreview(ecs_iter_t *it) {
             flecs_draw_instance_t *instances = ecs_os_malloc_n(
                 flecs_draw_instance_t, count);
             int32_t g = 0;
-            for (int32_t sy = y0; sy <= y1 && g < count; sy += step_y) {
-                for (int32_t sx = x0; sx <= x1 && g < count; sx += step_x) {
-                    if (!biome_tool_regionContains(&region, sx, sy)) {
-                        continue;
-                    }
-                    if (!biome_tool_slotFree(
-                        world, &t[i], occ, sx, sy, fw, fh,
-                        requirement_mask, building_rule))
-                    {
-                        continue;
-                    }
-                    biome_tool_ghostInstance(&t[i], tp, sx, sy, fw, fh,
+            for (int32_t p = 0; p < region.count && g < count; p ++) {
+                BiomeBuildingRulePlacement *placement = &placements[p];
+                if (placement->active) {
+                    biome_tool_ghostInstance(
+                        &t[i], tp, placement->x, placement->y, fw, fh,
                         &instances[g ++]);
                 }
             }
             flecsEngine_draw(world, ghost, instances, g);
             ecs_os_free(instances);
         }
+        ecs_os_free(placements);
     }
 }
 
@@ -785,8 +790,6 @@ void BiomeToolUpdate(ecs_iter_t *it) {
         biome_tool_region_t region = biome_tool_region(
             tool, biome_tool_shiftDown(input), x, y,
             tile_offset_x, tile_offset_y, step_x, step_y);
-        int32_t x0 = region.x0, y0 = region.y0;
-        int32_t x1 = region.x1, y1 = region.y1;
 
         if (tool->doze) {
             biome_tool_doze(
@@ -801,43 +804,39 @@ void BiomeToolUpdate(ecs_iter_t *it) {
             world, tool->building);
         ecs_entity_t building_rule = biome_tool_buildingRule(
             world, tool->building);
+        uint64_t building_mask = biome_tool_buildingMask(
+            world, tool->building);
         int32_t maxCount = biome_tool_buildingMaxCount(world, tool->building);
         int32_t curCount = biome_tool_buildingCount(world, tool->building);
-        int32_t freeSlots = biome_tool_freeSlots(
+        int32_t freeSlots;
+        BiomeBuildingRulePlacement *placements = biome_tool_plan(
             world, t, occ, &region, fw, fh, step_x, step_y,
-            requirement_mask, building_rule);
+            requirement_mask, building_rule, building_mask, &freeSlots);
 
         if (maxCount > 0 && (freeSlots + curCount) > maxCount) {
+            ecs_os_free(placements);
             tool->dragging = false;
             return;
         }
 
         if (!biome_factory_purchase(world, tool->building, freeSlots)) {
+            ecs_os_free(placements);
             tool->dragging = false;
             return;
         }
 
         int32_t placed = 0;
-        for (int32_t sy = y0; sy <= y1; sy += step_y) {
-            for (int32_t sx = x0; sx <= x1; sx += step_x) {
-                if (!biome_tool_regionContains(&region, sx, sy)) {
-                    continue;
-                }
-                if (!biome_tool_slotFree(
-                    world, t, occ, sx, sy, fw, fh,
-                    requirement_mask, building_rule))
-                {
-                    continue;
-                }
-
-                if (biomePlaceBuilding(
-                    world, tool->building, terrain, sx, sy, fw, fh,
-                    tool->place_effect))
-                {
-                    placed ++;
-                }
+        for (int32_t p = 0; p < region.count; p ++) {
+            BiomeBuildingRulePlacement *placement = &placements[p];
+            if (placement->active && biomePlaceBuilding(
+                world, tool->building, terrain,
+                placement->x, placement->y, fw, fh,
+                tool->place_effect))
+            {
+                placed ++;
             }
         }
+        ecs_os_free(placements);
 
         if (maxCount > 0 && (curCount + placed) >= maxCount) {
             tool->building = 0;

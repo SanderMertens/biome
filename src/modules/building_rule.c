@@ -64,12 +64,14 @@ static void BiomeBuildingRule2x1Impl_dtor(
 static uint64_t biome_building_rule_mask(
     const ecs_world_t *world,
     ecs_entity_t rule_entity,
-    const ecs_vec_t *prefabs)
+    const ecs_vec_t *prefabs,
+    bool *valid)
 {
     uint64_t result = 0;
     int32_t count = ecs_vec_count(prefabs);
     const ecs_entity_t *entities = ecs_vec_first_t(prefabs, ecs_entity_t);
 
+    *valid = true;
     for (int32_t i = 0; i < count; i ++) {
         ecs_entity_t prefab = entities[i];
         const BiomeBuildingBit *bit = NULL;
@@ -81,11 +83,13 @@ static uint64_t biome_building_rule_mask(
             char *prefab_path = ecs_is_alive(world, prefab)
                 ? ecs_get_path(world, prefab)
                 : NULL;
-            ecs_warn("building rule '%s' has invalid building '%s'",
+            ecs_err("building rule '%s' references entity '%s' without a "
+                "valid BuildingBit",
                 rule_path ? rule_path : "<unnamed>",
                 prefab_path ? prefab_path : "<unknown>");
             ecs_os_free(rule_path);
             ecs_os_free(prefab_path);
+            *valid = false;
             continue;
         }
         result |= 1llu << *bit;
@@ -210,6 +214,90 @@ bool biomeBuildingRuleMatches(
     }
 
     return false;
+}
+
+static void biome_building_rule_populate_placements(
+    const FlecsTerrain *terrain,
+    const TerrainOccupancy *occupancy,
+    uint64_t building_mask,
+    const BiomeBuildingRulePlacement *placements,
+    int32_t placement_count,
+    TerrainOccupancy *result)
+{
+    int32_t cell_count = terrain->width * terrain->depth;
+    if (occupancy) {
+        ecs_os_memcpy(
+            result, occupancy, (ecs_size_t)cell_count * sizeof(*result));
+    } else {
+        ecs_os_memset(result, 0, (ecs_size_t)cell_count * sizeof(*result));
+    }
+
+    for (int32_t i = 0; i < placement_count; i ++) {
+        const BiomeBuildingRulePlacement *placement = &placements[i];
+        if (!placement->active) {
+            continue;
+        }
+        for (int32_t y = placement->y;
+            y < placement->y + placement->height;
+            y ++)
+        {
+            for (int32_t x = placement->x;
+                x < placement->x + placement->width;
+                x ++)
+            {
+                result[y * terrain->width + x].buildings |= building_mask;
+            }
+        }
+    }
+}
+
+int32_t biomeBuildingRuleFilterPlacements(
+    const ecs_world_t *world,
+    ecs_entity_t rule,
+    const FlecsTerrain *terrain,
+    const TerrainOccupancy *occupancy,
+    uint64_t building_mask,
+    BiomeBuildingRulePlacement *placements,
+    int32_t placement_count)
+{
+    if (!terrain || terrain->width <= 0 || terrain->depth <= 0 ||
+        placement_count <= 0)
+    {
+        return 0;
+    }
+
+    int32_t active_count = 0;
+    for (int32_t i = 0; i < placement_count; i ++) {
+        active_count += placements[i].active;
+    }
+    if (!rule || !active_count) {
+        return active_count;
+    }
+
+    int32_t cell_count = terrain->width * terrain->depth;
+    TerrainOccupancy *planned = ecs_os_malloc_n(
+        TerrainOccupancy, cell_count);
+    bool changed;
+    do {
+        biome_building_rule_populate_placements(
+            terrain, occupancy, building_mask,
+            placements, placement_count, planned);
+        changed = false;
+        for (int32_t i = 0; i < placement_count; i ++) {
+            BiomeBuildingRulePlacement *placement = &placements[i];
+            if (placement->active && !biomeBuildingRuleMatches(
+                world, rule, terrain, planned,
+                placement->x, placement->y))
+            {
+                placement->active = false;
+                active_count --;
+                changed = true;
+            }
+        }
+    } while (changed && active_count);
+
+    ecs_os_free(planned);
+    return active_count;
 }
 
 static int32_t biome_building_rule_matching_rotations(
@@ -637,11 +725,12 @@ static void BiomeBuildingRule2x1OnSet(ecs_iter_t *it) {
             slot < BiomeBuildingRuleSlotCount;
             slot ++)
         {
+            bool valid;
             masks[slot] = biome_building_rule_mask(
-                it->world, rule_entity, slots[slot]);
+                it->world, rule_entity, slots[slot], &valid);
             prefab_counts[slot] = ecs_vec_count(slots[slot]);
             has_configured_pattern |= prefab_counts[slot] != 0;
-            has_invalid_slot |= prefab_counts[slot] != 0 && !masks[slot];
+            has_invalid_slot |= !valid;
         }
         ecs_entity_t out = rule->out;
 
@@ -730,9 +819,10 @@ static void BiomeBuildingRule3x1OnSet(ecs_iter_t *it) {
             }
 
             value.populated_slots |= (uint8_t)(1u << slot);
+            bool valid;
             value.building_masks[slot] = biome_building_rule_mask(
-                it->world, rule_entity, slots[slot]);
-            has_invalid_slot |= !value.building_masks[slot];
+                it->world, rule_entity, slots[slot], &valid);
+            has_invalid_slot |= !valid;
         }
 
         value.valid = value.populated_slots && !has_invalid_slot;

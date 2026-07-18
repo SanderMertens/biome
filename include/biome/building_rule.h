@@ -99,6 +99,23 @@ bool biomeBuildingRuleMatches(
     int32_t x,
     int32_t y);
 
+typedef struct BiomeBuildingRulePlacement {
+    int32_t x;
+    int32_t y;
+    int32_t width;
+    int32_t height;
+    bool active;
+} BiomeBuildingRulePlacement;
+
+int32_t biomeBuildingRuleFilterPlacements(
+    const ecs_world_t *world,
+    ecs_entity_t rule,
+    const FlecsTerrain *terrain,
+    const TerrainOccupancy *occupancy,
+    uint64_t building_mask,
+    BiomeBuildingRulePlacement *placements,
+    int32_t placement_count);
+
 void biomeBuilding_ruleImport(ecs_world_t *world);
 
 #endif

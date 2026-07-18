@@ -325,14 +325,7 @@ buildings {
         }
     }
 
-    DronePad {}
-
-    dronePadBuildingRule {
-        BuildingRule3x1: {
-            left: [Base, Depot, DronePad]
-            rotate: true
-        }
-    }
+    dronePadBuildingRule {}
 
     prefab DronePad {
         Building: {
@@ -362,6 +355,13 @@ buildings {
 
         Scale3: {2, 2, 2}
         Gltf: {droneLandingPadGltf}
+    }
+
+    dronePadBuildingRule {
+        BuildingRule3x1: {
+            left: [Base, Depot, DronePad]
+            rotate: true
+        }
     }
 
     // Rules
