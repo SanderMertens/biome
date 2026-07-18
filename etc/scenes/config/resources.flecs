@@ -25,8 +25,8 @@ resources {
     )
 
     Resource Chemicals(
-        mine_time: 50
-        mine_amount: 1
+        mine_time: 10
+        mine_amount: 2
         min_drone_amount: 10
         max_drone_amount: 200
     )
@@ -34,11 +34,11 @@ resources {
     Resource GreenHouseGass(
         // When vented by a factory, one unit of this resource will increase the
         // amount of green house gasses in the atmosphere by 0.75
-        green_house_gass: 0.75
+        green_house_gass: 30
 
         // When vented by a factory, one unit of this resource will increase the
         // amount of green house gasses in the atmosphere by 0.25
-        toxic_gass: 0.25
+        toxic_gass: 1
     )
 
     Recipe GreenHouseGassRecipe(

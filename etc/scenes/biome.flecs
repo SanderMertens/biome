@@ -63,7 +63,7 @@ terrain.Scatter(
     count: 100
     position_variance: {1, 1}
     rotation_variance: {y: 2 * math.PI}
-    cluster: 0.15
+    cluster: 0.2
 )
 
 terrain.Scatter(
@@ -79,7 +79,7 @@ terrain.Scatter(
     count: 75
     position_variance: {1, 1}
     rotation_variance: {y: 2 * math.PI}
-    cluster: 0.15
+    cluster: 0
 )
 
 terrain.Scatter(
@@ -92,7 +92,7 @@ terrain.Scatter(
         environment.GraphiteAssets.F
     ]
 
-    count: 50
+    count: 100
     position_variance: {1, 1}
     rotation_variance: {y: 2 * math.PI}
     cluster: 0.2
@@ -108,7 +108,7 @@ terrain.Scatter(
         environment.ChemicalsAssets.F
     ]
 
-    count: 50
+    count: 100
     position_variance: {1, 1}
     rotation_variance: {y: 2 * math.PI}
     cluster: 0.1

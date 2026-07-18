@@ -131,6 +131,13 @@ template ToolButton {
 
   Button: {text: text, width: 80, height: 60, style: ToolButtonStyle}
   Hotkey: {key: hotKey}
+
+  hotkey {
+    Position: {x: 4, y: 4}
+    Layout: {width: 70, height: 11}
+    Text: {text: hotKey, size: 11, align: Right}
+    Rgba: {235, 238, 245, 255}
+  }
 }
 
 template ResourceGauge {

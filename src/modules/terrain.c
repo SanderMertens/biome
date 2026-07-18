@@ -477,7 +477,7 @@ static void TerrainScatterOnSet(ecs_iter_t *it) {
 
         /* Use a local PRNG so scattering is reproducible and does not perturb
          * random number generation in other systems. */
-        uint32_t selection_random = 0x9e3779b9u;
+        uint32_t selection_random = 0;
         selection_random ^= (uint32_t)t->width * 0x85ebca6bu;
         selection_random ^= (uint32_t)t->depth * 0xc2b2ae35u;
         selection_random ^= (uint32_t)valid_prefabs[0];

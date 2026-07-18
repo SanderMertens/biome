@@ -17,15 +17,15 @@ hud {
     } else {
       ToolButton wire("WIRE", buildings.ElectricityPole, hotKey: "1")
       ToolButton solar("SOLAR", buildings.Solar hotKey: "2")
-      ToolButton drone_pad("DRONE", buildings.DronePad, hotKey: "3")
     }
 
     if player.isBuildingPlaced(buildings.Solar) {
+      ToolButton drill("DRILL", buildings.Drill, hotKey: "3")
+      ToolButton burner("BURNER", buildings.Burner, hotKey: "4")
       ToolButton depot("DEPOT", buildings.Depot, hotKey: "5")
-      ToolButton drill("DRILL", buildings.Drill, hotKey: "6")
-      ToolButton burner("BURNER", buildings.Burner, hotKey: "7")
+      ToolButton drone_pad("DRONE", buildings.DronePad, hotKey: "3")
       // ToolButton habitat("HABITAT", buildings.Habitat, hotKey: "8")
-      ToolButton biome("BIOME", buildings.Biome, hotKey: "9")
+      // ToolButton biome("BIOME", buildings.Biome, hotKey: "9")
     }
 
     if player.isBuildingPlaced(buildings.Base) {
