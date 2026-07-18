@@ -258,7 +258,7 @@ static flecsEngine_transparent_mesh_ctx_t* flecsEngine_transparent_mesh_createCt
     flecsEngine_transparent_mesh_ctx_t *ctx =
         ecs_os_calloc_t(flecsEngine_transparent_mesh_ctx_t);
     flecsEngine_batch_init(&ctx->buffers,
-        FLECS_BATCH_NO_GPU_CULL | extra_flags);
+        FLECS_BATCH_NO_GPU_CULL | FLECS_BATCH_TRACK_STATIC | extra_flags);
     ctx->self_entity = self_entity;
     return ctx;
 }
@@ -530,7 +530,8 @@ ecs_entity_t flecsEngine_createBatch_mesh_transmissionData(
         .ctx = flecsEngine_mesh_createCtx(
             FLECS_BATCH_DEFAULT |
             FLECS_BATCH_OWNS_MATERIAL |
-            FLECS_BATCH_OWNS_TRANSMISSION),
+            FLECS_BATCH_OWNS_TRANSMISSION |
+            FLECS_BATCH_TRACK_STATIC),
         .free_ctx = flecsEngine_mesh_deleteCtx,
         .render_after_snapshot = true,
         .needs_transmission = true

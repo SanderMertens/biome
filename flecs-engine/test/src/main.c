@@ -34,6 +34,8 @@ void Transition_tint(void);
 void Transition_childof_tint(void);
 void Transition_parent_tint(void);
 
+void Renderer_batch_permutations(void);
+
 bake_test_case Transform3_testcases[] = {
     {
         "child_world_transform",
@@ -123,6 +125,13 @@ bake_test_case Transition_testcases[] = {
     }
 };
 
+bake_test_case Renderer_testcases[] = {
+    {
+        "batch_permutations",
+        Renderer_batch_permutations
+    }
+};
+
 static bake_test_suite suites[] = {
     {
         "Transform3",
@@ -144,9 +153,16 @@ static bake_test_suite suites[] = {
         NULL,
         10,
         Transition_testcases
+    },
+    {
+        "Renderer",
+        NULL,
+        NULL,
+        1,
+        Renderer_testcases
     }
 };
 
 int main(int argc, char *argv[]) {
-    return bake_test_run("flecs_engine_test", argc, argv, suites, 3);
+    return bake_test_run("flecs_engine_test", argc, argv, suites, 4);
 }

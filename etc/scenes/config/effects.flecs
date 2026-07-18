@@ -90,13 +90,13 @@ effects {
   prefab SmokeEmitter {
     ParticleEmitter: {
       pool: smoke_pool
-      rate: 12
+      rate: 24
       size: 0.45
       size_variance: 0.15
-      grow: 1.2
-      max_age: 3
+      grow: 1.1
+      max_age: 7
       max_age_variance: 0.6
-      color: {65, 65, 65, 145}
+      color: {65, 65, 65, 75}
       velocity: {0, 1.4, 0}
       velocity_variance: {0.25, 0.35, 0.25}
       offset: {0, 6.8, 0}

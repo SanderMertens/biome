@@ -696,9 +696,24 @@ void flecsEngine_batch_group_applyChanges(
         const FlecsWorldTransform3 *wt =
             flecs_transition_get(world, e, ecs_id(FlecsWorldTransform3));
         if (!wt) continue;
-        flecsEngine_batch_worldAabb(wt, mesh_aabb, &bb->cpu_aabb[slot]);
+        FlecsAABB aabb = mesh_aabb;
+        const void *scale_data = ctx->scale_component
+            ? flecs_transition_get(world, e, ctx->scale_component)
+            : NULL;
+        if (!scale_data && ctx->scale_component) {
+            scale_data = ecs_get_id(world, e, ctx->scale_component);
+        }
+        if (ctx->scale_aabb) {
+            ctx->scale_aabb(&aabb, scale_data, 1);
+        }
+        flecsEngine_batch_worldAabb(wt, aabb, &bb->cpu_aabb[slot]);
+        vec3 scale = {1, 1, 1};
+        if (ctx->scale_callback) {
+            ctx->scale_callback(scale_data, scale);
+        }
         flecsEngine_batch_transformInstance(
-            &bb->cpu_transforms[slot], wt, 1.0f, 1.0f, 1.0f);
+            &bb->cpu_transforms[slot], wt,
+            scale[0], scale[1], scale[2]);
         bb->cpu_slot_to_group[slot] = g;
 
         if (buf->flags & FLECS_BATCH_TINT) {

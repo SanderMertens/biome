@@ -118,6 +118,9 @@ typedef struct flecsEngine_batch_group_t {
 
     uint64_t group_id;
     FlecsMesh3Impl mesh;
+    ecs_entity_t scale_component;
+    flecsEngine_primitive_scale_t scale_callback;
+    flecsEngine_primitive_scale_aabb_t scale_aabb;
 
     int32_t static_stable_idx;
 

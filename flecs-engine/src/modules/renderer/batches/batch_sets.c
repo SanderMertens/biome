@@ -99,6 +99,10 @@ static void FlecsOnAddGeometryBatch(
             flecsEngine_createBatch_mesh_tint(
                 it->world, batch_set_entity, "TintMeshes");
         ecs_vec_append_t(NULL, &batch_set.batches, ecs_entity_t)[0] =
+            flecsEngine_createBatchSet_primitives(
+                it->world, batch_set_entity, "TintGeometry",
+                FlecsPrimitiveBatchTint);
+        ecs_vec_append_t(NULL, &batch_set.batches, ecs_entity_t)[0] =
             flecsEngine_createBatch_immediate(
                 it->world, batch_set_entity, "ImmediateMeshes");
 
@@ -110,6 +114,14 @@ static void FlecsOnAddGeometryBatch(
         ecs_vec_append_t(NULL, &batch_set.batches, ecs_entity_t)[0] =
             flecsEngine_createBatch_mesh_transmissionData(
                 it->world, batch_set_entity, "TransmissiveDataMeshes");
+        ecs_vec_append_t(NULL, &batch_set.batches, ecs_entity_t)[0] =
+            flecsEngine_createBatchSet_primitives(
+                it->world, batch_set_entity, "TransmissiveGeometry",
+                FlecsPrimitiveBatchTransmission);
+        ecs_vec_append_t(NULL, &batch_set.batches, ecs_entity_t)[0] =
+            flecsEngine_createBatchSet_primitives(
+                it->world, batch_set_entity, "TransmissiveDataGeometry",
+                FlecsPrimitiveBatchTransmissionData);
 
         /* Transparent batches must render last (after all opaques) */
         ecs_vec_append_t(NULL, &batch_set.batches, ecs_entity_t)[0] =
@@ -118,6 +130,14 @@ static void FlecsOnAddGeometryBatch(
         ecs_vec_append_t(NULL, &batch_set.batches, ecs_entity_t)[0] =
             flecsEngine_createBatch_mesh_transparentData(
                 it->world, batch_set_entity, "TransparentDataMeshes");
+        ecs_vec_append_t(NULL, &batch_set.batches, ecs_entity_t)[0] =
+            flecsEngine_createBatchSet_primitives(
+                it->world, batch_set_entity, "TransparentGeometry",
+                FlecsPrimitiveBatchTransparent);
+        ecs_vec_append_t(NULL, &batch_set.batches, ecs_entity_t)[0] =
+            flecsEngine_createBatchSet_primitives(
+                it->world, batch_set_entity, "TransparentDataGeometry",
+                FlecsPrimitiveBatchTransparentData);
         ecs_vec_append_t(NULL, &batch_set.batches, ecs_entity_t)[0] =
             flecsEngine_createBatch_immediateTransparent(
                 it->world, batch_set_entity, "ImmediateTransparentMeshes");

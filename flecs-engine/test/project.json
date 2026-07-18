@@ -44,6 +44,12 @@
                     "childof_tint",
                     "parent_tint"
                 ]
+            },
+            {
+                "id": "Renderer",
+                "testcases": [
+                    "batch_permutations"
+                ]
             }
         ]
     }

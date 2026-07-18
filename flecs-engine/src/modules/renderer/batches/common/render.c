@@ -257,7 +257,9 @@ bool flecsEngine_batch_bindGroupTextures(
 typedef struct {
     flecsEngine_batch_group_t *group;
     int32_t slot;
+    int32_t visible_index;
     float distance_sq;
+    bool is_static;
 } flecsEngine_sorted_slot_t;
 
 static int flecsEngine_batch_sortSlotByDistance(
@@ -291,15 +293,15 @@ void flecsEngine_batch_renderTransparentSorted(
         if (groups[i]->view.count > 0) {
             total += groups[i]->view.count;
         }
+        if (groups[i]->static_view.count > 0) {
+            total += groups[i]->static_view.count;
+        }
     }
 
     if (!total || !pipeline) {
         FLECS_TRACY_ZONE_END;
         return;
     }
-
-    flecsEngine_batch_bindMaterialGroup((FlecsEngineImpl*)engine, pass, buf);
-    flecsEngine_batch_bindInstanceGroup((FlecsEngineImpl*)engine, pass, buf);
 
     flecsEngine_sorted_slot_t *sorted =
         ecs_os_malloc_n(flecsEngine_sorted_slot_t, total);
@@ -320,6 +322,20 @@ void flecsEngine_batch_renderTransparentSorted(
             sorted[si].group = group;
             sorted[si].slot = slot;
             sorted[si].distance_sq = dx * dx + dy * dy + dz * dz;
+            sorted[si].is_static = false;
+            si ++;
+        }
+        for (int32_t j = 0; j < group->static_view.count; j ++) {
+            int32_t slot = group->static_view.offset + j;
+            const FlecsGpuTransform *t =
+                &buf->static_buffers.cpu_transforms[slot];
+            float dx = t->c3.x - cam_x;
+            float dy = t->c3.y - cam_y;
+            float dz = t->c3.z - cam_z;
+            sorted[si].group = group;
+            sorted[si].slot = slot;
+            sorted[si].distance_sq = dx * dx + dy * dy + dz * dz;
+            sorted[si].is_static = true;
             si ++;
         }
     }
@@ -327,22 +343,59 @@ void flecsEngine_batch_renderTransparentSorted(
     qsort(sorted, (size_t)total, sizeof(flecsEngine_sorted_slot_t),
         flecsEngine_batch_sortSlotByDistance);
 
-    uint32_t *sorted_slots = ecs_os_malloc_n(uint32_t, total);
+    int32_t dynamic_count = 0;
+    int32_t static_count = 0;
+    uint32_t *dynamic_slots = ecs_os_malloc_n(uint32_t, total);
+    uint32_t *static_slots = ecs_os_malloc_n(uint32_t, total);
     for (int32_t i = 0; i < total; i ++) {
-        sorted_slots[i] = (uint32_t)sorted[i].slot;
+        if (sorted[i].is_static) {
+            sorted[i].visible_index = static_count;
+            static_slots[static_count ++] = (uint32_t)sorted[i].slot;
+        } else {
+            sorted[i].visible_index = dynamic_count;
+            dynamic_slots[dynamic_count ++] = (uint32_t)sorted[i].slot;
+        }
     }
-    wgpuQueueWriteBuffer(engine->queue,
-        buf->buffers.gpu_visible_slots, 0,
-        sorted_slots, (uint64_t)total * sizeof(uint32_t));
-    ecs_os_free(sorted_slots);
+    if (dynamic_count) {
+        wgpuQueueWriteBuffer(engine->queue,
+            buf->buffers.gpu_visible_slots, 0,
+            dynamic_slots, (uint64_t)dynamic_count * sizeof(uint32_t));
+    }
+    if (static_count) {
+        wgpuQueueWriteBuffer(engine->queue,
+            buf->static_buffers.gpu_visible_slots, 0,
+            static_slots, (uint64_t)static_count * sizeof(uint32_t));
+    }
+    ecs_os_free(dynamic_slots);
+    ecs_os_free(static_slots);
 
     wgpuRenderPassEncoderSetPipeline(pass, pipeline);
 
     int8_t last_bucket = -2;
     flecsEngine_batch_group_t *active = NULL;
+    bool active_static = false;
+    bool bound = false;
 
     for (int32_t i = 0; i < total; i ++) {
         flecsEngine_batch_group_t *group = sorted[i].group;
+        bool is_static = sorted[i].is_static;
+
+        if (!bound || is_static != active_static) {
+            if (is_static) {
+                flecsEngine_batch_bindMaterialGroupStatic(
+                    (FlecsEngineImpl*)engine, pass, buf);
+                flecsEngine_batch_bindInstanceGroupStatic(
+                    (FlecsEngineImpl*)engine, pass, buf);
+            } else {
+                flecsEngine_batch_bindMaterialGroup(
+                    (FlecsEngineImpl*)engine, pass, buf);
+                flecsEngine_batch_bindInstanceGroup(
+                    (FlecsEngineImpl*)engine, pass, buf);
+            }
+            active = NULL;
+            active_static = is_static;
+            bound = true;
+        }
 
         if (group != active) {
             active = group;
@@ -364,9 +417,12 @@ void flecsEngine_batch_renderTransparentSorted(
         }
         if (!active) continue;
 
+        flecsEngine_batch_buffers_t *bb = is_static
+            ? &buf->static_buffers : &buf->buffers;
         wgpuRenderPassEncoderSetVertexBuffer(
-            pass, 1, buf->buffers.gpu_visible_slots,
-            (uint64_t)i * sizeof(uint32_t), sizeof(uint32_t));
+            pass, 1, bb->gpu_visible_slots,
+            (uint64_t)sorted[i].visible_index * sizeof(uint32_t),
+            sizeof(uint32_t));
 
         wgpuRenderPassEncoderDrawIndexed(
             pass, (uint32_t)group->mesh.index_count, 1, 0, 0, 0);

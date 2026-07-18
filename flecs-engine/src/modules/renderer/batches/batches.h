@@ -4,6 +4,20 @@
 #include "../render_batch.h"
 #include "common/common.h"
 
+typedef enum {
+    FlecsPrimitiveBatchTint,
+    FlecsPrimitiveBatchTransmission,
+    FlecsPrimitiveBatchTransmissionData,
+    FlecsPrimitiveBatchTransparent,
+    FlecsPrimitiveBatchTransparentData
+} flecsEngine_primitive_batch_kind_t;
+
+ecs_entity_t flecsEngine_createBatchSet_primitives(
+    ecs_world_t *world,
+    ecs_entity_t parent,
+    const char *name,
+    flecsEngine_primitive_batch_kind_t kind);
+
 ecs_entity_t flecsEngine_createBatch_mesh_materialData(
     ecs_world_t *world,
     ecs_entity_t parent,
