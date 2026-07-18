@@ -22,4 +22,11 @@ player {
         Carbon: 0
         Chemicals: 0
     ]
+
+    export const ResourceReservedTotals = StorageMap: [
+        Iron: 0
+        Copper: 0
+        Carbon: 0
+        Chemicals: 0
+    ]
 }

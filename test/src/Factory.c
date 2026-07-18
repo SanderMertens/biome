@@ -14,15 +14,6 @@ void biomePowerImport(ecs_world_t *world) {
     (void)world;
 }
 
-ecs_value_t biome_playerAttr_get(
-    ecs_world_t *world,
-    const char *name)
-{
-    (void)world;
-    (void)name;
-    return (ecs_value_t){0};
-}
-
 static int32_t *Factory_mapEnsure(
     BiomeResourceStorageMap *map,
     ecs_entity_t resource)

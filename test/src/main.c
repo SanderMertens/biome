@@ -1,6 +1,14 @@
 
+/* A friendly warning from bake.test
+ * ----------------------------------------------------------------------------
+ * This file is generated. To add/remove testcases modify the 'project.json' of
+ * the test project. ANY CHANGE TO THIS FILE IS LOST AFTER (RE)BUILDING!
+ * ----------------------------------------------------------------------------
+ */
+
 #include <biome_test.h>
 
+// Testsuite 'Logistics'
 void Logistics_first_come_first_serve(void);
 void Logistics_combine_requests(void);
 void Logistics_track_outstanding_requests(void);
@@ -8,7 +16,11 @@ void Logistics_combine_pickup_requests(void);
 void Logistics_combine_dropoff_requests(void);
 void Logistics_combine_matching_resources_only(void);
 void Logistics_dispatch_finishes_iterator(void);
+void Logistics_player_storage_transfer(void);
+void Logistics_player_storage_capacity(void);
+void Logistics_closest_storage(void);
 
+// Testsuite 'Factory'
 void Factory_request_drone_amount(void);
 void Factory_request_drone_amount_edge_cases(void);
 
@@ -40,6 +52,18 @@ bake_test_case Logistics_testcases[] = {
     {
         "dispatch_finishes_iterator",
         Logistics_dispatch_finishes_iterator
+    },
+    {
+        "player_storage_transfer",
+        Logistics_player_storage_transfer
+    },
+    {
+        "player_storage_capacity",
+        Logistics_player_storage_capacity
+    },
+    {
+        "closest_storage",
+        Logistics_closest_storage
     }
 };
 
@@ -59,7 +83,7 @@ static bake_test_suite suites[] = {
         "Logistics",
         NULL,
         NULL,
-        7,
+        10,
         Logistics_testcases
     },
     {

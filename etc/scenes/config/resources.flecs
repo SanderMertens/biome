@@ -43,7 +43,7 @@ resources {
 
     Recipe GreenHouseGassRecipe(
         inputs: [
-            Carbon: 20
+            Carbon: 10
             Chemicals: 5
         ]
         output: GreenHouseGass

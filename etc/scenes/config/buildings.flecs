@@ -45,15 +45,11 @@ buildings {
             conductor: true
         }
 
-        StorageDesc: {
-            kind: Storage
-            capacity: 1000000000
-        }
-
-        Storage: {
+        PlayerStorage: {
+            capacity: 500000
             resources: [
-                Iron:   5000000
-                Copper: 5000000
+                Iron:   500000
+                Copper: 500000
             ]
         }
 
@@ -104,6 +100,7 @@ buildings {
         Rgba: {255, 0, 0, 255}
     }
 
+    @tree Parent
     prefab ElectricityPole {
         Building: {
             can_doze: true
@@ -212,12 +209,9 @@ buildings {
             conductor: true
         }
 
-        StorageDesc: {
-            kind: Storage
+        PlayerStorage: {
             capacity: 1000
         }
-
-        Storage: {}
 
         Recipe: {
             inputs: [
@@ -304,7 +298,7 @@ buildings {
 
         StorageDesc: {
             kind: Sink
-            capacity: 500
+            capacity: 200
         }
 
         Factory: {

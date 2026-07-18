@@ -5,76 +5,106 @@
 ECS_COMPONENT_DECLARE(BiomeResourceStorageMap);
 ECS_COMPONENT_DECLARE(biome_resource_storageKind_t);
 
-static void BiomeResourceSumTotals(ecs_iter_t *it) {
-    ecs_map_t totals = {0};
-    ecs_map_init(&totals, NULL);
+int32_t biome_resource_playerAmount(
+    ecs_world_t *world,
+    const char *attribute,
+    ecs_entity_t resource)
+{
+    ecs_value_t value = biome_playerAttr_get(world, attribute);
+    if (!value.ptr) {
+        return 0;
+    }
+    int32_t *amount = (int32_t*)ecs_map_get(value.ptr, resource);
+    return amount ? *amount : 0;
+}
 
-    ecs_map_t capacityTotals = {0};
-    ecs_map_init(&capacityTotals, NULL);
+bool biome_resource_playerAdd(
+    ecs_world_t *world,
+    const char *attribute,
+    ecs_entity_t resource,
+    int32_t amount)
+{
+    ecs_value_t value = biome_playerAttr_get(world, attribute);
+    if (!value.ptr) {
+        return false;
+    }
 
-    ecs_value_t v = biome_playerAttr_get(it->real_world, "ResourceTotals");
-    if (!v.ptr) {
-        ecs_err("ResourceTotals is missing");
-        ecs_map_fini(&totals);
-        ecs_map_fini(&capacityTotals);
+    ecs_map_t next = {0};
+    ecs_map_init(&next, NULL);
+    ecs_map_copy(&next, value.ptr);
+    int32_t *stored = (int32_t*)ecs_map_ensure(&next, resource);
+    int64_t updated = (int64_t)*stored + amount;
+    if (updated < 0 || updated > INT32_MAX) {
+        ecs_map_fini(&next);
+        return false;
+    }
+    *stored = (int32_t)updated;
+
+    biome_playerAttr_set(world, attribute, &(ecs_value_t) {
+        .type = ecs_id(BiomeResourceStorageMap),
+        .ptr = &next
+    });
+    ecs_map_fini(&next);
+    return true;
+}
+
+static void biome_resource_addCapacity(
+    ecs_world_t *world,
+    int32_t amount)
+{
+    ecs_value_t value = biome_playerAttr_get(
+        world, "ResourceCapacityTotals");
+    if (!value.ptr) {
         return;
     }
 
-    /* Make sure resulting maps have at least the same keys they had before */
-    ecs_map_iter_t mit = ecs_map_iter(v.ptr);
-    while (ecs_map_next(&mit)) {
-        ecs_entity_t resource = ecs_map_key(&mit);
-        ecs_map_ensure(&totals, resource);
-        ecs_map_ensure(&capacityTotals, resource);
+    ecs_map_t next = {0};
+    ecs_map_init(&next, NULL);
+    ecs_map_copy(&next, value.ptr);
+    ecs_map_iter_t it = ecs_map_iter(&next);
+    while (ecs_map_next(&it)) {
+        int32_t *capacity = (int32_t*)ecs_map_get(
+            &next, ecs_map_key(&it));
+        int64_t updated = (int64_t)*capacity + amount;
+        if (updated < 0) {
+            updated = 0;
+        } else if (updated > INT32_MAX) {
+            updated = INT32_MAX;
+        }
+        *capacity = (int32_t)updated;
     }
 
-    /* Sum totals from all storages */
-    while (ecs_query_next(it)) {
-        BiomeResourceStorage *storage = ecs_field(it, BiomeResourceStorage, 0);
-        BiomeResourceStorageDesc *desc = ecs_field(it, BiomeResourceStorageDesc, 1);
+    biome_playerAttr_set(world, "ResourceCapacityTotals",
+        &(ecs_value_t) {
+            .type = ecs_id(BiomeResourceStorageMap),
+            .ptr = &next
+        });
+    ecs_map_fini(&next);
+}
 
-        for (int i = 0; i < it->count; i ++) {
-            BiomeResourceStorage *s = &storage[i];
-            BiomeResourceStorageDesc *d = &desc[i];
+static void BiomePlayerStoragePlaced(ecs_iter_t *it) {
+    int32_t direction = it->event == EcsOnRemove ? -1 : 1;
 
-            if (d->kind != BiomeResourceStorageKindStorage ||
-                !ecs_map_is_init(&s->resources))
-            {
-                continue;
-            }
+    for (int32_t i = 0; i < it->count; i ++) {
+        const BiomePlayerStorage *storage = ecs_get(
+            it->world, it->entities[i], BiomePlayerStorage);
+        if (!storage) {
+            continue;
+        }
+        biome_resource_addCapacity(
+            it->world, storage->capacity * direction);
 
-            mit = ecs_map_iter(&s->resources);
-            while (ecs_map_next(&mit)) {
-                ecs_entity_t resource = ecs_map_key(&mit);
+        if (direction < 0 || !ecs_map_is_init(&storage->resources)) {
+            continue;
+        }
 
-                {
-                    int32_t amount = (int32_t)ecs_map_value(&mit);
-                    ecs_map_val_t *total = ecs_map_ensure(&totals, resource);
-                    *(int32_t*)total += amount;
-                }
-                {
-                    ecs_map_val_t *total = ecs_map_ensure(&capacityTotals, resource);
-                    *(int32_t*)total += d->capacity;
-                }
-            }
+        ecs_map_iter_t mit = ecs_map_iter(&storage->resources);
+        while (ecs_map_next(&mit)) {
+            biome_resource_playerAdd(
+                it->world, "ResourceTotals", ecs_map_key(&mit),
+                (int32_t)ecs_map_value(&mit));
         }
     }
-
-    /* First make space, then up date totals */
-    biome_playerAttr_set(it->real_world, "ResourceCapacityTotals", 
-        &(ecs_value_t) {
-            .type = ecs_id(BiomeResourceStorageMap),
-            .ptr = &capacityTotals
-        });
-
-    biome_playerAttr_set(it->real_world, "ResourceTotals", 
-        &(ecs_value_t) {
-            .type = ecs_id(BiomeResourceStorageMap),
-            .ptr = &totals
-        });
-
-    ecs_map_fini(&totals);
-    ecs_map_fini(&capacityTotals);
 }
 
 void biomeResourcesImport(ecs_world_t *world) {
@@ -96,7 +126,6 @@ void biomeResourcesImport(ecs_world_t *world) {
         }),
         .constants = {
             {"Source", BiomeResourceStorageKindSource},
-            {"Storage", BiomeResourceStorageKindStorage},
             {"Sink", BiomeResourceStorageKindSink}
         }
     });
@@ -104,17 +133,18 @@ void biomeResourcesImport(ecs_world_t *world) {
     ecs_set_name_prefix(world, "Biome");
     ECS_META_COMPONENT(world, BiomeResource);
     ECS_META_COMPONENT(world, BiomeRecipe);
+    ECS_META_COMPONENT(world, BiomePlayerStorage);
 
     ecs_set_name_prefix(world, "BiomeResource");
     ECS_META_COMPONENT(world, BiomeResourceStorageDesc);
     ECS_META_COMPONENT(world, BiomeResourceStorage);
 
-    ecs_system(world, {
+    ecs_observer(world, {
         .query.terms = {
-            { ecs_id(BiomeResourceStorage) },
-            { ecs_id(BiomeResourceStorageDesc) }
+            { ecs_id(FlecsTerrainPosition) },
+            { ecs_id(BiomePlayerStorage) }
         },
-        .phase = EcsPreUpdate,
-        .run = BiomeResourceSumTotals
+        .events = { EcsOnSet, EcsOnRemove },
+        .callback = BiomePlayerStoragePlaced
     });
 }

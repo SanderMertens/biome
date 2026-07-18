@@ -242,6 +242,33 @@ static bool biome_logistics_transfer(
     if (amount <= 0) {
         return false;
     }
+    if (ecs_has(world, entity, BiomePlayerStorage)) {
+        int32_t stored = biome_resource_playerAmount(
+            world, "ResourceTotals", resource);
+        if (pickup && stored < amount) {
+            return false;
+        }
+        if (!pickup) {
+            int32_t capacity = biome_resource_playerAmount(
+                world, "ResourceCapacityTotals", resource);
+            if (capacity - stored < amount) {
+                return false;
+            }
+        }
+        if (!biome_resource_playerAdd(
+            world, "ResourceTotals", resource, pickup ? -amount : amount))
+        {
+            return false;
+        }
+        int32_t reserved = biome_resource_playerAmount(
+            world, "ResourceReservedTotals", resource);
+        if (reserved >= amount) {
+            biome_resource_playerAdd(
+                world, "ResourceReservedTotals", resource, -amount);
+        }
+        return true;
+    }
+
     BiomeResourceStorage *storage = ecs_get_mut(
         world, entity, BiomeResourceStorage);
     if (!storage) {

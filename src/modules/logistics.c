@@ -3,8 +3,6 @@
 #include "biome.h"
 #include "../tasks/logistics.h"
 
-ECS_COMPONENT_DECLARE(BiomeQueries);
-
 int32_t biome_logistics_mapValue(
     const BiomeResourceStorageMap *map,
     ecs_entity_t resource)
@@ -39,127 +37,28 @@ static bool biome_logistics_entityPowered(
     return !power || power->powered;
 }
 
-static BiomeQueries* biome_logistics_ensureQueries(
-    ecs_world_t *world)
-{
-    if (!ecs_id(BiomeQueries) ||
-        !ecs_get_type_info(world, ecs_id(BiomeQueries)))
-    {
-        ECS_COMPONENT_DEFINE(world, BiomeQueries);
-        ecs_add_id(world, ecs_id(BiomeQueries), EcsSingleton);
-    }
-
-    BiomeQueries *queries = ecs_singleton_ensure(world, BiomeQueries);
-    if (!queries->storage) {
-        queries->storage = ecs_query(world, {
-            .terms = {
-                { .id = ecs_id(BiomeResourceStorage) },
-                { .id = ecs_id(BiomeResourceStorageDesc), .inout = EcsIn }
-            },
-            .cache_kind = EcsQueryCacheAuto
-        });
-    }
-    return queries;
-}
-
-static const ecs_query_t* biome_logistics_storageQuery(
-    ecs_world_t *world)
-{
-    return biome_logistics_ensureQueries(world)->storage;
-}
-
-static ecs_entity_t biome_logistics_findStorage(
+static bool biome_logistics_playerFits(
     ecs_world_t *world,
     ecs_entity_t resource,
     int32_t amount,
-    ecs_entity_t exclude,
+    bool pickup,
     bool reserve)
 {
-    const ecs_query_t *query = biome_logistics_storageQuery(world);
-    ecs_entity_t result = 0;
-    ecs_iter_t it = ecs_query_iter(world, query);
-
-    while (!result && ecs_query_next(&it)) {
-        BiomeResourceStorage *storages = ecs_field(
-            &it, BiomeResourceStorage, 0);
-        const BiomeResourceStorageDesc *descs = ecs_field(
-            &it, BiomeResourceStorageDesc, 1);
-        for (int32_t i = 0; i < it.count; i ++) {
-            if (it.entities[i] == exclude ||
-                descs[i].kind != BiomeResourceStorageKindStorage ||
-                !biome_logistics_entityPowered(world, it.entities[i]))
-            {
-                continue;
-            }
-            int32_t stored = biome_logistics_mapValue(
-                &storages[i].resources, resource);
-            int32_t reserved = biome_logistics_mapValue(
-                &storages[i].reserved, resource);
-            if (descs[i].capacity - stored - reserved >= amount) {
-                if (reserve) {
-                    biome_logistics_addMapValue(
-                        &storages[i].reserved, resource, amount);
-                    ecs_modified_id(world, it.entities[i],
-                        ecs_id(BiomeResourceStorage));
-                }
-                result = it.entities[i];
-                break;
-            }
-        }
+    int32_t stored = biome_resource_playerAmount(
+        world, "ResourceTotals", resource);
+    int32_t reserved = biome_resource_playerAmount(
+        world, "ResourceReservedTotals", resource);
+    bool fits;
+    if (pickup) {
+        fits = stored - reserved >= amount;
+    } else {
+        int32_t capacity = biome_resource_playerAmount(
+            world, "ResourceCapacityTotals", resource);
+        fits = capacity - stored - reserved >= amount;
     }
 
-    if (result) {
-        ecs_iter_fini(&it);
-    }
-
-    return result;
-}
-
-static ecs_entity_t biome_logistics_findSourceStorage(
-    ecs_world_t *world,
-    ecs_entity_t resource,
-    int32_t amount,
-    ecs_entity_t exclude,
-    bool reserve)
-{
-    const ecs_query_t *query = biome_logistics_storageQuery(world);
-    ecs_entity_t result = 0;
-    ecs_iter_t it = ecs_query_iter(world, query);
-
-    while (!result && ecs_query_next(&it)) {
-        BiomeResourceStorage *storages = ecs_field(
-            &it, BiomeResourceStorage, 0);
-        const BiomeResourceStorageDesc *descs = ecs_field(
-            &it, BiomeResourceStorageDesc, 1);
-        for (int32_t i = 0; i < it.count; i ++) {
-            if (it.entities[i] == exclude ||
-                descs[i].kind != BiomeResourceStorageKindStorage ||
-                !biome_logistics_entityPowered(world, it.entities[i]))
-            {
-                continue;
-            }
-            int32_t stored = biome_logistics_mapValue(
-                &storages[i].resources, resource);
-            int32_t reserved = biome_logistics_mapValue(
-                &storages[i].reserved, resource);
-            if (stored - reserved >= amount) {
-                if (reserve) {
-                    biome_logistics_addMapValue(
-                        &storages[i].reserved, resource, amount);
-                    ecs_modified_id(world, it.entities[i],
-                        ecs_id(BiomeResourceStorage));
-                }
-                result = it.entities[i];
-                break;
-            }
-        }
-    }
-
-    if (result) {
-        ecs_iter_fini(&it);
-    }
-
-    return result;
+    return fits && (!reserve || biome_resource_playerAdd(
+        world, "ResourceReservedTotals", resource, amount));
 }
 
 static bool biome_logistics_getRequest(
@@ -218,10 +117,12 @@ static bool biome_logistics_resolveRequest(
     ecs_world_t *world,
     const BiomeLogisticsRequest *request,
     int32_t amount,
+    ecs_entity_t storage,
     bool reserve,
     BiomeLogisticsJob *job)
 {
-    if (amount <= 0 ||
+    if (amount <= 0 || !storage ||
+        !ecs_has(world, storage, BiomePlayerStorage) ||
         !biome_logistics_requestEndpointFits(world, request, amount))
     {
         return false;
@@ -231,12 +132,20 @@ static bool biome_logistics_resolveRequest(
     ecs_entity_t dst;
     if (request->kind == BiomeRequestPickup) {
         src = request->source;
-        dst = biome_logistics_findStorage(
-            world, request->resource, amount, request->source, reserve);
+        dst = storage;
+        if (!biome_logistics_playerFits(
+            world, request->resource, amount, false, reserve))
+        {
+            return false;
+        }
     } else if (request->kind == BiomeRequestDropOff) {
         dst = request->source;
-        src = biome_logistics_findSourceStorage(
-            world, request->resource, amount, request->source, reserve);
+        src = storage;
+        if (!biome_logistics_playerFits(
+            world, request->resource, amount, true, reserve))
+        {
+            return false;
+        }
     } else {
         return false;
     }
@@ -256,6 +165,7 @@ static bool biome_logistics_resolveRequest(
 static bool biome_logistics_tryRequest(
     ecs_world_t *world,
     ecs_entity_t request_entity,
+    ecs_entity_t storage,
     bool reserve,
     BiomeLogisticsJob *job)
 {
@@ -263,12 +173,13 @@ static bool biome_logistics_tryRequest(
     return biome_logistics_getRequest(
         world, request_entity, &request) &&
         biome_logistics_resolveRequest(
-            world, &request, request.amount, reserve, job);
+            world, &request, request.amount, storage, reserve, job);
 }
 
 static bool biome_logistics_acceptRequest(
     ecs_world_t *world,
     ecs_entity_t request_entity,
+    ecs_entity_t storage_entity,
     ecs_vec_t *accepted,
     BiomeLogisticsJob *job)
 {
@@ -323,7 +234,7 @@ static bool biome_logistics_acceptRequest(
             BiomeLogisticsJob combined_job;
             if (!biome_logistics_resolveRequest(
                 world, &request, amount + candidate.amount,
-                false, &combined_job))
+                storage_entity, false, &combined_job))
             {
                 continue;
             }
@@ -338,7 +249,7 @@ static bool biome_logistics_acceptRequest(
     }
 
     if (!biome_logistics_resolveRequest(
-        world, &request, amount, true, job))
+        world, &request, amount, storage_entity, true, job))
     {
         ecs_vec_clear(accepted);
         return false;
@@ -349,6 +260,7 @@ static bool biome_logistics_acceptRequest(
 
 static void biome_logistics_collectRequests(
     ecs_world_t *world,
+    ecs_entity_t storage,
     ecs_vec_t *requests)
 {
     ecs_entity_t jobs = ecs_lookup(world, "jobs");
@@ -359,7 +271,7 @@ static void biome_logistics_collectRequests(
         for (int32_t i = 0; i < it.count; i ++) {
             BiomeLogisticsJob job;
             if (biome_logistics_tryRequest(
-                world, it.entities[i], false, &job))
+                world, it.entities[i], storage, false, &job))
             {
                 *ecs_vec_append_t(NULL, requests, ecs_entity_t) =
                     it.entities[i];
@@ -462,8 +374,10 @@ static void BiomeLogisticsDispatch(ecs_iter_t *it) {
         {
             const BiomeLogisticsCarrier *carrier = ecs_get(
                 it->world, it->entities[i], BiomeLogisticsCarrier);
-            if (carrier && carrier->home &&
-                !biome_logistics_entityPowered(it->world, carrier->home))
+            if (!carrier || !carrier->storage ||
+                (carrier->home &&
+                    !biome_logistics_entityPowered(
+                        it->world, carrier->home)))
             {
                 continue;
             }
@@ -474,7 +388,8 @@ static void BiomeLogisticsDispatch(ecs_iter_t *it) {
                 ecs_entity_t candidate =
                     request_entities[request_index ++];
                 if (biome_logistics_acceptRequest(
-                    it->world, candidate, &accepted, &job))
+                    it->world, candidate, carrier->storage,
+                    &accepted, &job))
                 {
                     request = candidate;
                     break;
@@ -553,6 +468,133 @@ void biome_logistics_postRequest(
     }
 }
 
+static void biome_logistics_storageCells(
+    ecs_world_t *world,
+    ecs_entity_t terrain,
+    int32_t terrain_width,
+    int32_t terrain_depth,
+    ecs_entity_t *cells)
+{
+    ecs_iter_t it = ecs_each(world, BiomePlayerStorage);
+    while (ecs_each_next(&it)) {
+        for (int32_t i = 0; i < it.count; i ++) {
+            const FlecsTerrainPosition *position = ecs_get(
+                world, it.entities[i], FlecsTerrainPosition);
+            if (!position || position->terrain != terrain) {
+                continue;
+            }
+
+            int32_t width = position->span_x ? position->span_x : 1;
+            int32_t height = position->span_y ? position->span_y : 1;
+            for (int32_t y = position->y;
+                y < position->y + height;
+                y ++)
+            {
+                if (y < 0 || y >= terrain_depth) {
+                    continue;
+                }
+                for (int32_t x = position->x;
+                    x < position->x + width;
+                    x ++)
+                {
+                    if (x >= 0 && x < terrain_width) {
+                        cells[y * terrain_width + x] = it.entities[i];
+                    }
+                }
+            }
+        }
+    }
+}
+
+static ecs_entity_t biome_logistics_findClosestStorage(
+    ecs_world_t *world,
+    ecs_entity_t home)
+{
+    const FlecsTerrainPosition *position = ecs_get(
+        world, home, FlecsTerrainPosition);
+    if (!position || !position->terrain) {
+        return 0;
+    }
+
+    const FlecsTerrain *terrain = ecs_get(
+        world, position->terrain, FlecsTerrain);
+    if (!terrain || terrain->width <= 0 || terrain->depth <= 0) {
+        return 0;
+    }
+
+    int32_t cell_count = terrain->width * terrain->depth;
+    bool *visited = ecs_os_calloc_n(bool, cell_count);
+    ecs_entity_t *storage_cells = ecs_os_calloc_n(
+        ecs_entity_t, cell_count);
+    biome_logistics_storageCells(
+        world, position->terrain, terrain->width, terrain->depth,
+        storage_cells);
+    ecs_vec_t queue;
+    ecs_vec_init_t(NULL, &queue, int32_t, 0);
+
+    int32_t width = position->span_x ? position->span_x : 1;
+    int32_t height = position->span_y ? position->span_y : 1;
+    for (int32_t y = position->y; y < position->y + height; y ++) {
+        for (int32_t x = position->x; x < position->x + width; x ++) {
+            if (x < 0 || y < 0 ||
+                x >= terrain->width || y >= terrain->depth)
+            {
+                continue;
+            }
+            int32_t index = y * terrain->width + x;
+            if (!visited[index]) {
+                visited[index] = true;
+                *ecs_vec_append_t(NULL, &queue, int32_t) = index;
+            }
+        }
+    }
+
+    static const int32_t dx[] = {0, 1, 0, -1};
+    static const int32_t dy[] = {-1, 0, 1, 0};
+    ecs_entity_t result = 0;
+    int32_t head = 0;
+    while (head < ecs_vec_count(&queue)) {
+        int32_t index = ecs_vec_get_t(&queue, int32_t, head)[0];
+        head ++;
+        int32_t x = index % terrain->width;
+        int32_t y = index / terrain->width;
+
+        result = storage_cells[index];
+        if (result) {
+            break;
+        }
+
+        for (int32_t direction = 0; direction < 4; direction ++) {
+            int32_t next_x = x + dx[direction];
+            int32_t next_y = y + dy[direction];
+            if (next_x < 0 || next_y < 0 ||
+                next_x >= terrain->width || next_y >= terrain->depth)
+            {
+                continue;
+            }
+            int32_t next = next_y * terrain->width + next_x;
+            if (!visited[next]) {
+                visited[next] = true;
+                *ecs_vec_append_t(NULL, &queue, int32_t) = next;
+            }
+        }
+    }
+
+    ecs_vec_fini_t(NULL, &queue, int32_t);
+    ecs_os_free(storage_cells);
+    ecs_os_free(visited);
+    return result;
+}
+
+static void BiomeLogisticsCarrierOnSet(ecs_iter_t *it) {
+    BiomeLogisticsCarrier *carriers = ecs_field(
+        it, BiomeLogisticsCarrier, 0);
+    for (int32_t i = 0; i < it->count; i ++) {
+        carriers[i].storage = biome_logistics_findClosestStorage(
+            it->world, carriers[i].home);
+    }
+}
+
 void biomeLogisticsImport(ecs_world_t *world) {
     ECS_MODULE(world, biomeLogistics);
 
@@ -567,7 +609,9 @@ void biomeLogisticsImport(ecs_world_t *world) {
     ECS_META_COMPONENT(world, BiomeLogisticsCarrier);
     ECS_META_COMPONENT(world, BiomeLogisticsJob);
 
-    biome_logistics_ensureQueries(world);
+    ecs_set_hooks(world, BiomeLogisticsCarrier, {
+        .on_set = BiomeLogisticsCarrierOnSet
+    });
 
     ecs_entity_t module = ecs_id(biomeLogistics);
     biomeLogisticsTasksImport(world, module);

@@ -12,7 +12,6 @@ extern ECS_COMPONENT_DECLARE(BiomeResourceStorageMap);
 /* Storage kind */
 typedef enum {
     BiomeResourceStorageKindSource,
-    BiomeResourceStorageKindStorage,
     BiomeResourceStorageKindSink,
 } biome_resource_storageKind_t;
 
@@ -32,9 +31,14 @@ ECS_STRUCT(BiomeResourceStorageDesc, {
     int32_t capacity;
 });
 
-/* Live storage state */
 typedef ecs_map_t BiomeResourceStorageMap;
 
+ECS_STRUCT(BiomePlayerStorage, {
+    int32_t capacity;
+    BiomeResourceStorageMap resources;
+});
+
+/* Live storage state */
 ECS_STRUCT(BiomeResourceStorage, {
     BiomeResourceStorageMap resources;  /* Resources available in storage */
     BiomeResourceStorageMap reserved;   /* Resources reserved for pickup */
@@ -49,5 +53,16 @@ ECS_STRUCT(BiomeRecipe, {
 });
 
 void biomeResourcesImport(ecs_world_t *world);
+
+int32_t biome_resource_playerAmount(
+    ecs_world_t *world,
+    const char *attribute,
+    ecs_entity_t resource);
+
+bool biome_resource_playerAdd(
+    ecs_world_t *world,
+    const char *attribute,
+    ecs_entity_t resource,
+    int32_t amount);
 
 #endif

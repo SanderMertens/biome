@@ -22,6 +22,7 @@ ECS_STRUCT(BiomeLogisticsRequest, {
 
 ECS_STRUCT(BiomeLogisticsCarrier, {
     ecs_entity_t home;
+    ecs_entity_t storage;
 });
 
 ECS_STRUCT(BiomeLogisticsJob, {
@@ -30,12 +31,6 @@ ECS_STRUCT(BiomeLogisticsJob, {
     ecs_entity_t src;
     ecs_entity_t dst;
 });
-
-typedef struct BiomeQueries {
-    ecs_query_t *storage;
-} BiomeQueries;
-
-extern ECS_COMPONENT_DECLARE(BiomeQueries);
 
 void biome_logistics_postRequest(
     ecs_world_t *world,

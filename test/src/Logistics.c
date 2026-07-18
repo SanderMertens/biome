@@ -1,3 +1,6 @@
+#define BIOME_RESOURCES_IMPL
+#define BIOME_LOGISTICS_IMPL
+#include "../../src/modules/resources.c"
 #include "../../src/modules/logistics.c"
 #include "../../src/tasks/logistics.c"
 #include <biome_test.h>
@@ -8,6 +11,12 @@ ECS_COMPONENT_DECLARE(BiomeResourceStorageDesc);
 ECS_COMPONENT_DECLARE(BiomeResourceStorage);
 ECS_COMPONENT_DECLARE(BiomeResource);
 ECS_COMPONENT_DECLARE(BiomeResourceMiner);
+ECS_COMPONENT_DECLARE(BiomePlayerStorage);
+
+static ecs_map_t Logistics_player_totals;
+static ecs_map_t Logistics_player_capacity;
+static ecs_map_t Logistics_player_reserved;
+static ecs_entity_t Logistics_player_storage;
 
 void biomeBehaviorImport(ecs_world_t *world) {
     (void)world;
@@ -17,8 +26,36 @@ void biomeBuildingsImport(ecs_world_t *world) {
     (void)world;
 }
 
-void biomeResourcesImport(ecs_world_t *world) {
+static ecs_map_t *Logistics_playerMap(
+    const char *attribute)
+{
+    return !ecs_os_strcmp(attribute, "ResourceTotals")
+        ? &Logistics_player_totals
+        : !ecs_os_strcmp(attribute, "ResourceCapacityTotals")
+            ? &Logistics_player_capacity
+            : &Logistics_player_reserved;
+}
+
+ecs_value_t biome_playerAttr_get(
+    ecs_world_t *world,
+    const char *attribute)
+{
     (void)world;
+    return (ecs_value_t) {
+        .type = ecs_id(BiomeResourceStorageMap),
+        .ptr = Logistics_playerMap(attribute)
+    };
+}
+
+void biome_playerAttr_set(
+    ecs_world_t *world,
+    const char *attribute,
+    const ecs_value_t *value)
+{
+    (void)world;
+    ecs_map_t *map = Logistics_playerMap(attribute);
+    ecs_map_clear(map);
+    ecs_map_copy(map, value->ptr);
 }
 
 static int32_t *Logistics_mapEnsure(
@@ -42,12 +79,28 @@ static ecs_entity_t Logistics_storage(
     return result;
 }
 
+static ecs_entity_t Logistics_playerStorage(
+    ecs_world_t *world,
+    ecs_entity_t resource,
+    int32_t capacity)
+{
+    ecs_entity_t result = ecs_new(world);
+    ecs_set(world, result, BiomePlayerStorage, {capacity, {0}});
+    *(int32_t*)ecs_map_ensure(&Logistics_player_capacity, resource) =
+        capacity;
+    Logistics_player_storage = result;
+    return result;
+}
+
 static void Logistics_storageFini(
     ecs_world_t *world,
     ecs_entity_t entity)
 {
     BiomeResourceStorage *storage = ecs_get_mut(
         world, entity, BiomeResourceStorage);
+    if (!storage) {
+        return;
+    }
     if (ecs_map_is_init(&storage->resources)) {
         ecs_map_fini(&storage->resources);
     }
@@ -66,7 +119,8 @@ static ecs_entity_t Logistics_firstRequest(
 {
     ecs_vec_t requests;
     ecs_vec_init_t(NULL, &requests, ecs_entity_t, 0);
-    biome_logistics_collectRequests(world, &requests);
+    biome_logistics_collectRequests(
+        world, Logistics_player_storage, &requests);
     test_int(ecs_vec_count(&requests), expected_count);
     ecs_entity_t result = expected_count
         ? ecs_vec_first_t(&requests, ecs_entity_t)[0]
@@ -76,12 +130,23 @@ static ecs_entity_t Logistics_firstRequest(
 }
 
 void Logistics_setupWorld(ecs_world_t *world) {
+    if (ecs_map_is_init(&Logistics_player_totals)) {
+        ecs_map_fini(&Logistics_player_totals);
+        ecs_map_fini(&Logistics_player_capacity);
+        ecs_map_fini(&Logistics_player_reserved);
+    }
+    ecs_map_init(&Logistics_player_totals, NULL);
+    ecs_map_init(&Logistics_player_capacity, NULL);
+    ecs_map_init(&Logistics_player_reserved, NULL);
+    Logistics_player_storage = 0;
+
     ECS_COMPONENT_DEFINE(world, BiomeFactory);
     ECS_COMPONENT_DEFINE(world, BiomePowerConsumer);
     ECS_COMPONENT_DEFINE(world, BiomeResourceStorageDesc);
     ECS_COMPONENT_DEFINE(world, BiomeResourceStorage);
     ECS_COMPONENT_DEFINE(world, BiomeResource);
     ECS_COMPONENT_DEFINE(world, BiomeResourceMiner);
+    ECS_COMPONENT_DEFINE(world, BiomePlayerStorage);
     ECS_META_COMPONENT(world, biome_logisticsRequestKind_t);
     ECS_META_COMPONENT(world, BiomeLogisticsRequest);
 
@@ -122,24 +187,16 @@ static ecs_entity_t Logistics_request(
 void Logistics_first_come_first_serve(void) {
     ecs_world_t *world = ecs_init();
 
-    ECS_COMPONENT_DEFINE(world, BiomeFactory);
-    ECS_COMPONENT_DEFINE(world, BiomePowerConsumer);
-    ECS_COMPONENT_DEFINE(world, BiomeResourceStorageDesc);
-    ECS_COMPONENT_DEFINE(world, BiomeResourceStorage);
-    ECS_COMPONENT_DEFINE(world, BiomeResource);
-    ECS_META_COMPONENT(world, biome_logisticsRequestKind_t);
-    ECS_META_COMPONENT(world, BiomeLogisticsRequest);
-
-    ecs_entity_t jobs = ecs_entity(world, { .name = "jobs" });
-    ecs_add_id(world, jobs, EcsOrderedChildren);
+    Logistics_setupWorld(world);
+    ecs_entity_t jobs = ecs_lookup(world, "jobs");
 
     ecs_entity_t resource = ecs_new(world);
     ecs_entity_t source_a = Logistics_storage(
         world, BiomeResourceStorageKindSource, 100);
     ecs_entity_t source_b = Logistics_storage(
         world, BiomeResourceStorageKindSource, 100);
-    ecs_entity_t storage = Logistics_storage(
-        world, BiomeResourceStorageKindStorage, 10);
+    ecs_entity_t storage = Logistics_playerStorage(
+        world, resource, 10);
     *Logistics_mapEnsure(
         &ecs_get_mut(world, source_a, BiomeResourceStorage)->resources,
         resource) = 20;
@@ -161,19 +218,17 @@ void Logistics_first_come_first_serve(void) {
     BiomeLogisticsJob job;
     test_uint(Logistics_firstRequest(world, 1), second);
     test_assert(biome_logistics_tryRequest(
-        world, second, true, &job));
+        world, second, storage, true, &job));
     test_assert(ecs_is_alive(world, first));
     ecs_delete(world, second);
 
-    ecs_set(world, storage, BiomeResourceStorageDesc, {
-        BiomeResourceStorageKindStorage, 100
-    });
-    BiomeResourceStorage *storage_data = ecs_get_mut(
-        world, storage, BiomeResourceStorage);
-    *Logistics_mapEnsure(&storage_data->reserved, resource) = 0;
+    *(int32_t*)ecs_map_ensure(
+        &Logistics_player_capacity, resource) = 100;
+    *(int32_t*)ecs_map_ensure(
+        &Logistics_player_reserved, resource) = 0;
     test_uint(Logistics_firstRequest(world, 1), first);
     test_assert(biome_logistics_tryRequest(
-        world, first, true, &job));
+        world, first, storage, true, &job));
     ecs_delete(world, first);
 
     ecs_entity_t factory_resource = ecs_new(world);
@@ -205,15 +260,17 @@ void Logistics_first_come_first_serve(void) {
 
     test_uint(Logistics_firstRequest(world, 1), second);
     test_assert(biome_logistics_tryRequest(
-        world, second, true, &job));
+        world, second, storage, true, &job));
     test_assert(ecs_is_alive(world, first));
     ecs_delete(world, second);
 
-    *Logistics_mapEnsure(&storage_data->resources, factory_resource) = 5;
-    *Logistics_mapEnsure(&storage_data->reserved, resource) = 0;
+    *(int32_t*)ecs_map_ensure(
+        &Logistics_player_totals, factory_resource) = 5;
+    *(int32_t*)ecs_map_ensure(
+        &Logistics_player_reserved, resource) = 0;
     test_uint(Logistics_firstRequest(world, 1), first);
     test_assert(biome_logistics_tryRequest(
-        world, first, true, &job));
+        world, first, storage, true, &job));
 
     Logistics_storageFini(world, source_a);
     Logistics_storageFini(world, source_b);
@@ -242,16 +299,7 @@ static void Logistics_deleteRequests(
 void Logistics_combine_requests(void) {
     ecs_world_t *world = ecs_init();
 
-    ECS_COMPONENT_DEFINE(world, BiomeFactory);
-    ECS_COMPONENT_DEFINE(world, BiomePowerConsumer);
-    ECS_COMPONENT_DEFINE(world, BiomeResourceStorageDesc);
-    ECS_COMPONENT_DEFINE(world, BiomeResourceStorage);
-    ECS_COMPONENT_DEFINE(world, BiomeResource);
-    ECS_META_COMPONENT(world, biome_logisticsRequestKind_t);
-    ECS_META_COMPONENT(world, BiomeLogisticsRequest);
-
-    ecs_entity_t jobs = ecs_entity(world, { .name = "jobs" });
-    ecs_add_id(world, jobs, EcsOrderedChildren);
+    Logistics_setupWorld(world);
 
     ecs_entity_t resource = ecs_new(world);
     ecs_set(world, resource, BiomeResource, {
@@ -260,8 +308,8 @@ void Logistics_combine_requests(void) {
 
     ecs_entity_t pickup_source = Logistics_storage(
         world, BiomeResourceStorageKindSource, 300);
-    ecs_entity_t storage = Logistics_storage(
-        world, BiomeResourceStorageKindStorage, 70);
+    ecs_entity_t storage = Logistics_playerStorage(
+        world, resource, 70);
     *Logistics_mapEnsure(
         &ecs_get_mut(
             world, pickup_source, BiomeResourceStorage)->resources,
@@ -284,17 +332,17 @@ void Logistics_combine_requests(void) {
     ecs_vec_init_t(NULL, &accepted, ecs_entity_t, 0);
     BiomeLogisticsJob job;
     test_assert(biome_logistics_acceptRequest(
-        world, pickup_request, &accepted, &job));
+        world, pickup_request, storage, &accepted, &job));
     test_int(ecs_vec_count(&accepted), 2);
     test_int(job.amount, 60);
     test_uint(job.src, pickup_source);
     test_uint(job.dst, storage);
     Logistics_deleteRequests(world, pickup_source);
 
-    BiomeResourceStorage *central = ecs_get_mut(
-        world, storage, BiomeResourceStorage);
-    *Logistics_mapEnsure(&central->resources, resource) = 70;
-    *Logistics_mapEnsure(&central->reserved, resource) = 0;
+    *(int32_t*)ecs_map_ensure(
+        &Logistics_player_totals, resource) = 70;
+    *(int32_t*)ecs_map_ensure(
+        &Logistics_player_reserved, resource) = 0;
 
     ecs_entity_t dropoff_target = Logistics_storage(
         world, BiomeResourceStorageKindSink, 300);
@@ -312,17 +360,17 @@ void Logistics_combine_requests(void) {
         &dropoff_storage->outstanding_requests, ecs_entity_t)[0];
 
     test_assert(biome_logistics_acceptRequest(
-        world, dropoff_request, &accepted, &job));
+        world, dropoff_request, storage, &accepted, &job));
     test_int(ecs_vec_count(&accepted), 2);
     test_int(job.amount, 60);
     test_uint(job.src, storage);
     test_uint(job.dst, dropoff_target);
     Logistics_deleteRequests(world, dropoff_target);
 
-    central = ecs_get_mut(
-        world, storage, BiomeResourceStorage);
-    *Logistics_mapEnsure(&central->resources, resource) = 200;
-    *Logistics_mapEnsure(&central->reserved, resource) = 0;
+    *(int32_t*)ecs_map_ensure(
+        &Logistics_player_totals, resource) = 200;
+    *(int32_t*)ecs_map_ensure(
+        &Logistics_player_reserved, resource) = 0;
     biome_logistics_postRequest(
         world, BiomeRequestDropOff, dropoff_target,
         resource, 120, 0);
@@ -362,15 +410,16 @@ void Logistics_track_outstanding_requests(void) {
         world, BiomeResourceStorageKindSink, 100);
     ecs_entity_t drill = Logistics_storage(
         world, BiomeResourceStorageKindSource, 100);
-    ecs_entity_t central = Logistics_storage(
-        world, BiomeResourceStorageKindStorage, 300);
+    ecs_entity_t central = Logistics_playerStorage(
+        world, resource, 300);
     ecs_set(world, factory, BiomeFactory, {0});
     ecs_set(world, drill, BiomeResourceMiner, {0});
 
     Logistics_setResource(
         world, storage_source, resource, 20);
     Logistics_setResource(world, drill, resource, 20);
-    Logistics_setResource(world, central, resource, 20);
+    *(int32_t*)ecs_map_ensure(
+        &Logistics_player_totals, resource) = 20;
 
     biome_logistics_postRequest(
         world, BiomeRequestPickup, storage_source, resource, 10, 0);
@@ -395,7 +444,7 @@ void Logistics_track_outstanding_requests(void) {
     ecs_vec_init_t(NULL, &accepted, ecs_entity_t, 0);
     BiomeLogisticsJob job;
     test_assert(biome_logistics_acceptRequest(
-        world, factory_request, &accepted, &job));
+        world, factory_request, central, &accepted, &job));
     biome_logistics_finishRequests(world, &accepted);
 
     test_int(ecs_vec_count(
@@ -428,8 +477,8 @@ void Logistics_combine_pickup_requests(void) {
     });
     ecs_entity_t factory = Logistics_storage(
         world, BiomeResourceStorageKindSource, 300);
-    ecs_entity_t storage = Logistics_storage(
-        world, BiomeResourceStorageKindStorage, 300);
+    ecs_entity_t storage = Logistics_playerStorage(
+        world, resource, 300);
     ecs_set(world, factory, BiomeFactory, {0});
     Logistics_setResource(world, factory, resource, 200);
 
@@ -445,7 +494,7 @@ void Logistics_combine_pickup_requests(void) {
         world, factory, 1);
     test_assert(biome_logistics_acceptRequest(
         world, Logistics_request(world, factory, 0),
-        &accepted, &job));
+        storage, &accepted, &job));
     test_int(ecs_vec_count(&accepted), 3);
     test_int(job.amount, 90);
     test_uint(job.src, factory);
@@ -454,7 +503,7 @@ void Logistics_combine_pickup_requests(void) {
     biome_logistics_finishRequests(world, &accepted);
     test_assert(!ecs_is_alive(world, combined_request));
     test_assert(!biome_logistics_acceptRequest(
-        world, combined_request, &accepted, &job));
+        world, combined_request, storage, &accepted, &job));
     test_int(ecs_vec_count(
         &ecs_get(world, factory,
             BiomeResourceStorage)->outstanding_requests), 1);
@@ -475,10 +524,11 @@ void Logistics_combine_dropoff_requests(void) {
     });
     ecs_entity_t factory = Logistics_storage(
         world, BiomeResourceStorageKindSink, 300);
-    ecs_entity_t storage = Logistics_storage(
-        world, BiomeResourceStorageKindStorage, 300);
+    ecs_entity_t storage = Logistics_playerStorage(
+        world, resource, 300);
     ecs_set(world, factory, BiomeFactory, {0});
-    Logistics_setResource(world, storage, resource, 200);
+    *(int32_t*)ecs_map_ensure(
+        &Logistics_player_totals, resource) = 200;
 
     for (int32_t i = 0; i < 4; i ++) {
         biome_logistics_postRequest(
@@ -490,7 +540,7 @@ void Logistics_combine_dropoff_requests(void) {
     BiomeLogisticsJob job;
     test_assert(biome_logistics_acceptRequest(
         world, Logistics_request(world, factory, 0),
-        &accepted, &job));
+        storage, &accepted, &job));
     test_int(ecs_vec_count(&accepted), 3);
     test_int(job.amount, 90);
     test_uint(job.src, storage);
@@ -522,12 +572,15 @@ void Logistics_combine_matching_resources_only(void) {
 
     ecs_entity_t factory = Logistics_storage(
         world, BiomeResourceStorageKindSource, 400);
-    ecs_entity_t storage = Logistics_storage(
-        world, BiomeResourceStorageKindStorage, 400);
+    ecs_entity_t storage = Logistics_playerStorage(
+        world, resource_a, 400);
+    *(int32_t*)ecs_map_ensure(
+        &Logistics_player_capacity, resource_b) = 400;
     ecs_set(world, factory, BiomeFactory, {0});
     Logistics_setResource(world, factory, resource_a, 100);
     Logistics_setResource(world, factory, resource_b, 100);
-    Logistics_setResource(world, storage, resource_a, 100);
+    *(int32_t*)ecs_map_ensure(
+        &Logistics_player_totals, resource_a) = 100;
 
     biome_logistics_postRequest(
         world, BiomeRequestPickup, factory, resource_a, 20, 0);
@@ -543,7 +596,7 @@ void Logistics_combine_matching_resources_only(void) {
     BiomeLogisticsJob job;
     test_assert(biome_logistics_acceptRequest(
         world, Logistics_request(world, factory, 0),
-        &accepted, &job));
+        storage, &accepted, &job));
     test_int(ecs_vec_count(&accepted), 2);
     test_int(job.amount, 50);
     test_uint(job.resource, resource_a);
@@ -590,5 +643,123 @@ void Logistics_dispatch_finishes_iterator(void) {
         world, waiter_b, BiomeLogisticsWaiter));
 
     ecs_query_fini(query);
+    ecs_fini(world);
+}
+
+void Logistics_player_storage_transfer(void) {
+    ecs_world_t *world = Logistics_world();
+    ecs_entity_t resource = ecs_new(world);
+    ecs_entity_t storage = Logistics_playerStorage(
+        world, resource, 100);
+
+    test_assert(biome_logistics_transfer(
+        world, resource, 30, storage, false));
+    test_int(biome_resource_playerAmount(
+        world, "ResourceTotals", resource), 30);
+
+    *(int32_t*)ecs_map_ensure(
+        &Logistics_player_reserved, resource) = 20;
+    test_assert(biome_logistics_transfer(
+        world, resource, 20, storage, true));
+    test_int(biome_resource_playerAmount(
+        world, "ResourceTotals", resource), 10);
+    test_int(biome_resource_playerAmount(
+        world, "ResourceReservedTotals", resource), 0);
+
+    ecs_fini(world);
+}
+
+void Logistics_player_storage_capacity(void) {
+    ecs_world_t *world = Logistics_world();
+    ECS_COMPONENT_DEFINE(world, FlecsTerrainPosition);
+
+    ecs_observer(world, {
+        .query.terms = {
+            { ecs_id(FlecsTerrainPosition) },
+            { ecs_id(BiomePlayerStorage) }
+        },
+        .events = { EcsOnSet, EcsOnRemove },
+        .callback = BiomePlayerStoragePlaced
+    });
+
+    ecs_entity_t resource = ecs_new(world);
+    *(int32_t*)ecs_map_ensure(
+        &Logistics_player_capacity, resource) = 0;
+
+    ecs_entity_t first_prefab = ecs_new(world);
+    ecs_add_id(world, first_prefab, EcsPrefab);
+    ecs_set(world, first_prefab, BiomePlayerStorage, {100, {0}});
+    ecs_entity_t first = ecs_new_w_pair(world, EcsIsA, first_prefab);
+    ecs_set(world, first, FlecsTerrainPosition, {0});
+    test_int(biome_resource_playerAmount(
+        world, "ResourceCapacityTotals", resource), 100);
+
+    ecs_entity_t second_prefab = ecs_new(world);
+    ecs_add_id(world, second_prefab, EcsPrefab);
+    ecs_set(world, second_prefab, BiomePlayerStorage, {50, {0}});
+    ecs_entity_t second = ecs_new_w_pair(world, EcsIsA, second_prefab);
+    ecs_set(world, second, FlecsTerrainPosition, {0});
+    test_int(biome_resource_playerAmount(
+        world, "ResourceCapacityTotals", resource), 150);
+
+    ecs_delete(world, second);
+    test_int(biome_resource_playerAmount(
+        world, "ResourceCapacityTotals", resource), 100);
+
+    ecs_fini(world);
+}
+
+void Logistics_closest_storage(void) {
+    ecs_world_t *world = Logistics_world();
+
+    ECS_COMPONENT_DEFINE(world, FlecsTerrain);
+    ECS_COMPONENT_DEFINE(world, FlecsTerrainPosition);
+    ECS_COMPONENT_DEFINE(world, BiomeLogisticsCarrier);
+    ecs_set_hooks(world, BiomeLogisticsCarrier, {
+        .on_set = BiomeLogisticsCarrierOnSet
+    });
+
+    ecs_entity_t terrain = ecs_new(world);
+    ecs_set(world, terrain, FlecsTerrain, {
+        .width = 5,
+        .depth = 5
+    });
+
+    ecs_entity_t first_prefab = ecs_new(world);
+    ecs_add_id(world, first_prefab, EcsPrefab);
+    ecs_set(world, first_prefab, BiomePlayerStorage, {100, {0}});
+    ecs_entity_t first = ecs_new_w_pair(world, EcsIsA, first_prefab);
+    ecs_set(world, first, FlecsTerrainPosition, {
+        .terrain = terrain,
+        .x = 2,
+        .y = 1
+    });
+
+    ecs_entity_t second_prefab = ecs_new(world);
+    ecs_add_id(world, second_prefab, EcsPrefab);
+    ecs_set(world, second_prefab, BiomePlayerStorage, {100, {0}});
+    ecs_entity_t second = ecs_new_w_pair(world, EcsIsA, second_prefab);
+    ecs_set(world, second, FlecsTerrainPosition, {
+        .terrain = terrain,
+        .x = 3,
+        .y = 2
+    });
+
+    ecs_entity_t home = ecs_new(world);
+    ecs_set(world, home, FlecsTerrainPosition, {
+        .terrain = terrain,
+        .x = 2,
+        .y = 2
+    });
+
+    ecs_entity_t drone = ecs_new(world);
+    ecs_set(world, drone, BiomeLogisticsCarrier, {
+        .home = home
+    });
+
+    const BiomeLogisticsCarrier *carrier = ecs_get(
+        world, drone, BiomeLogisticsCarrier);
+    test_uint(carrier->storage, first);
+
     ecs_fini(world);
 }

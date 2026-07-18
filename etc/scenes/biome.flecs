@@ -15,12 +15,15 @@ camera {
     Position3: {0, 26.877, 256.68}
     LookAt: {0, 26.361, 255.828}
     CameraController: {terrain: terrain.Terrain, clearance: 2}
+    Camera: {
+        far_: 2000
+    }
 }
 
 $ {
     terrain.Terrain: {
-        width: 192 // tiles
-        height: 192
+        width: 256 // tiles
+        height: 256
         sample_kind: Linear
         scale: 60
         octaves: 5

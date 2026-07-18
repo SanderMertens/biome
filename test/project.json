@@ -19,7 +19,10 @@
                     "combine_pickup_requests",
                     "combine_dropoff_requests",
                     "combine_matching_resources_only",
-                    "dispatch_finishes_iterator"
+                    "dispatch_finishes_iterator",
+                    "player_storage_transfer",
+                    "player_storage_capacity",
+                    "closest_storage"
                 ]
             },
             {
