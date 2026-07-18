@@ -78,18 +78,24 @@ static void biome_factory_requestInputs(
     ecs_map_iter_t it = ecs_map_iter(&recipe->inputs);
     while (ecs_map_next(&it)) {
         ecs_entity_t resource = ecs_map_key(&it);
-        int32_t required = (int32_t)ecs_map_value(&it);
         int32_t stored = biome_factory_mapValue(
             &storage->resources, resource);
         int32_t reserved = biome_factory_mapValue(
             &storage->reserved, resource);
-        int32_t amount = required - stored - reserved;
         int32_t room = desc->capacity - stored - reserved;
+
+        const BiomeResource *resource_config = ecs_get(
+            world, resource, BiomeResource);
+        if (!resource_config ||
+            resource_config->max_drone_amount <= 0 ||
+            room <= 0)
+        {
+            continue;
+        }
+
+        int32_t amount = resource_config->max_drone_amount;
         if (amount > room) {
             amount = room;
-        }
-        if (amount <= 0) {
-            continue;
         }
 
         int32_t *value = biome_factory_mapEnsure(

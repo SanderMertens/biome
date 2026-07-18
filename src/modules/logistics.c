@@ -170,6 +170,10 @@ static bool biome_logistics_getRequest(
     ecs_entity_t request_entity,
     BiomeLogisticsRequest *result)
 {
+    if (!ecs_is_alive(world, request_entity)) {
+        return false;
+    }
+
     ecs_entity_t request_kind = ecs_get_target(
         world, request_entity, ecs_id(BiomeLogisticsRequest), 0);
     const BiomeLogisticsRequest *request = request_kind
@@ -424,7 +428,11 @@ static void BiomeLogisticsDispatch(ecs_iter_t *it) {
     ecs_entity_t *request_entities = ecs_vec_first_t(
         &requests, ecs_entity_t);
 
-    while (request_index < request_count && ecs_query_next(it)) {
+    while (ecs_query_next(it)) {
+        if (request_index >= request_count) {
+            continue;
+        }
+
         BiomeLogisticsWaiter *waiters = ecs_field(
             it, BiomeLogisticsWaiter, 0);
 

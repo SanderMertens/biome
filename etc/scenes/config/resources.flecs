@@ -6,29 +6,29 @@ resources {
     Resource Iron(
         mine_time: 10
         mine_amount: 1
-        min_drone_amount: 50
-        max_drone_amount: 100 // will combine logistics requests up to this amount
+        min_drone_amount: 10
+        max_drone_amount: 200 // will combine logistics requests up to this amount
     )
 
     Resource Copper(
         mine_time: 10
         mine_amount: 1
-        min_drone_amount: 50
-        max_drone_amount: 100
+        min_drone_amount: 10
+        max_drone_amount: 200
     )
 
     Resource Carbon(
         mine_time: 10
         mine_amount: 2
         min_drone_amount: 10
-        max_drone_amount: 100
+        max_drone_amount: 200
     )
 
     Resource Chemicals(
-        mine_time: 20
+        mine_time: 50
         mine_amount: 1
         min_drone_amount: 10
-        max_drone_amount: 100
+        max_drone_amount: 200
     )
 
     Resource GreenHouseGass(

@@ -37,16 +37,16 @@ $ {
 
     weather.Atmosphere: {
         o2_content: 0.0
-        green_house_gass: 2048000
-        atmosphere_height: 100
+        green_house_gass: 0
+        atmosphere_height: 20
     }
 
     weather.Config: {
         sun: sky.sun
 
-        seed_ground: {temperature: -20, moisture: 1, water: 0.1, frozen: 0}
-        seed_air: {temperature: -20, vapor: 0.0}
-        seed_variation: 0.5
+        seed_ground: {temperature: 20, moisture: 0, water: 1, frozen: 0}
+        seed_air: {temperature: 20, vapor: 0.0}
+        seed_variation: 0.1
     }
 }
 

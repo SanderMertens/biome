@@ -18,7 +18,15 @@
                     "track_outstanding_requests",
                     "combine_pickup_requests",
                     "combine_dropoff_requests",
-                    "combine_matching_resources_only"
+                    "combine_matching_resources_only",
+                    "dispatch_finishes_iterator"
+                ]
+            },
+            {
+                "id": "Factory",
+                "testcases": [
+                    "request_drone_amount",
+                    "request_drone_amount_edge_cases"
                 ]
             }
         ]

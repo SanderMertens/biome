@@ -74,9 +74,7 @@ static ecs_entity_t Logistics_firstRequest(
     return result;
 }
 
-static ecs_world_t *Logistics_world(void) {
-    ecs_world_t *world = ecs_init();
-
+void Logistics_setupWorld(ecs_world_t *world) {
     ECS_COMPONENT_DEFINE(world, BiomeFactory);
     ECS_COMPONENT_DEFINE(world, BiomePowerConsumer);
     ECS_COMPONENT_DEFINE(world, BiomeResourceStorageDesc);
@@ -88,6 +86,11 @@ static ecs_world_t *Logistics_world(void) {
 
     ecs_entity_t jobs = ecs_entity(world, { .name = "jobs" });
     ecs_add_id(world, jobs, EcsOrderedChildren);
+}
+
+static ecs_world_t *Logistics_world(void) {
+    ecs_world_t *world = ecs_init();
+    Logistics_setupWorld(world);
     return world;
 }
 
@@ -437,6 +440,8 @@ void Logistics_combine_pickup_requests(void) {
     ecs_vec_t accepted;
     ecs_vec_init_t(NULL, &accepted, ecs_entity_t, 0);
     BiomeLogisticsJob job;
+    ecs_entity_t combined_request = Logistics_request(
+        world, factory, 1);
     test_assert(biome_logistics_acceptRequest(
         world, Logistics_request(world, factory, 0),
         &accepted, &job));
@@ -446,6 +451,9 @@ void Logistics_combine_pickup_requests(void) {
     test_uint(job.dst, storage);
 
     biome_logistics_finishRequests(world, &accepted);
+    test_assert(!ecs_is_alive(world, combined_request));
+    test_assert(!biome_logistics_acceptRequest(
+        world, combined_request, &accepted, &job));
     test_int(ecs_vec_count(
         &ecs_get(world, factory,
             BiomeResourceStorage)->outstanding_requests), 1);
@@ -557,5 +565,29 @@ void Logistics_combine_matching_resources_only(void) {
     ecs_vec_fini_t(NULL, &accepted, ecs_entity_t);
     Logistics_storageFini(world, factory);
     Logistics_storageFini(world, storage);
+    ecs_fini(world);
+}
+
+void Logistics_dispatch_finishes_iterator(void) {
+    ecs_world_t *world = Logistics_world();
+    ECS_COMPONENT_DEFINE(world, BiomeLogisticsWaiter);
+
+    ecs_entity_t waiter_a = ecs_new(world);
+    ecs_entity_t waiter_b = ecs_new(world);
+    ecs_set(world, waiter_a, BiomeLogisticsWaiter, {0});
+    ecs_set(world, waiter_b, BiomeLogisticsWaiter, {0});
+
+    ecs_query_t *query = ecs_query(world, {
+        .terms = {{ .id = ecs_id(BiomeLogisticsWaiter) }}
+    });
+    ecs_iter_t it = ecs_query_iter(world, query);
+    BiomeLogisticsDispatch(&it);
+
+    test_assert(ecs_has(
+        world, waiter_a, BiomeLogisticsWaiter));
+    test_assert(ecs_has(
+        world, waiter_b, BiomeLogisticsWaiter));
+
+    ecs_query_fini(query);
     ecs_fini(world);
 }
