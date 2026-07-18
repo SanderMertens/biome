@@ -11,6 +11,10 @@
 // Testsuite 'Transform3'
 void Transform3_child_world_transform(void);
 void Transform3_gltf_preserves_root_transform(void);
+void Transform3_gltf_non_prefab_uses_childof_storage(void);
+void Transform3_gltf_prefab_uses_parent_storage(void);
+void Transform3_gltf_prefab_converts_childof_child(void);
+void Transform3_gltf_prefab_normalizes_existing_child(void);
 void Transform3_gltf_prefab_instantiates_mesh_child(void);
 void Transform3_gltf_nested_prefab_instantiates_mesh_child(void);
 
@@ -38,6 +42,22 @@ bake_test_case Transform3_testcases[] = {
     {
         "gltf_preserves_root_transform",
         Transform3_gltf_preserves_root_transform
+    },
+    {
+        "gltf_non_prefab_uses_childof_storage",
+        Transform3_gltf_non_prefab_uses_childof_storage
+    },
+    {
+        "gltf_prefab_uses_parent_storage",
+        Transform3_gltf_prefab_uses_parent_storage
+    },
+    {
+        "gltf_prefab_converts_childof_child",
+        Transform3_gltf_prefab_converts_childof_child
+    },
+    {
+        "gltf_prefab_normalizes_existing_child",
+        Transform3_gltf_prefab_normalizes_existing_child
     },
     {
         "gltf_prefab_instantiates_mesh_child",
@@ -108,7 +128,7 @@ static bake_test_suite suites[] = {
         "Transform3",
         NULL,
         NULL,
-        4,
+        8,
         Transform3_testcases
     },
     {

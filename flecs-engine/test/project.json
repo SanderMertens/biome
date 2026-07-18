@@ -15,6 +15,10 @@
                 "testcases": [
                     "child_world_transform",
                     "gltf_preserves_root_transform",
+                    "gltf_non_prefab_uses_childof_storage",
+                    "gltf_prefab_uses_parent_storage",
+                    "gltf_prefab_converts_childof_child",
+                    "gltf_prefab_normalizes_existing_child",
                     "gltf_prefab_instantiates_mesh_child",
                     "gltf_nested_prefab_instantiates_mesh_child"
                 ]

@@ -544,6 +544,56 @@ static void flecsEngine_gltf_applyMaterial(
     }
 }
 
+static void flecsEngine_gltf_setParent(
+    ecs_world_t *world,
+    ecs_entity_t child,
+    ecs_entity_t parent)
+{
+    if (!ecs_owns(world, child, EcsParent)) {
+        ecs_set(world, child, EcsParent, {.value = parent});
+    }
+}
+
+static void flecsEngine_gltf_normalizeChildren(
+    ecs_world_t *world,
+    ecs_entity_t parent)
+{
+    ecs_vec_t children;
+    ecs_vec_init_t(NULL, &children, ecs_entity_t, 0);
+
+    ecs_iter_t it = ecs_children(world, parent);
+    while (ecs_children_next(&it)) {
+        for (int32_t i = 0; i < it.count; i ++) {
+            if (!ecs_owns(world, it.entities[i], EcsParent)) {
+                *ecs_vec_append_t(NULL, &children, ecs_entity_t) =
+                    it.entities[i];
+            }
+        }
+    }
+
+    int32_t count = ecs_vec_count(&children);
+    ecs_entity_t *entities = ecs_vec_first_t(&children, ecs_entity_t);
+    for (int32_t i = 0; i < count; i ++) {
+        flecsEngine_gltf_setParent(world, entities[i], parent);
+    }
+
+    ecs_vec_fini_t(NULL, &children, ecs_entity_t);
+}
+
+static void FlecsGltfChildOfOnAdd(ecs_iter_t *it) {
+    for (int32_t i = 0; i < it->count; i ++) {
+        ecs_entity_t child = it->entities[i];
+        ecs_entity_t parent = ecs_get_target(
+            it->world, child, EcsChildOf, 0);
+        if (parent &&
+            ecs_owns(it->world, parent, FlecsGltf) &&
+            ecs_has_id(it->world, parent, EcsPrefab))
+        {
+            flecsEngine_gltf_setParent(it->world, child, parent);
+        }
+    }
+}
+
 static ecs_entity_t flecsEngine_gltf_getMaterialEntity(
     ecs_world_t *world,
     ecs_entity_t *material_entities,
@@ -710,6 +760,7 @@ static void flecsEngine_gltf_load(
     }
 
     int32_t prim_count = 0;
+    bool use_parent_storage = ecs_has_id(world, root, EcsPrefab);
 
     /* Keep the root as the model's placement entity and create one child per
      * mesh primitive with the glTF node's composed transform. This prevents
@@ -749,9 +800,12 @@ static void flecsEngine_gltf_load(
                 continue;
             }
 
-            ecs_entity_t prim_e = ecs_entity(world, { .parent = root });
-            if (ecs_has_id(world, root, EcsPrefab)) {
-                ecs_add_id(world, prim_e, EcsPrefab);
+            ecs_entity_t prim_e;
+            if (use_parent_storage) {
+                prim_e = ecs_new(world);
+                ecs_set(world, prim_e, EcsParent, {.value = root});
+            } else {
+                prim_e = ecs_entity(world, { .parent = root });
             }
             if (node->name) {
                 ecs_doc_set_name(world, prim_e, node->name);
@@ -803,6 +857,9 @@ static void FlecsGltf_on_set(
             continue;
         }
 
+        if (ecs_has_id(world, e, EcsPrefab)) {
+            flecsEngine_gltf_normalizeChildren(world, e);
+        }
         flecsEngine_gltf_load(world, e, gltf[i].file);
     }
 }
@@ -827,5 +884,12 @@ void FlecsEngineGltfImport(
     ecs_set_hooks(world, FlecsGltf, {
         .ctor = flecs_default_ctor,
         .on_set = FlecsGltf_on_set
+    });
+
+    ecs_observer(world, {
+        .query.terms = {{ .id = ecs_pair(EcsChildOf, EcsWildcard) }},
+        .query.flags = EcsQueryMatchPrefab,
+        .events = {EcsOnAdd},
+        .callback = FlecsGltfChildOfOnAdd
     });
 }

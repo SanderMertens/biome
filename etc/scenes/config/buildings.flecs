@@ -168,6 +168,7 @@ buildings {
         Gltf: {lightsGltf}
     }
 
+    @tree Parent
     prefab Biome : PoweredBuilding {
         Building: {
             can_doze: true
@@ -324,6 +325,15 @@ buildings {
         }
     }
 
+    DronePad {}
+
+    dronePadBuildingRule {
+        BuildingRule3x1: {
+            left: [Base, Depot, DronePad]
+            rotate: true
+        }
+    }
+
     prefab DronePad {
         Building: {
             can_doze: true
@@ -335,12 +345,7 @@ buildings {
                 rotation: {}
             }
 
-            rule: new {
-                BuildingRule3x1: {
-                    left: [Base, Depot, DronePad]
-                    rotate: true
-                }
-            }
+            rule: dronePadBuildingRule
         }
 
         Recipe: {

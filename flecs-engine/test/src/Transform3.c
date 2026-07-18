@@ -123,6 +123,107 @@ void Transform3_gltf_preserves_root_transform(void) {
     ecs_fini(world);
 }
 
+void Transform3_gltf_non_prefab_uses_childof_storage(void) {
+    const char *fixture = Transform3_fixture();
+    test_assert(fixture != NULL);
+
+    ecs_world_t *world = ecs_init();
+    ECS_IMPORT(world, FlecsEngine);
+
+    ecs_entity_t root = ecs_new(world);
+    ecs_set(world, root, FlecsGltf, {fixture});
+
+    ecs_entity_t mesh_child = Transform3_only_child(world, root);
+    test_assert(mesh_child != 0);
+    test_assert(ecs_table_has_id(world, ecs_get_table(world, mesh_child),
+        ecs_pair(EcsChildOf, root)));
+    test_assert(!ecs_owns(world, mesh_child, EcsParent));
+
+    ecs_fini(world);
+}
+
+void Transform3_gltf_prefab_uses_parent_storage(void) {
+    const char *fixture = Transform3_fixture();
+    test_assert(fixture != NULL);
+
+    ecs_world_t *world = ecs_init();
+    ECS_IMPORT(world, FlecsEngine);
+
+    ecs_entity_t prefab = ecs_new_w_id(world, EcsPrefab);
+    ecs_set(world, prefab, FlecsGltf, {fixture});
+
+    ecs_entity_t prefab_child = Transform3_only_child(world, prefab);
+    test_assert(prefab_child != 0);
+    test_assert(ecs_owns(world, prefab_child, EcsParent));
+    test_assert(!ecs_table_has_id(world, ecs_get_table(world, prefab_child),
+        ecs_pair(EcsChildOf, prefab)));
+
+    ecs_entity_t first = ecs_new_w_pair(world, EcsIsA, prefab);
+    ecs_entity_t second = ecs_new_w_pair(world, EcsIsA, prefab);
+    ecs_entity_t first_child = Transform3_only_child(world, first);
+    ecs_entity_t second_child = Transform3_only_child(world, second);
+
+    test_assert(ecs_owns(world, first_child, EcsParent));
+    test_assert(ecs_owns(world, second_child, EcsParent));
+    test_assert(ecs_get_table(world, first_child) ==
+        ecs_get_table(world, second_child));
+
+    ecs_fini(world);
+}
+
+void Transform3_gltf_prefab_converts_childof_child(void) {
+    const char *fixture = Transform3_fixture();
+    test_assert(fixture != NULL);
+
+    ecs_world_t *world = ecs_init();
+    ECS_IMPORT(world, FlecsEngine);
+
+    ecs_entity_t prefab = ecs_new_w_id(world, EcsPrefab);
+    ecs_set(world, prefab, FlecsGltf, {fixture});
+
+    ecs_entity_t child = ecs_entity(world, { .parent = prefab });
+    test_assert(ecs_owns(world, child, EcsParent));
+    test_assert(!ecs_table_has_id(world, ecs_get_table(world, child),
+        ecs_pair(EcsChildOf, prefab)));
+
+    ecs_entity_t instance = ecs_new_w_pair(world, EcsIsA, prefab);
+    int32_t child_count = 0;
+    ecs_iter_t it = ecs_children(world, instance);
+    while (ecs_children_next(&it)) {
+        child_count += it.count;
+    }
+    test_int(child_count, 2);
+
+    ecs_fini(world);
+}
+
+void Transform3_gltf_prefab_normalizes_existing_child(void) {
+    const char *fixture = Transform3_fixture();
+    test_assert(fixture != NULL);
+
+    ecs_world_t *world = ecs_init();
+    ECS_IMPORT(world, FlecsEngine);
+
+    ecs_entity_t prefab = ecs_new_w_id(world, EcsPrefab);
+    ecs_entity_t child = ecs_entity(world, { .parent = prefab });
+    test_assert(!ecs_owns(world, child, EcsParent));
+
+    ecs_set(world, prefab, FlecsGltf, {fixture});
+    test_assert(ecs_owns(world, child, EcsParent));
+    test_assert(!ecs_table_has_id(world, ecs_get_table(world, child),
+        ecs_pair(EcsChildOf, prefab)));
+
+    ecs_entity_t instance = ecs_new_w_pair(world, EcsIsA, prefab);
+    int32_t child_count = 0;
+    ecs_iter_t it = ecs_children(world, instance);
+    while (ecs_children_next(&it)) {
+        child_count += it.count;
+    }
+    test_int(child_count, 2);
+
+    ecs_fini(world);
+}
+
 void Transform3_gltf_prefab_instantiates_mesh_child(void) {
     const char *fixture = Transform3_fixture();
     test_assert(fixture != NULL);
