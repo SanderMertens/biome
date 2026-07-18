@@ -34,11 +34,11 @@ resources {
     Resource GreenHouseGass(
         // When vented by a factory, one unit of this resource will increase the
         // amount of green house gasses in the atmosphere by 0.75
-        green_house_gass: 30
+        green_house_gass: 480
 
         // When vented by a factory, one unit of this resource will increase the
         // amount of green house gasses in the atmosphere by 0.25
-        toxic_gass: 1
+        toxic_gass: 7
     )
 
     Recipe GreenHouseGassRecipe(
@@ -47,6 +47,6 @@ resources {
             Chemicals: 5
         ]
         output: GreenHouseGass
-        craft_time: 30
+        craft_time: 240
     )
 }

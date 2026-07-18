@@ -1,4 +1,5 @@
 #include "../../src/modules/logistics.c"
+#include "../../src/tasks/logistics.c"
 #include <biome_test.h>
 
 ECS_COMPONENT_DECLARE(BiomeFactory);

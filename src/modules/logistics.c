@@ -3,6 +3,8 @@
 #include "biome.h"
 #include "../tasks/logistics.h"
 
+ECS_COMPONENT_DECLARE(BiomeQueries);
+
 int32_t biome_logistics_mapValue(
     const BiomeResourceStorageMap *map,
     ecs_entity_t resource)
@@ -37,6 +39,35 @@ static bool biome_logistics_entityPowered(
     return !power || power->powered;
 }
 
+static BiomeQueries* biome_logistics_ensureQueries(
+    ecs_world_t *world)
+{
+    if (!ecs_id(BiomeQueries) ||
+        !ecs_get_type_info(world, ecs_id(BiomeQueries)))
+    {
+        ECS_COMPONENT_DEFINE(world, BiomeQueries);
+        ecs_add_id(world, ecs_id(BiomeQueries), EcsSingleton);
+    }
+
+    BiomeQueries *queries = ecs_singleton_ensure(world, BiomeQueries);
+    if (!queries->storage) {
+        queries->storage = ecs_query(world, {
+            .terms = {
+                { .id = ecs_id(BiomeResourceStorage) },
+                { .id = ecs_id(BiomeResourceStorageDesc), .inout = EcsIn }
+            },
+            .cache_kind = EcsQueryCacheAuto
+        });
+    }
+    return queries;
+}
+
+static const ecs_query_t* biome_logistics_storageQuery(
+    ecs_world_t *world)
+{
+    return biome_logistics_ensureQueries(world)->storage;
+}
+
 static ecs_entity_t biome_logistics_findStorage(
     ecs_world_t *world,
     ecs_entity_t resource,
@@ -44,12 +75,7 @@ static ecs_entity_t biome_logistics_findStorage(
     ecs_entity_t exclude,
     bool reserve)
 {
-    ecs_query_t *query = ecs_query(world, {
-        .terms = {
-            { .id = ecs_id(BiomeResourceStorage) },
-            { .id = ecs_id(BiomeResourceStorageDesc), .inout = EcsIn }
-        }
-    });
+    const ecs_query_t *query = biome_logistics_storageQuery(world);
     ecs_entity_t result = 0;
     ecs_iter_t it = ecs_query_iter(world, query);
 
@@ -86,7 +112,6 @@ static ecs_entity_t biome_logistics_findStorage(
         ecs_iter_fini(&it);
     }
 
-    ecs_query_fini(query);
     return result;
 }
 
@@ -97,12 +122,7 @@ static ecs_entity_t biome_logistics_findSourceStorage(
     ecs_entity_t exclude,
     bool reserve)
 {
-    ecs_query_t *query = ecs_query(world, {
-        .terms = {
-            { .id = ecs_id(BiomeResourceStorage) },
-            { .id = ecs_id(BiomeResourceStorageDesc), .inout = EcsIn }
-        }
-    });
+    const ecs_query_t *query = biome_logistics_storageQuery(world);
     ecs_entity_t result = 0;
     ecs_iter_t it = ecs_query_iter(world, query);
 
@@ -139,7 +159,6 @@ static ecs_entity_t biome_logistics_findSourceStorage(
         ecs_iter_fini(&it);
     }
 
-    ecs_query_fini(query);
     return result;
 }
 
@@ -547,6 +566,8 @@ void biomeLogisticsImport(ecs_world_t *world) {
     ECS_META_COMPONENT(world, BiomeLogisticsRequest);
     ECS_META_COMPONENT(world, BiomeLogisticsCarrier);
     ECS_META_COMPONENT(world, BiomeLogisticsJob);
+
+    biome_logistics_ensureQueries(world);
 
     ecs_entity_t module = ecs_id(biomeLogistics);
     biomeLogisticsTasksImport(world, module);

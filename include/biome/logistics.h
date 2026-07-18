@@ -31,6 +31,12 @@ ECS_STRUCT(BiomeLogisticsJob, {
     ecs_entity_t dst;
 });
 
+typedef struct BiomeQueries {
+    ecs_query_t *storage;
+} BiomeQueries;
+
+extern ECS_COMPONENT_DECLARE(BiomeQueries);
+
 void biome_logistics_postRequest(
     ecs_world_t *world,
     biome_logisticsRequestKind_t kind,

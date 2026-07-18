@@ -12,21 +12,22 @@ units {
         Behaviors: [
             script {
                 const speed: 0.5
+                const landSpeed: 0.25
                 const job = await acceptJob()
 
                 await takeOff(speed)
                 await moveTo(job.src, speed)
-                await land(job.src, speed)
+                await land(job.src, landSpeed)
                 await pickUp(job.resource, job.amount, job.src, this)
 
                 await takeOff(speed)
                 await moveTo(job.dst, speed)
-                await land(job.dst, speed)
+                await land(job.dst, landSpeed)
                 await dropOff(job.resource, job.amount, this, job.dst)
 
                 await takeOff(speed)
                 await moveTo(this[Carrier].home, speed)
-                await land(this[Carrier].home, speed)
+                await land(this[Carrier].home, landSpeed)
             },
             script {
                 await whileAlive(this[Carrier].home)
@@ -34,6 +35,7 @@ units {
             }
         ]
 
+        DynamicTransform
         Scale3: {1.5, 1.5, 1.5}
         Gltf: {droneGltf}
     }

@@ -239,15 +239,20 @@ void biomeBehaviorImport(ecs_world_t *world) {
         .type = ecs_id(ecs_entity_t)
     });
 
+    ecs_add_pair(world, ecs_id(BiomeBehaviors), EcsOnInstantiate, EcsInherit);
+
     ecs_set_name_prefix(world, "BiomeBehavior");
+
     ECS_COMPONENT_DEFINE(world, BiomeBehaviorRuntime);
     ECS_COMPONENT_DEFINE(world, BiomeBehaviorAliveWaiter);
+
     ecs_set_hooks(world, BiomeBehaviorRuntime, {
         .ctor = ecs_ctor(BiomeBehaviorRuntime),
         .move = ecs_move(BiomeBehaviorRuntime),
         .dtor = ecs_dtor(BiomeBehaviorRuntime),
         .flags = ECS_TYPE_HOOK_COPY_ILLEGAL
     });
+
     ecs_set_hooks(world, BiomeBehaviorAliveWaiter, {
         .ctor = ecs_ctor(BiomeBehaviorAliveWaiter),
         .move = ecs_move(BiomeBehaviorAliveWaiter),
@@ -256,6 +261,7 @@ void biomeBehaviorImport(ecs_world_t *world) {
     });
 
     ecs_entity_t module = ecs_id(biomeBehavior);
+
     ecs_async_function(world, {
         .name = "whileAlive",
         .parent = module,
@@ -264,6 +270,7 @@ void biomeBehaviorImport(ecs_world_t *world) {
         .callback = biome_behavior_whileAlive,
         .cancel = biome_behavior_cancelWhileAlive
     });
+
     ecs_async_function(world, {
         .name = "delete",
         .parent = module,

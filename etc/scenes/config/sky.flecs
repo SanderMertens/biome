@@ -57,7 +57,7 @@ sky {
             sun_disk_intensity: 20,
             sun_disk_angular_radius: 0.02,
             aerial_perspective_distance_km: 6,
-            aerial_perspective_intensity: 8,
+            aerial_perspective_intensity: 16,
             sea_level_y: 0,
             world_units_per_km: 1000,
             ground_altitude_km: 0.01,

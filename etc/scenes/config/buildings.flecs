@@ -47,13 +47,13 @@ buildings {
 
         StorageDesc: {
             kind: Storage
-            capacity: 1000
+            capacity: 1000000000
         }
 
         Storage: {
             resources: [
-                Iron:   500
-                Copper: 500
+                Iron:   5000000
+                Copper: 5000000
             ]
         }
 

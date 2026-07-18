@@ -44,7 +44,7 @@ view {
         camera: camera,
         atmosphere: sky.atmosphere,
         ambient_intensity: 0.5,
-        screen_px_threshold: 2,
+        screen_px_threshold: 100,
         shadow: {
             enabled: true,
             map_size: 4096,
