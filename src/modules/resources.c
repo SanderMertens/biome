@@ -141,7 +141,6 @@ void biomeResourcesImport(ecs_world_t *world) {
 
     ecs_observer(world, {
         .query.terms = {
-            { ecs_id(FlecsTerrainPosition) },
             { ecs_id(BiomePlayerStorage) }
         },
         .events = { EcsOnSet, EcsOnRemove },

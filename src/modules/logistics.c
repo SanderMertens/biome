@@ -28,6 +28,22 @@ void biome_logistics_addMapValue(
     *value += amount;
 }
 
+typedef struct BiomeLogisticsPlayerAttrs {
+    const BiomeResourceStorageMap *totals;
+    const BiomeResourceStorageMap *reserved;
+    const BiomeResourceStorageMap *capacity;
+} BiomeLogisticsPlayerAttrs;
+
+static BiomeLogisticsPlayerAttrs biome_logistics_playerAttrs(
+    ecs_world_t *world)
+{
+    return (BiomeLogisticsPlayerAttrs) {
+        biome_playerAttr_get(world, "ResourceTotals").ptr,
+        biome_playerAttr_get(world, "ResourceReservedTotals").ptr,
+        biome_playerAttr_get(world, "ResourceCapacityTotals").ptr
+    };
+}
+
 static bool biome_logistics_entityPowered(
     const ecs_world_t *world,
     ecs_entity_t storage)
@@ -39,21 +55,22 @@ static bool biome_logistics_entityPowered(
 
 static bool biome_logistics_playerFits(
     ecs_world_t *world,
+    const BiomeLogisticsPlayerAttrs *attrs,
     ecs_entity_t resource,
     int32_t amount,
     bool pickup,
     bool reserve)
 {
-    int32_t stored = biome_resource_playerAmount(
-        world, "ResourceTotals", resource);
-    int32_t reserved = biome_resource_playerAmount(
-        world, "ResourceReservedTotals", resource);
+    int32_t stored = biome_logistics_mapValue(
+        attrs->totals, resource);
+    int32_t reserved = biome_logistics_mapValue(
+        attrs->reserved, resource);
     bool fits;
     if (pickup) {
         fits = stored - reserved >= amount;
     } else {
-        int32_t capacity = biome_resource_playerAmount(
-            world, "ResourceCapacityTotals", resource);
+        int32_t capacity = biome_logistics_mapValue(
+            attrs->capacity, resource);
         fits = capacity - stored - reserved >= amount;
     }
 
@@ -113,8 +130,9 @@ static bool biome_logistics_requestEndpointFits(
     return false;
 }
 
-static bool biome_logistics_resolveRequest(
+static bool biome_logistics_resolveRequestWithAttrs(
     ecs_world_t *world,
+    const BiomeLogisticsPlayerAttrs *attrs,
     const BiomeLogisticsRequest *request,
     int32_t amount,
     ecs_entity_t storage,
@@ -134,7 +152,7 @@ static bool biome_logistics_resolveRequest(
         src = request->source;
         dst = storage;
         if (!biome_logistics_playerFits(
-            world, request->resource, amount, false, reserve))
+            world, attrs, request->resource, amount, false, reserve))
         {
             return false;
         }
@@ -142,7 +160,7 @@ static bool biome_logistics_resolveRequest(
         dst = request->source;
         src = storage;
         if (!biome_logistics_playerFits(
-            world, request->resource, amount, true, reserve))
+            world, attrs, request->resource, amount, true, reserve))
         {
             return false;
         }
@@ -162,6 +180,20 @@ static bool biome_logistics_resolveRequest(
     return true;
 }
 
+static bool biome_logistics_resolveRequest(
+    ecs_world_t *world,
+    const BiomeLogisticsRequest *request,
+    int32_t amount,
+    ecs_entity_t storage,
+    bool reserve,
+    BiomeLogisticsJob *job)
+{
+    BiomeLogisticsPlayerAttrs attrs =
+        biome_logistics_playerAttrs(world);
+    return biome_logistics_resolveRequestWithAttrs(
+        world, &attrs, request, amount, storage, reserve, job);
+}
+
 static bool biome_logistics_tryRequest(
     ecs_world_t *world,
     ecs_entity_t request_entity,
@@ -176,8 +208,9 @@ static bool biome_logistics_tryRequest(
             world, &request, request.amount, storage, reserve, job);
 }
 
-static bool biome_logistics_acceptRequest(
+static bool biome_logistics_acceptRequestWithAttrs(
     ecs_world_t *world,
+    const BiomeLogisticsPlayerAttrs *attrs,
     ecs_entity_t request_entity,
     ecs_entity_t storage_entity,
     ecs_vec_t *accepted,
@@ -232,8 +265,8 @@ static bool biome_logistics_acceptRequest(
             }
 
             BiomeLogisticsJob combined_job;
-            if (!biome_logistics_resolveRequest(
-                world, &request, amount + candidate.amount,
+            if (!biome_logistics_resolveRequestWithAttrs(
+                world, attrs, &request, amount + candidate.amount,
                 storage_entity, false, &combined_job))
             {
                 continue;
@@ -248,14 +281,27 @@ static bool biome_logistics_acceptRequest(
         }
     }
 
-    if (!biome_logistics_resolveRequest(
-        world, &request, amount, storage_entity, true, job))
+    if (!biome_logistics_resolveRequestWithAttrs(
+        world, attrs, &request, amount, storage_entity, true, job))
     {
         ecs_vec_clear(accepted);
         return false;
     }
 
     return true;
+}
+
+static bool biome_logistics_acceptRequest(
+    ecs_world_t *world,
+    ecs_entity_t request_entity,
+    ecs_entity_t storage_entity,
+    ecs_vec_t *accepted,
+    BiomeLogisticsJob *job)
+{
+    BiomeLogisticsPlayerAttrs attrs =
+        biome_logistics_playerAttrs(world);
+    return biome_logistics_acceptRequestWithAttrs(
+        world, &attrs, request_entity, storage_entity, accepted, job);
 }
 
 static void biome_logistics_collectRequests(
@@ -347,6 +393,9 @@ static void BiomeLogisticsDispatch(ecs_iter_t *it) {
     ecs_vec_t accepted;
     ecs_vec_init_t(NULL, &accepted, ecs_entity_t, 0);
 
+    BiomeLogisticsPlayerAttrs attrs =
+        biome_logistics_playerAttrs(it->world);
+
     int32_t request_index = 0;
     int32_t request_count = 0;
     ecs_entity_t *request_entities = NULL;
@@ -387,8 +436,8 @@ static void BiomeLogisticsDispatch(ecs_iter_t *it) {
             while (request_index < request_count) {
                 ecs_entity_t candidate =
                     request_entities[request_index ++];
-                if (biome_logistics_acceptRequest(
-                    it->world, candidate, carrier->storage,
+                if (biome_logistics_acceptRequestWithAttrs(
+                    it->world, &attrs, candidate, carrier->storage,
                     &accepted, &job))
                 {
                     request = candidate;

@@ -46,10 +46,10 @@ buildings {
         }
 
         PlayerStorage: {
-            capacity: 500000
+            capacity: 1000
             resources: [
-                Iron:   500000
-                Copper: 500000
+                Iron:   500
+                Copper: 500
             ]
         }
 

@@ -47,7 +47,7 @@ $ {
     weather.Config: {
         sun: sky.sun
 
-        seed_ground: {temperature: 30, moisture: 0, water: 1, frozen: 0}
+        seed_ground: {temperature: 30, moisture: 1, water: 1, frozen: 0}
         seed_air: {temperature: 30, vapor: 0.0}
         seed_variation: 1
     }
@@ -63,7 +63,7 @@ terrain.Scatter(
         environment.IronOreAssets.F
     ]
 
-    count: 500
+    count: 150
     position_variance: {1, 1}
     rotation_variance: {y: 2 * math.PI}
     cluster: 0.2
@@ -79,7 +79,7 @@ terrain.Scatter(
         environment.CopperOreAssets.F
     ]
 
-    count: 250
+    count: 100
     position_variance: {1, 1}
     rotation_variance: {y: 2 * math.PI}
     cluster: 0
@@ -95,7 +95,7 @@ terrain.Scatter(
         environment.GraphiteAssets.F
     ]
 
-    count: 1000
+    count: 200
     position_variance: {1, 1}
     rotation_variance: {y: 2 * math.PI}
     cluster: 0.2
@@ -111,7 +111,7 @@ terrain.Scatter(
         environment.ChemicalsAssets.F
     ]
 
-    count: 1000
+    count: 200
     position_variance: {1, 1}
     rotation_variance: {y: 2 * math.PI}
     cluster: 0.1
