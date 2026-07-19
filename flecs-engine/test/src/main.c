@@ -33,6 +33,7 @@ void Transition_static_transform(void);
 void Transition_tint(void);
 void Transition_childof_tint(void);
 void Transition_parent_tint(void);
+void Transition_tint_hierarchy_matrix(void);
 
 void Renderer_batch_permutations(void);
 
@@ -122,6 +123,10 @@ bake_test_case Transition_testcases[] = {
     {
         "parent_tint",
         Transition_parent_tint
+    },
+    {
+        "tint_hierarchy_matrix",
+        Transition_tint_hierarchy_matrix
     }
 };
 
@@ -151,7 +156,7 @@ static bake_test_suite suites[] = {
         "Transition",
         NULL,
         NULL,
-        10,
+        11,
         Transition_testcases
     },
     {

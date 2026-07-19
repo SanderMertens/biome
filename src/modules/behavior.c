@@ -14,10 +14,13 @@ typedef struct BiomeBehaviorAliveWaiter {
     ecs_script_future_t *future;
 } BiomeBehaviorAliveWaiter;
 
-ECS_COMPONENT_DECLARE(BiomeBehaviorRuntime);
-ECS_COMPONENT_DECLARE(BiomeBehaviorAliveWaiter);
+typedef struct BiomeBehaviorContext {
+    ecs_vec_t alive_waiters;
+} BiomeBehaviorContext;
 
-static void BiomeBehaviorAliveWaiter_fini(
+ECS_COMPONENT_DECLARE(BiomeBehaviorRuntime);
+
+static void biome_behavior_alive_waiter_fini(
     BiomeBehaviorAliveWaiter *waiter)
 {
     if (waiter->future) {
@@ -26,19 +29,22 @@ static void BiomeBehaviorAliveWaiter_fini(
     ecs_os_zeromem(waiter);
 }
 
-ECS_CTOR(BiomeBehaviorAliveWaiter, ptr, {
-    ecs_os_zeromem(ptr);
-})
-
-ECS_MOVE(BiomeBehaviorAliveWaiter, dst, src, {
-    BiomeBehaviorAliveWaiter_fini(dst);
-    *dst = *src;
-    ecs_os_zeromem(src);
-})
-
-ECS_DTOR(BiomeBehaviorAliveWaiter, ptr, {
-    BiomeBehaviorAliveWaiter_fini(ptr);
-})
+static void biome_behavior_ctx_free(
+    ecs_world_t *world,
+    void *ptr)
+{
+    (void)world;
+    BiomeBehaviorContext *ctx = ptr;
+    int32_t count = ecs_vec_count(&ctx->alive_waiters);
+    BiomeBehaviorAliveWaiter *waiters = ecs_vec_first_t(
+        &ctx->alive_waiters, BiomeBehaviorAliveWaiter);
+    for (int32_t i = 0; i < count; i ++) {
+        biome_behavior_alive_waiter_fini(&waiters[i]);
+    }
+    ecs_vec_fini_t(
+        NULL, &ctx->alive_waiters, BiomeBehaviorAliveWaiter);
+    ecs_os_free(ctx);
+}
 
 static void BiomeBehaviorRuntime_fini(
     BiomeBehaviorRuntime *runtime)
@@ -111,33 +117,30 @@ static void biome_behavior_whileAlive(
         return;
     }
 
-    ecs_entity_t waiter = ecs_new(ctx->world);
-    ecs_set(ctx->world, waiter, BiomeBehaviorAliveWaiter, {
-        target, future
-    });
+    BiomeBehaviorContext *behavior_ctx = ctx->ctx;
+    BiomeBehaviorAliveWaiter *waiter = ecs_vec_append_t(
+        NULL, &behavior_ctx->alive_waiters, BiomeBehaviorAliveWaiter);
+    *waiter = (BiomeBehaviorAliveWaiter){target, future};
 }
 
 static void biome_behavior_cancelWhileAlive(
     const ecs_function_ctx_t *ctx,
     ecs_script_future_t *future)
 {
-    ecs_query_t *query = ecs_query(ctx->world, {
-        .terms = {{ .id = ecs_id(BiomeBehaviorAliveWaiter) }}
-    });
-    ecs_iter_t it = ecs_query_iter(ctx->world, query);
-    while (ecs_query_next(&it)) {
-        const BiomeBehaviorAliveWaiter *waiters = ecs_field(
-            &it, BiomeBehaviorAliveWaiter, 0);
-        for (int32_t i = 0; i < it.count; i ++) {
-            if (waiters[i].future == future) {
-                ecs_delete(ctx->world, it.entities[i]);
-                ecs_iter_fini(&it);
-                ecs_query_fini(query);
-                return;
-            }
+    BiomeBehaviorContext *behavior_ctx = ctx->ctx;
+    int32_t count = ecs_vec_count(&behavior_ctx->alive_waiters);
+    BiomeBehaviorAliveWaiter *waiters = ecs_vec_first_t(
+        &behavior_ctx->alive_waiters, BiomeBehaviorAliveWaiter);
+    for (int32_t i = 0; i < count; i ++) {
+        if (waiters[i].future == future) {
+            ecs_vec_remove_t(
+                &behavior_ctx->alive_waiters,
+                BiomeBehaviorAliveWaiter,
+                i);
+            ecs_script_future_release(future);
+            return;
         }
     }
-    ecs_query_fini(query);
 }
 
 static void biome_behavior_delete(
@@ -161,13 +164,20 @@ static void biome_behavior_delete(
 }
 
 static void BiomeBehaviorWaitWhileAlive(ecs_iter_t *it) {
-    const BiomeBehaviorAliveWaiter *waiters = ecs_field(
-        it, BiomeBehaviorAliveWaiter, 0);
-
-    for (int32_t i = 0; i < it->count; i ++) {
+    BiomeBehaviorContext *ctx = it->ctx;
+    int32_t count = ecs_vec_count(&ctx->alive_waiters);
+    BiomeBehaviorAliveWaiter *waiters = ecs_vec_first_t(
+        &ctx->alive_waiters, BiomeBehaviorAliveWaiter);
+    for (int32_t i = 0; i < count; ) {
         if (!ecs_is_alive(it->world, waiters[i].target)) {
-            biome_behavior_resolve(waiters[i].future);
-            ecs_delete(it->world, it->entities[i]);
+            ecs_script_future_t *future = waiters[i].future;
+            ecs_vec_remove_t(
+                &ctx->alive_waiters, BiomeBehaviorAliveWaiter, i);
+            biome_behavior_resolve(future);
+            ecs_script_future_release(future);
+            count --;
+        } else {
+            i ++;
         }
     }
 }
@@ -244,7 +254,6 @@ void biomeBehaviorImport(ecs_world_t *world) {
     ecs_set_name_prefix(world, "BiomeBehavior");
 
     ECS_COMPONENT_DEFINE(world, BiomeBehaviorRuntime);
-    ECS_COMPONENT_DEFINE(world, BiomeBehaviorAliveWaiter);
 
     ecs_set_hooks(world, BiomeBehaviorRuntime, {
         .ctor = ecs_ctor(BiomeBehaviorRuntime),
@@ -253,14 +262,11 @@ void biomeBehaviorImport(ecs_world_t *world) {
         .flags = ECS_TYPE_HOOK_COPY_ILLEGAL
     });
 
-    ecs_set_hooks(world, BiomeBehaviorAliveWaiter, {
-        .ctor = ecs_ctor(BiomeBehaviorAliveWaiter),
-        .move = ecs_move(BiomeBehaviorAliveWaiter),
-        .dtor = ecs_dtor(BiomeBehaviorAliveWaiter),
-        .flags = ECS_TYPE_HOOK_COPY_ILLEGAL
-    });
-
     ecs_entity_t module = ecs_id(biomeBehavior);
+    BiomeBehaviorContext *ctx = ecs_os_calloc_t(BiomeBehaviorContext);
+    ecs_vec_init_t(
+        NULL, &ctx->alive_waiters, BiomeBehaviorAliveWaiter, 0);
+    ecs_atfini(world, biome_behavior_ctx_free, ctx);
 
     ecs_async_function(world, {
         .name = "whileAlive",
@@ -268,7 +274,8 @@ void biomeBehaviorImport(ecs_world_t *world) {
         .return_type = ecs_id(ecs_i32_t),
         .params = {{"entity", ecs_id(ecs_entity_t)}},
         .callback = biome_behavior_whileAlive,
-        .cancel = biome_behavior_cancelWhileAlive
+        .cancel = biome_behavior_cancelWhileAlive,
+        .ctx = ctx
     });
 
     ecs_async_function(world, {
@@ -281,11 +288,14 @@ void biomeBehaviorImport(ecs_world_t *world) {
 
     ecs_system(world, {
         .entity = ecs_entity(world, { .name = "WaitWhileAlive" }),
-        .query.terms = {
-            { .id = ecs_id(BiomeBehaviorAliveWaiter), .inout = EcsIn }
-        },
+        .query.terms = {{
+            .id = EcsModule,
+            .src.id = module,
+            .inout = EcsIn
+        }},
         .phase = EcsPreUpdate,
-        .callback = BiomeBehaviorWaitWhileAlive
+        .callback = BiomeBehaviorWaitWhileAlive,
+        .ctx = ctx
     });
 
     ecs_system(world, {

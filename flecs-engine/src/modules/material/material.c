@@ -66,17 +66,22 @@ static void flecsEngine_materialAssignActualTint(
 static void FlecsAssignActualTint(
     ecs_iter_t *it)
 {
+    const FlecsTint *tints = ecs_field(it, FlecsTint, 0);
     const FlecsActualTint *actual = ecs_field(it, FlecsActualTint, 1);
     ecs_entity_t tint_src = ecs_field_src(it, 0);
+    const FlecsTransitionValue *shared_transition = NULL;
+
+    if (tint_src) {
+        shared_transition = flecs_transition_value_get(
+            it->world, tint_src, ecs_id(FlecsTint));
+    }
 
     for (int32_t i = 0; i < it->count; i ++) {
-        ecs_entity_t source = tint_src ? tint_src : it->entities[i];
-        const FlecsTint *t = ecs_get(it->world, source, FlecsTint);
-        if (!t) {
-            continue;
-        }
-        const FlecsTransitionValue *transition = flecs_transition_value_get(
-            it->world, source, ecs_id(FlecsTint));
+        const FlecsTint *t = tint_src ? tints : &tints[i];
+        const FlecsTransitionValue *transition = tint_src
+            ? shared_transition
+            : flecs_transition_value_get(
+                it->world, it->entities[i], ecs_id(FlecsTint));
         flecsEngine_materialAssignActualTint(
             it->world, it->entities[i], t, transition,
             actual ? &actual[i] : NULL);

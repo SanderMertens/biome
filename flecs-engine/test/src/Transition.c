@@ -543,3 +543,63 @@ void Transition_parent_tint(void) {
     test_int(actual_b->a, 115);
     ecs_fini(world);
 }
+
+static ecs_entity_t transition_tint_hierarchy(
+    ecs_world_t *world,
+    int32_t levels,
+    bool parent_storage)
+{
+    ecs_entity_t root = ecs_new(world);
+    ecs_entity_t result = root;
+
+    for (int32_t i = 0; i < levels; i ++) {
+        ecs_entity_t child = ecs_new(world);
+        if (parent_storage) {
+            ecs_set(world, child, EcsParent, {result});
+        } else {
+            ecs_add_pair(world, child, EcsChildOf, result);
+        }
+        result = child;
+    }
+
+    ecs_set(world, root, FlecsTint, {10, 20, 30, 40});
+    return result;
+}
+
+void Transition_tint_hierarchy_matrix(void) {
+    ecs_world_t *world = ecs_init();
+    ECS_IMPORT(world, FlecsEngine);
+
+    ecs_entity_t entities[3][2][2];
+
+    for (int32_t level = 0; level < 3; level ++) {
+        for (int32_t storage = 0; storage < 2; storage ++) {
+            for (int32_t owned = 0; owned < 2; owned ++) {
+                ecs_entity_t e = transition_tint_hierarchy(
+                    world, level + 1, storage != 0);
+                entities[level][storage][owned] = e;
+                if (owned) {
+                    ecs_set(world, e, FlecsTint, {50, 60, 70, 80});
+                }
+            }
+        }
+    }
+
+    ecs_progress(world, 0);
+
+    for (int32_t level = 0; level < 3; level ++) {
+        for (int32_t storage = 0; storage < 2; storage ++) {
+            for (int32_t owned = 0; owned < 2; owned ++) {
+                const FlecsActualTint *actual = ecs_get(
+                    world, entities[level][storage][owned], FlecsActualTint);
+                test_assert(actual != NULL);
+                test_int(actual->r, owned ? 50 : 10);
+                test_int(actual->g, owned ? 60 : 20);
+                test_int(actual->b, owned ? 70 : 30);
+                test_int(actual->a, owned ? 80 : 40);
+            }
+        }
+    }
+
+    ecs_fini(world);
+}

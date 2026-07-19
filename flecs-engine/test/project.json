@@ -42,7 +42,8 @@
                     "static_transform",
                     "tint",
                     "childof_tint",
-                    "parent_tint"
+                    "parent_tint",
+                    "tint_hierarchy_matrix"
                 ]
             },
             {
