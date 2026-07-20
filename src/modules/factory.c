@@ -128,7 +128,12 @@ static void biome_factory_vent(
         return;
     }
 
-    // TODO
+    Weather *weather = ecs_singleton_get_mut(world, Weather);
+    if (!weather) {
+        return;
+    }
+    weather->greenhouse_gas += resource->greenhouse_gas;
+    ecs_singleton_modified(world, Weather);
 }
 
 static void BiomeFactoryUpdate(ecs_iter_t *it) {

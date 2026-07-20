@@ -64,9 +64,6 @@ int main(int argc, char *argv[]) {
     ECS_IMPORT(world, biomeTerrain);
     ECS_IMPORT(world, biomeWeather);
     ECS_IMPORT(world, biomeWater);
-    ECS_IMPORT(world, biomeWind);
-    ECS_IMPORT(world, biomePrecipitation);
-    ECS_IMPORT(world, biomeCloud);
     ECS_IMPORT(world, biomeBehavior);
     ECS_IMPORT(world, biomeResources);
     ECS_IMPORT(world, biomeLogistics);
@@ -103,6 +100,11 @@ int main(int argc, char *argv[]) {
 
     if (!options.frame_output_path) {
         ecs_singleton_set(world, EcsRest, {0});
+        ecs_entity_t dequeue_rest = ecs_lookup(
+            world, "flecs.rest.DequeueRest");
+        ecs_assert(dequeue_rest != 0, ECS_INTERNAL_ERROR, NULL);
+        ecs_remove_pair(world, dequeue_rest, EcsDependsOn, EcsPostFrame);
+        ecs_add_pair(world, dequeue_rest, EcsDependsOn, EcsPreFrame);
     }
 
     ecs_set_target_fps(world, 60);

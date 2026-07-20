@@ -78,12 +78,6 @@ sky {
         }
     }
 
-    clouds {
-        Clouds: {
-            appearance: {atmosphere: atmosphere}
-        }
-    }
-
     time_of_day {
         TimeOfDay: {
             light: sun,

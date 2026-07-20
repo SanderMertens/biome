@@ -9,13 +9,8 @@
 #include <biome_test.h>
 
 // Testsuite 'Weather'
-void Weather_thermal_exchange(void);
-void Weather_wind(void);
-void Weather_condensation(void);
-void Weather_evaporation(void);
-void Weather_aggregate(void);
-void Weather_radiative_balance(void);
-void Weather_ocean_level(void);
+void Weather_global_temperature(void);
+void Weather_water_state(void);
 
 // Testsuite 'Logistics'
 void Logistics_first_come_first_serve(void);
@@ -32,6 +27,7 @@ void Logistics_closest_storage(void);
 // Testsuite 'Factory'
 void Factory_request_drone_amount(void);
 void Factory_request_drone_amount_edge_cases(void);
+void Factory_vent_greenhouse_gas(void);
 
 // Testsuite 'BuildingRule'
 void BuildingRule_self_referencing_drag(void);
@@ -41,32 +37,12 @@ void Tool_render_ghost(void);
 
 bake_test_case Weather_testcases[] = {
     {
-        "thermal_exchange",
-        Weather_thermal_exchange
+        "global_temperature",
+        Weather_global_temperature
     },
     {
-        "wind",
-        Weather_wind
-    },
-    {
-        "condensation",
-        Weather_condensation
-    },
-    {
-        "evaporation",
-        Weather_evaporation
-    },
-    {
-        "aggregate",
-        Weather_aggregate
-    },
-    {
-        "radiative_balance",
-        Weather_radiative_balance
-    },
-    {
-        "ocean_level",
-        Weather_ocean_level
+        "water_state",
+        Weather_water_state
     }
 };
 
@@ -121,6 +97,10 @@ bake_test_case Factory_testcases[] = {
     {
         "request_drone_amount_edge_cases",
         Factory_request_drone_amount_edge_cases
+    },
+    {
+        "vent_greenhouse_gas",
+        Factory_vent_greenhouse_gas
     }
 };
 
@@ -143,7 +123,7 @@ static bake_test_suite suites[] = {
         "Weather",
         NULL,
         NULL,
-        7,
+        2,
         Weather_testcases
     },
     {
@@ -157,7 +137,7 @@ static bake_test_suite suites[] = {
         "Factory",
         NULL,
         NULL,
-        2,
+        3,
         Factory_testcases
     },
     {

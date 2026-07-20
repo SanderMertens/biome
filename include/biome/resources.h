@@ -21,7 +21,7 @@ ECS_STRUCT(BiomeResource, {
     int32_t mine_amount;        /* Number of resources mined after mine_time (or however many are left). */
     int32_t min_drone_amount;  /* Minimum number of resources for a pickup (drones won't consider storages with less than this) */
     int32_t max_drone_amount;  /* Maximum number of resources a drone can carry for resource. Drones will combine outstanding requests up to this amount. */
-    float green_house_gass;
+    float greenhouse_gas;
     float toxic_gass;
 });
 

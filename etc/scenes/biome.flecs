@@ -22,10 +22,10 @@ camera {
 
 $ {
     terrain.Terrain: {
-        width: 128 // tiles
-        height: 128
+        width: 256 // tiles
+        height: 256
         sample_kind: Linear
-        scale: 150
+        scale: 100
         octaves: 5
         warp_octaves: 3
         warp: 1.9
@@ -45,61 +45,17 @@ $ {
         ocean_level: 0.45
         ocean_shore_width: 0.04
         ocean_depth: 16
-    }
-
-    weather.Config: {
-        sun: sky.sun
-
-        seed_ground: {temperature: 10, moisture_amount: 0}
-        seed_water: {temperature: 40, water_amount: 1}
-        seed_air: {temperature: 0, vapor_amount: 0}
-        seed_variation: 1
-        ocean_level: -1
+        ground_moisture: 0
     }
 
     weather.Weather: {
-        stellar_intensity: 1
+        pressure: 101325
         gravity: 9.80665
-        thermal_exchange: {
-            enabled: true
-            rate: 1
-        }
-        wind: {
-            enabled: true
-            acceleration: 1
-            drag: 0.1
-            max_velocity: 30
-        }
-        condensation: {
-            enabled: true
-            rate: 1
-            latent_heating: 1
-            precipitation_threshold: 100
-            precipitation_rate: 0.2
-        }
-        infiltration: {
-            enabled: true
-            max_infiltration_rate: 100
-            ground_moisture_capacity: 10000
-        }
-        evaporation: {
-            enabled: true
-            surface_water_rate: 0.0000347
-            ground_moisture_rate: 0.0000116
-            evaporative_cooling: 1
-        }
-        radiative_balance: {
-            enabled: true
-            radiative_cooling: 0.01
-            stellar_heating: 0.002
-            greenhouse_effect: 0.1
-        }
-    }
-
-    water.Config: {
-        density: 997
-        flow_rate: 0.25
-        min_flow: 0.1
+        greenhouse_gas: 0.1
+        radiative_cooling: 0.01
+        stellar_heating: 0.002
+        temperature: 10
+        water_level: -2
     }
 }
 

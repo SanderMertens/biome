@@ -32,12 +32,7 @@ resources {
     )
 
     Resource GreenHouseGass(
-        // When vented by a factory, one unit of this resource will increase the
-        // amount of green house gasses in the atmosphere by 0.75
-        green_house_gass: 480
-
-        // When vented by a factory, one unit of this resource will increase the
-        // amount of green house gasses in the atmosphere by 0.25
+        greenhouse_gas: 0.01
         toxic_gass: 7
     )
 

@@ -55,7 +55,6 @@ view {
             { enabled: true,  effect: ssao },
             { enabled: true,  effect: heightFog },
             { enabled: false, effect: sunShafts },
-            { enabled: false, effect: sky.clouds },
             { enabled: true,  effect: bloom },
             { enabled: true,  effect: autoExposure },
             { enabled: true,  effect: tonyMcMapFace },

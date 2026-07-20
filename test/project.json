@@ -13,13 +13,8 @@
             {
                 "id": "Weather",
                 "testcases": [
-                    "thermal_exchange",
-                    "wind",
-                    "condensation",
-                    "evaporation",
-                    "aggregate",
-                    "radiative_balance",
-                    "ocean_level"
+                    "global_temperature",
+                    "water_state"
                 ]
             },
             {
@@ -41,7 +36,8 @@
                 "id": "Factory",
                 "testcases": [
                     "request_drone_amount",
-                    "request_drone_amount_edge_cases"
+                    "request_drone_amount_edge_cases",
+                    "vent_greenhouse_gas"
                 ]
             },
             {

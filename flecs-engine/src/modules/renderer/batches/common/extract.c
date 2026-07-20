@@ -49,7 +49,7 @@ static void flecsEngine_extract_writeStaticEntry(
     flecsEngine_batch_worldAabb(
         actual_wt ? actual_wt : &wt[i], aabb, &bb->cpu_aabb[slot]);
 
-    bb->cpu_slot_to_group[slot] = (uint32_t)ctx->static_view.group_idx;
+    bb->cpu_slot_to_group[slot] = (uint32_t)ctx->static_stable_idx;
 
     vec3 s = {1, 1, 1};
     if (scale_data) {
@@ -155,6 +155,10 @@ static void flecsEngine_batch_group_extractTable(
     }
 
     if (is_static) {
+        if (ctx->static_stable_idx < 0) {
+            ctx->static_stable_idx =
+                flecsEngine_batch_allocStaticGroupIdx(buf);
+        }
         int32_t nfree = ecs_vec_count(&buf->free_slots);
         int32_t need = buf->static_buffers.count + (it->count - nfree);
         if (need < buf->static_buffers.count) need = buf->static_buffers.count;

@@ -10,12 +10,9 @@
 
 #define TerrainSlopeIndex (0)       /* flecs_vec2_t (height gradient of tile) */
 #define TerrainSoilIndex (1)        /* TerrainSoil */
-#define TerrainGroundIndex (2)      /* WeatherGround */
-#define TerrainAirIndex (3)         /* Air column above tile */
-#define TerrainOccupancyIndex (4)
-#define TerrainPowerIndex (5)
-#define TerrainWaterIndex (6)       /* WeatherWater (oceans, rivers) */
-#define TerrainWeatherScale (1)
+#define TerrainGroundIndex (2)
+#define TerrainOccupancyIndex (3)
+#define TerrainPowerIndex (4)
 
 ECS_ENUM(TerrainSampleKind, {
     TerrainSampleKindNearest,
@@ -25,6 +22,10 @@ ECS_ENUM(TerrainSampleKind, {
 ECS_STRUCT(TerrainSoil, {
     float sedimentFactor;          /* 0: solid rock, 1: fine sand */
     float fertility;               /* 0: no nutrients, 1: maximum nutrients */
+});
+
+ECS_STRUCT(TerrainGround, {
+    float moisture;
 });
 
 ECS_STRUCT(TerrainOccupancy, {
@@ -70,6 +71,7 @@ ECS_STRUCT(Terrain, {
     float ocean_level;
     float ocean_shore_width;
     float ocean_depth;
+    float ground_moisture;
 });
 
 float biomeHash2(int32_t x, int32_t z);

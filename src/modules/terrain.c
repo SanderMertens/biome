@@ -212,26 +212,29 @@ void TerrainOnSet(ecs_iter_t *it) {
         colors[i] = (flecs_rgba_t){ 120, 96, 74, 230 };
     }
 
-    ecs_vec_set_count_t(NULL, &t->layerTypes, ecs_entity_t, 7);
+    ecs_vec_set_count_t(NULL, &t->layerTypes, ecs_entity_t, 5);
     ecs_entity_t *layerTypes = ecs_vec_first_t(&t->layerTypes, ecs_entity_t);
     layerTypes[TerrainSlopeIndex] = ecs_id(flecs_vec2_t);
     layerTypes[TerrainSoilIndex] = ecs_id(TerrainSoil);
-    layerTypes[TerrainGroundIndex] = ecs_id(WeatherGroundTile);
-    layerTypes[TerrainAirIndex] = ecs_id(WeatherAirTile);
+    layerTypes[TerrainGroundIndex] = ecs_id(TerrainGround);
     layerTypes[TerrainOccupancyIndex] = ecs_id(TerrainOccupancy);
     layerTypes[TerrainPowerIndex] = ecs_id(TerrainPower);
-    layerTypes[TerrainWaterIndex] = ecs_id(WeatherWaterTile);
 
-    ecs_vec_set_count_t(NULL, &t->layer_scale, int8_t, 7);
+    ecs_vec_set_count_t(NULL, &t->layer_scale, int8_t, 5);
     int8_t *layer_scale = ecs_vec_first_t(&t->layer_scale, int8_t);
-    for (int32_t i = 0; i < 7; i ++) {
+    for (int32_t i = 0; i < 5; i ++) {
         layer_scale[i] = 1;
     }
 
-    layer_scale[TerrainGroundIndex] = TerrainWeatherScale;
-    layer_scale[TerrainAirIndex] = TerrainWeatherScale;
-
     ecs_modified(world, e, FlecsTerrain);
+
+    TerrainGround *ground = flecsEngine_terrain_getLayer(
+        world, e, TerrainGroundIndex, TerrainGround);
+    if (ground) {
+        for (int32_t i = 0; i < cells; i ++) {
+            ground[i].moisture = cfg->ground_moisture;
+        }
+    }
 }
 
 static float biomeClampf(float v, float lo, float hi) {
@@ -247,9 +250,8 @@ static void biomeMixColor(float rgb[3], const float target[3], float f) {
 }
 
 static flecs_rgba_t biomeGroundColor(
-    const WeatherGroundTile *g,
+    const TerrainGround *g,
     const TerrainSoil *s,
-    float moisture_capacity,
     float temperature)
 {
     static const float rock[3] = {125, 125, 125};
@@ -263,9 +265,7 @@ static flecs_rgba_t biomeGroundColor(
     biomeMixColor(rgb, sand, sediment);
     biomeMixColor(rgb, grass, 0.6f * biomeClampf(s->fertility, 0, 1.0f));
 
-    float moisture = moisture_capacity > 0
-        ? biomeClampf(g->moisture_amount / moisture_capacity, 0, 1.0f)
-        : 0;
+    float moisture = biomeClampf(g->moisture, 0, 1.0f);
     moisture = moisture * moisture * (3.0f - 2.0f * moisture);
     float wetness = moisture * sediment;
     biomeMixColor(rgb, wet_soil, wetness);
@@ -285,8 +285,8 @@ static float biomeLerp(float a, float b, float t) {
     return a + (b - a) * t;
 }
 
-static WeatherGroundTile biomeSampleGroundLinear(
-    const WeatherGroundTile *ground,
+static TerrainGround biomeSampleGroundLinear(
+    const TerrainGround *ground,
     int32_t width,
     int32_t depth,
     int32_t scale,
@@ -307,18 +307,17 @@ static WeatherGroundTile biomeSampleGroundLinear(
     float tx = fx - (float)x0;
     float tz = fz - (float)z0;
 
-    const WeatherGroundTile *g00 = &ground[z0 * width + x0];
-    const WeatherGroundTile *g10 = &ground[z0 * width + x1];
-    const WeatherGroundTile *g01 = &ground[z1 * width + x0];
-    const WeatherGroundTile *g11 = &ground[z1 * width + x1];
+    const TerrainGround *g00 = &ground[z0 * width + x0];
+    const TerrainGround *g10 = &ground[z0 * width + x1];
+    const TerrainGround *g01 = &ground[z1 * width + x0];
+    const TerrainGround *g11 = &ground[z1 * width + x1];
 
 #define BIOME_SAMPLE_FIELD(field) biomeLerp( \
     biomeLerp(g00->field, g10->field, tx), \
     biomeLerp(g01->field, g11->field, tx), tz)
 
-    WeatherGroundTile result = {
-        .temperature = BIOME_SAMPLE_FIELD(temperature),
-        .moisture_amount = BIOME_SAMPLE_FIELD(moisture_amount)
+    TerrainGround result = {
+        .moisture = BIOME_SAMPLE_FIELD(moisture)
     };
 
 #undef BIOME_SAMPLE_FIELD
@@ -334,9 +333,7 @@ void ApplyTerrainColors(ecs_iter_t *it) {
     FlecsTerrain *t = ecs_field(it, FlecsTerrain, 0);
     const Terrain *cfg = ecs_get(world, e, Terrain);
     const Weather *weather = ecs_singleton_get(world, Weather);
-    float moisture_capacity = weather
-        ? weather->infiltration.ground_moisture_capacity
-        : 0;
+    float temperature = weather ? weather->temperature : 0;
 
     int32_t cells = t->width * t->depth;
     if (cells <= 0 || ecs_vec_count(&t->colors) != cells) {
@@ -346,12 +343,10 @@ void ApplyTerrainColors(ecs_iter_t *it) {
         return;
     }
 
-    const WeatherGroundTile *ground = flecsEngine_terrain_getLayer(
-        world, e, TerrainGroundIndex, WeatherGroundTile);
+    const TerrainGround *ground = flecsEngine_terrain_getLayer(
+        world, e, TerrainGroundIndex, TerrainGround);
     const TerrainSoil *soil = flecsEngine_terrain_getLayer(
         world, e, TerrainSoilIndex, TerrainSoil);
-    const WeatherWaterTile *water = flecsEngine_terrain_getLayer(
-        world, e, TerrainWaterIndex, WeatherWaterTile);
     if (!ground || !soil) {
         return;
     }
@@ -373,25 +368,19 @@ void ApplyTerrainColors(ecs_iter_t *it) {
         for (int32_t x = 0; x < t->width; x ++) {
             int32_t i = z * t->width + x;
             if (sample_kind == TerrainSampleKindLinear) {
-                WeatherGroundTile sample = biomeSampleGroundLinear(
+                TerrainGround sample = biomeSampleGroundLinear(
                     ground, ground_w, ground_d, ground_scale, x, z);
-                float temperature = water && water[i].water_amount > 0
-                    ? water[i].temperature
-                    : sample.temperature;
                 colors[i] = biomeGroundColor(
-                    &sample, &soil[i], moisture_capacity, temperature);
+                    &sample, &soil[i], temperature);
             } else {
                 int32_t ground_x = x / ground_scale;
                 int32_t ground_z = z / ground_scale;
                 if (ground_x >= ground_w) ground_x = ground_w - 1;
                 if (ground_z >= ground_d) ground_z = ground_d - 1;
-                const WeatherGroundTile *sample = &ground[
+                const TerrainGround *sample = &ground[
                     ground_z * ground_w + ground_x];
-                float temperature = water && water[i].water_amount > 0
-                    ? water[i].temperature
-                    : sample->temperature;
                 colors[i] = biomeGroundColor(
-                    sample, &soil[i], moisture_capacity, temperature);
+                    sample, &soil[i], temperature);
             }
         }
     }
@@ -661,6 +650,7 @@ void biomeTerrainImport(ecs_world_t *world) {
     ecs_set_name_prefix(world, "Terrain");
 
     ECS_META_COMPONENT(world, TerrainSoil);
+    ECS_META_COMPONENT(world, TerrainGround);
     ECS_META_COMPONENT(world, TerrainOccupancy);
     ecs_id(TerrainScatterAssets) = ecs_vector(world, {
         .entity = ecs_entity(world, {

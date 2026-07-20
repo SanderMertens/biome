@@ -2,11 +2,13 @@
 #include <biome_test.h>
 
 ECS_COMPONENT_DECLARE(BiomeRecipe);
+ECS_COMPONENT_DECLARE(Weather);
 
 void Logistics_setupWorld(ecs_world_t *world);
 
 void biomeWeatherImport(ecs_world_t *world) {
-    (void)world;
+    ECS_COMPONENT_DEFINE(world, Weather);
+    ecs_add_id(world, ecs_id(Weather), EcsSingleton);
 }
 
 void biomePowerImport(ecs_world_t *world) {
@@ -150,5 +152,32 @@ void Factory_request_drone_amount_edge_cases(void) {
     ecs_map_fini(&recipe.inputs);
     ecs_map_fini(&storage->resources);
     ecs_map_fini(&storage->reserved);
+    ecs_fini(world);
+}
+
+void Factory_vent_greenhouse_gas(void) {
+    ecs_world_t *world = ecs_init();
+
+    Logistics_setupWorld(world);
+    biomeWeatherImport(world);
+    ecs_singleton_set(world, Weather, {0});
+
+    ecs_entity_t resource = ecs_new(world);
+    ecs_set(world, resource, BiomeResource, {
+        .greenhouse_gas = 0.25f
+    });
+    BiomeRecipe recipe = {
+        .output = resource
+    };
+    BiomeFactory factory = {
+        .output_mode = BiomeFactoryOutputVent
+    };
+
+    biome_factory_vent(world, &factory, &recipe);
+
+    const Weather *weather = ecs_singleton_get(world, Weather);
+    test_assert(weather != NULL);
+    test_flt(weather->greenhouse_gas, 0.25f);
+
     ecs_fini(world);
 }
