@@ -185,6 +185,20 @@ void Weather_aggregate(void) {
     test_flt(aggregate.air.min.wind_velocity.z, 1.0f);
     test_flt(aggregate.air.avg.wind_velocity.z, 4.0f);
     test_flt(aggregate.air.max.wind_velocity.z, 7.0f);
+
+    WeatherFloatAggregate pressure;
+    biomeWeatherComputePressureAggregate(
+        air, 2, 1, 10, 6, 6, 25.0f, 9.80665f, &pressure);
+    test_flt(
+        pressure.min,
+        12.0f * 9.80665f / 900.0f);
+    test_flt(
+        pressure.avg,
+        (12.0f * 9.80665f / 900.0f +
+         24.0f * 9.80665f / 600.0f) * 0.5f);
+    test_flt(
+        pressure.max,
+        24.0f * 9.80665f / 600.0f);
 }
 
 void Weather_radiative_balance(void) {

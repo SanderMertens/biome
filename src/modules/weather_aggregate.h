@@ -121,3 +121,62 @@ void biomeWeatherComputeAggregate(
         };
     }
 }
+
+static
+void biomeWeatherComputePressureAggregate(
+    const WeatherAirTile *air,
+    int32_t air_width,
+    int32_t air_depth,
+    int32_t terrain_width,
+    int32_t terrain_depth,
+    int32_t air_scale,
+    float cell_area,
+    float gravity,
+    WeatherFloatAggregate *result)
+{
+    ecs_os_zeromem(result);
+    if (!air || air_width <= 0 || air_depth <= 0 ||
+        terrain_width <= 0 || terrain_depth <= 0 ||
+        air_scale <= 0 || cell_area <= 0 || gravity <= 0)
+    {
+        return;
+    }
+
+    result->min = FLT_MAX;
+    result->max = -FLT_MAX;
+    double sum = 0;
+    int32_t count = 0;
+    for (int32_t z = 0; z < air_depth; z ++) {
+        int32_t cell_depth = terrain_depth - z * air_scale;
+        if (cell_depth > air_scale) {
+            cell_depth = air_scale;
+        }
+        if (cell_depth <= 0) {
+            continue;
+        }
+        for (int32_t x = 0; x < air_width; x ++) {
+            int32_t cell_width = terrain_width - x * air_scale;
+            if (cell_width > air_scale) {
+                cell_width = air_scale;
+            }
+            if (cell_width <= 0) {
+                continue;
+            }
+            int32_t i = z * air_width + x;
+            float area = cell_area * (float)(cell_width * cell_depth);
+            float pressure = biomeAtmosphericPressure(
+                &air[i], area, gravity);
+            if (pressure < result->min) {
+                result->min = pressure;
+            }
+            if (pressure > result->max) {
+                result->max = pressure;
+            }
+            sum += pressure;
+            count ++;
+        }
+    }
+    if (count) {
+        result->avg = (float)(sum / count);
+    }
+}

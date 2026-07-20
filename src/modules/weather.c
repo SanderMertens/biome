@@ -506,6 +506,7 @@ void WeatherComputeAggregate(ecs_iter_t *it) {
     ecs_entity_t e = it->entities[0];
     const FlecsTerrain *t = ecs_field(it, FlecsTerrain, 0);
     WeatherAggregate *aggregate = ecs_field(it, WeatherAggregate, 1);
+    const Weather *weather = ecs_field(it, Weather, 2);
 
     int32_t ground_width;
     int32_t ground_depth;
@@ -532,6 +533,17 @@ void WeatherComputeAggregate(ecs_iter_t *it) {
         water, water_width * water_depth,
         air, air_width * air_depth,
         aggregate);
+    float cell_size = t->cell_size > 0 ? t->cell_size : 1.0f;
+    biomeWeatherComputePressureAggregate(
+        air,
+        air_width,
+        air_depth,
+        t->width,
+        t->depth,
+        flecsEngine_terrainLayerScale(t, TerrainAirIndex),
+        cell_size * cell_size,
+        weather->gravity,
+        &aggregate->air.pressure);
 }
 
 static void WeatherBuffers_fini(
@@ -588,6 +600,7 @@ void biomeWeatherImport(ecs_world_t *world) {
     ECS_META_COMPONENT(world, Weather);
     ECS_META_COMPONENT(world, WeatherGroundAggregate);
     ECS_META_COMPONENT(world, WeatherWaterAggregate);
+    ECS_META_COMPONENT(world, WeatherFloatAggregate);
     ECS_META_COMPONENT(world, WeatherAirAggregate);
     ECS_META_COMPONENT(world, WeatherAggregate);
     ECS_META_COMPONENT(world, WeatherBuffers);
@@ -631,5 +644,6 @@ void biomeWeatherImport(ecs_world_t *world) {
 
     ECS_SYSTEM(world, WeatherComputeAggregate, EcsPreStore,
         [in]  FlecsTerrain,
-        [out] WeatherAggregate);
+        [out] WeatherAggregate,
+        [in]  Weather);
 }

@@ -88,10 +88,17 @@ ECS_STRUCT(WeatherWaterAggregate, {
     WeatherWaterTile max;
 });
 
+ECS_STRUCT(WeatherFloatAggregate, {
+    float min;
+    float avg;
+    float max;
+});
+
 ECS_STRUCT(WeatherAirAggregate, {
     WeatherAirTile min;
     WeatherAirTile avg;
     WeatherAirTile max;
+    WeatherFloatAggregate pressure;
 });
 
 ECS_STRUCT(WeatherAggregate, {
