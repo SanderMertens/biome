@@ -186,6 +186,83 @@ static void flecsEngine_terrain_emitTriangle(
     }
 }
 
+static flecs_rgba_t flecsEngine_terrain_cornerColor(
+    const flecs_rgba_t *colors,
+    int32_t width,
+    int32_t depth,
+    int32_t x,
+    int32_t z)
+{
+    uint32_t r = 0, g = 0, b = 0, a = 0, count = 0;
+    for (int32_t dz = -1; dz <= 0; dz ++) {
+        int32_t cell_z = z + dz;
+        if (cell_z < 0 || cell_z >= depth) {
+            continue;
+        }
+        for (int32_t dx = -1; dx <= 0; dx ++) {
+            int32_t cell_x = x + dx;
+            if (cell_x < 0 || cell_x >= width) {
+                continue;
+            }
+            flecs_rgba_t color = colors[cell_z * width + cell_x];
+            r += color.r;
+            g += color.g;
+            b += color.b;
+            a += color.a;
+            count ++;
+        }
+    }
+    return (flecs_rgba_t){
+        (uint8_t)((r + count / 2) / count),
+        (uint8_t)((g + count / 2) / count),
+        (uint8_t)((b + count / 2) / count),
+        (uint8_t)((a + count / 2) / count)
+    };
+}
+
+static void flecsEngine_terrain_setCellVertexColors(
+    const FlecsTerrain *terrain,
+    flecs_rgba_t *colors,
+    int32_t x,
+    int32_t z)
+{
+    int32_t width = terrain->width;
+    int32_t depth = terrain->depth;
+    const flecs_rgba_t *cell_colors = ecs_vec_first_t(
+        &terrain->colors, flecs_rgba_t);
+    flecs_rgba_t c00 = flecsEngine_terrain_cornerColor(
+        cell_colors, width, depth, x, z);
+    flecs_rgba_t c10 = flecsEngine_terrain_cornerColor(
+        cell_colors, width, depth, x + 1, z);
+    flecs_rgba_t c01 = flecsEngine_terrain_cornerColor(
+        cell_colors, width, depth, x, z + 1);
+    flecs_rgba_t c11 = flecsEngine_terrain_cornerColor(
+        cell_colors, width, depth, x + 1, z + 1);
+    const float *heights = ecs_vec_first_t(&terrain->heights, float);
+    int32_t stride = width + 1;
+    float h00 = heights[z * stride + x];
+    float h10 = heights[z * stride + x + 1];
+    float h01 = heights[(z + 1) * stride + x];
+    float h11 = heights[(z + 1) * stride + x + 1];
+    int32_t v = (z * width + x) * 6;
+
+    if (fabsf(h00 - h11) <= fabsf(h10 - h01)) {
+        colors[v] = c00;
+        colors[v + 1] = c11;
+        colors[v + 2] = c10;
+        colors[v + 3] = c00;
+        colors[v + 4] = c01;
+        colors[v + 5] = c11;
+    } else {
+        colors[v] = c00;
+        colors[v + 1] = c01;
+        colors[v + 2] = c10;
+        colors[v + 3] = c10;
+        colors[v + 4] = c01;
+        colors[v + 5] = c11;
+    }
+}
+
 static float flecsEngine_terrain_stratumHeight(
     float base,
     float top,
@@ -408,6 +485,10 @@ static void flecsEngine_terrain_generateMesh(
                     n00, n10, n01, inv_extent_x, inv_extent_z, color);
                 flecsEngine_terrain_emitTriangle(m, v + 3, p10, p11, p01,
                     n10, n11, n01, inv_extent_x, inv_extent_z, color);
+            }
+            if (cell_colors) {
+                flecsEngine_terrain_setCellVertexColors(
+                    t, ecs_vec_first_t(&m->colors, flecs_rgba_t), x, z);
             }
         }
     }
@@ -849,18 +930,12 @@ void flecsEngine_terrainColorsModified(
         return;
     }
 
-    const flecs_rgba_t *cell_colors = ecs_vec_first_t(
-        &t->colors, flecs_rgba_t);
     flecs_rgba_t *vert_colors = ecs_vec_first_t(&mesh->colors, flecs_rgba_t);
-    for (int32_t i = 0; i < cell_count; i ++) {
-        flecs_rgba_t c = cell_colors[i];
-        int32_t v = i * 6;
-        vert_colors[v] = c;
-        vert_colors[v + 1] = c;
-        vert_colors[v + 2] = c;
-        vert_colors[v + 3] = c;
-        vert_colors[v + 4] = c;
-        vert_colors[v + 5] = c;
+    for (int32_t z = 0; z < t->depth; z ++) {
+        for (int32_t x = 0; x < t->width; x ++) {
+            flecsEngine_terrain_setCellVertexColors(
+                t, vert_colors, x, z);
+        }
     }
 
     flecsEngine_mesh3_updateColorRange(world, mesh_e, 0, cell_count * 6);
