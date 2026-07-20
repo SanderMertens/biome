@@ -43,7 +43,7 @@ static
 void biomeRadiativeBalanceSurface(
     WeatherGroundTile *ground,
     WeatherWaterTile *water,
-    const WeatherAirTile *air,
+    WeatherAirTile *air,
     int32_t ground_width,
     int32_t ground_depth,
     int32_t water_width,
@@ -102,6 +102,14 @@ void biomeRadiativeBalanceSurface(
                     config,
                     delta_time);
             }
+
+            air[i].temperature += biomeRadiativeTemperatureChange(
+                air[i].temperature,
+                air[i].ghg_amount,
+                air[i].vapor_amount,
+                0,
+                config,
+                delta_time);
         }
     }
 }

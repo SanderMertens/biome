@@ -484,7 +484,7 @@ void RadiativeBalance(ecs_iter_t *it) {
         world, e, TerrainGroundIndex, WeatherGroundTile);
     WeatherWaterTile *water = flecsEngine_terrain_getLayer(
         world, e, TerrainWaterIndex, WeatherWaterTile);
-    const WeatherAirTile *air = flecsEngine_terrain_getLayer(
+    WeatherAirTile *air = flecsEngine_terrain_getLayer(
         world, e, TerrainAirIndex, WeatherAirTile);
     if (!ground || !air) {
         return;
