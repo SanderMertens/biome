@@ -1,6 +1,7 @@
 #include <biome.h>
 #include "../../src/modules/radiative_balance.h"
 #include "../../src/modules/thermal_exchange.h"
+#include "../../src/modules/weather_ocean.h"
 #include <biome_test.h>
 
 void Weather_thermal_exchange(void) {
@@ -123,4 +124,19 @@ void Weather_radiative_balance(void) {
     test_flt(ground[1].temperature, -10.0f);
     test_flt(water[1].temperature, -20.0f);
     test_flt(air[0].temperature, -20.0f);
+}
+
+void Weather_ocean_level(void) {
+    float expected = 10.0f * 997.0f *
+        (float)(TerrainCellSize * TerrainCellSize);
+    test_flt(
+        biomeWeatherOceanWaterAmount(0.0f, -10.0f, 0.0f, 997.0f),
+        expected);
+    test_flt(
+        biomeWeatherOceanWaterAmount(
+            expected + 1.0f, -10.0f, 0.0f, 997.0f),
+        expected + 1.0f);
+    test_flt(
+        biomeWeatherOceanWaterAmount(100.0f, 10.0f, 0.0f, 997.0f),
+        100.0f);
 }

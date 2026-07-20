@@ -14,7 +14,8 @@
                 "id": "Weather",
                 "testcases": [
                     "thermal_exchange",
-                    "radiative_balance"
+                    "radiative_balance",
+                    "ocean_level"
                 ]
             },
             {

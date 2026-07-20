@@ -41,6 +41,7 @@ ECS_STRUCT(WeatherConfig, {
     WeatherWaterTile seed_water;
     WeatherAirTile seed_air;
     float seed_variation;
+    float ocean_level;
 });
 
 ECS_STRUCT(WeatherInfiltration, {

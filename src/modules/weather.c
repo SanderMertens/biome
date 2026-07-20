@@ -3,6 +3,7 @@
 #include "biome.h"
 #include "radiative_balance.h"
 #include "thermal_exchange.h"
+#include "weather_ocean.h"
 
 void WeatherInit(ecs_iter_t *it) {
     ecs_assert(it->count == 1, ECS_INVALID_OPERATION, "can only have one terrain");
@@ -30,6 +31,15 @@ void WeatherInit(ecs_iter_t *it) {
 
     if (!soil || !ground || !water || !air) {
         return;
+    }
+
+    float water_density = 997.0f;
+    if (ecs_id(WaterConfig)) {
+        const WaterConfig *water_config = ecs_singleton_get(
+            world, WaterConfig);
+        if (water_config && water_config->density > 0) {
+            water_density = water_config->density;
+        }
     }
 
     int32_t air_w, air_d;
@@ -75,6 +85,10 @@ void WeatherInit(ecs_iter_t *it) {
                 2.0f * c->seed_variation;
             water[i] = c->seed_water;
             water[i].temperature += variation;
+            float terrain_height = flecsEngine_terrainCellHeight(t, x, z);
+            water[i].water_amount = biomeWeatherOceanWaterAmount(
+                water[i].water_amount, terrain_height, c->ocean_level,
+                water_density);
         }
     }
 

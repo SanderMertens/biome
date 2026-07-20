@@ -11,6 +11,7 @@
 // Testsuite 'Weather'
 void Weather_thermal_exchange(void);
 void Weather_radiative_balance(void);
+void Weather_ocean_level(void);
 
 // Testsuite 'Logistics'
 void Logistics_first_come_first_serve(void);
@@ -31,6 +32,7 @@ void Factory_request_drone_amount_edge_cases(void);
 // Testsuite 'BuildingRule'
 void BuildingRule_self_referencing_drag(void);
 
+// Testsuite 'Tool'
 void Tool_render_ghost(void);
 
 bake_test_case Weather_testcases[] = {
@@ -41,6 +43,10 @@ bake_test_case Weather_testcases[] = {
     {
         "radiative_balance",
         Weather_radiative_balance
+    },
+    {
+        "ocean_level",
+        Weather_ocean_level
     }
 };
 
@@ -117,7 +123,7 @@ static bake_test_suite suites[] = {
         "Weather",
         NULL,
         NULL,
-        2,
+        3,
         Weather_testcases
     },
     {
