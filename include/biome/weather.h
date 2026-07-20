@@ -6,21 +6,30 @@
 #define ECS_META_IMPL EXTERN
 #endif
 
+/* All amounts are in KG */
+
+/* Ground attributes */
 ECS_STRUCT(WeatherGroundTile, {
-    float temperature;              /* Exchanges with neighboring tiles (ground and air) */
-    float moisture;                 /* Evaporates over time */
-    float water;                    /* Transforms into moisture over time, travels along slope */
-    float frozen;                   /* Fraction of water that is ice (0: water, 1: ice) */
-    float albedo;                   /* Albedo of tile, used to determine heat absorption. Computed from frozen water, soil kind, and temperature  */
+    float temperature;              /* Exchanges with neighboring tiles */
+    float moisture_amount;          /* Water in the ground */
 });
 
-ECS_STRUCT(WeatherAirTile, {
-    float temperature;              /* Exchanges with neighboring air tiles and ground tile */
-    float vapor;                    /* Water vapor in air */
-    float cloud_water;              /* Water in clouds/precipitation */
-    float precipitation;            /* Amount of cloud water dropped this tick */
+/* Water, if tile has standing water (amount of water determines height of water mesh) */
+ECS_STRUCT(WeatherWaterTile, {
+    float temperature;              /* Exchanges with neighboring tiles */
+    float water_amount;             /* Amount of standing water on tile */
+});
 
-    flecs_vec3_t wind_velocity;     /* Transports hot/cold air, vapor and water to neighboring cells */
+/* Air attributes */
+ECS_STRUCT(WeatherAirTile, {
+    float temperature;              /* Exchanges with neighboring tiles */
+    float ghg_amount;               /* Amount of green house gass */
+    float o2_amount;                /* Amount of oxygen */
+    float vapor_amount;             /* Water vapor in air */
+    float water;                    /* Water in clouds */
+    flecs_vec3_t wind_velocity;     /* Transports air contents to neighboring tiles */
+
+    /* Pressure is computed from the sum of the gasses + temperature */
 });
 
 /* Static weather configuration */
@@ -29,17 +38,9 @@ ECS_STRUCT(WeatherConfig, {
     ecs_entity_t atmosphere;        /* Reference to atmosphere entity */
 
     WeatherGroundTile seed_ground;
+    WeatherWaterTile seed_water;
     WeatherAirTile seed_air;
     float seed_variation;
-});
-
-ECS_STRUCT(WeatherAtmosphere, {
-    float o2_content;
-    float green_house_gass;
-    float toxic_gass;
-    float vapor_content;            /* Set by weather simulation (sum of all air tiles) */
-    float temperature;              /* Set by weather simulation: (average of all air tiles) */
-    float atmosphere_height;        /* Determines how much atmosphere is above a tile */
 });
 
 /* Contains buffers for double-buffering weather updates. These have the same
@@ -47,14 +48,10 @@ ECS_STRUCT(WeatherAtmosphere, {
 ECS_STRUCT(WeatherBuffers, {
 ECS_PRIVATE
     ecs_vec_t ground_buffer;
+    ecs_vec_t water_buffer;
     ecs_vec_t air_buffer;
-    ecs_vec_t head_buffer;
     int32_t width;
     int32_t depth;
-    int32_t frame_skip;
-    int32_t debug_frame;
-    double update_time_sum;
-    int32_t update_time_count;
 });
 
 void biomeWeatherImport(ecs_world_t *world);

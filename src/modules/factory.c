@@ -128,15 +128,7 @@ static void biome_factory_vent(
         return;
     }
 
-    ecs_iter_t it = ecs_each(world, WeatherAtmosphere);
-    while (ecs_each_next(&it)) {
-        WeatherAtmosphere *atmospheres = ecs_field(
-            &it, WeatherAtmosphere, 0);
-        for (int32_t i = 0; i < it.count; i ++) {
-            atmospheres[i].green_house_gass += resource->green_house_gass;
-            atmospheres[i].toxic_gass += resource->toxic_gass;
-        }
-    }
+    // TODO
 }
 
 static void BiomeFactoryUpdate(ecs_iter_t *it) {

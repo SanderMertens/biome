@@ -2,7 +2,6 @@
 #include <biome_test.h>
 
 ECS_COMPONENT_DECLARE(BiomeRecipe);
-ECS_COMPONENT_DECLARE(WeatherAtmosphere);
 
 void Logistics_setupWorld(ecs_world_t *world);
 

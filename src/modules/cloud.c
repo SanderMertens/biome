@@ -64,7 +64,7 @@ void CloudEmit(ecs_iter_t *it) {
     for (int32_t z = 0; z < d; z ++) {
         for (int32_t x = 0; x < w; x ++) {
             int32_t i = (z / air_scale) * air_w + x / air_scale;
-            float cw = air[i].cloud_water + air[i].precipitation;
+            float cw = air[i].water;
             if (cw <= CloudVisibleFloor) {
                 continue;
             }

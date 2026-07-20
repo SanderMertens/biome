@@ -169,7 +169,9 @@ void TerrainOnSet(ecs_iter_t *it) {
     for (int32_t i = 0; i < 6; i ++) {
         layer_scale[i] = 1;
     }
+
     layer_scale[TerrainGroundIndex] = TerrainWeatherScale;
+    layer_scale[TerrainAirIndex] = TerrainWeatherScale;
     layer_scale[TerrainAirIndex] = TerrainWeatherScale;
 
     ecs_modified(world, e, FlecsTerrain);
@@ -201,7 +203,7 @@ static flecs_rgba_t biomeGroundColor(
     biomeMixColor(rgb, sand, biomeClampf(s->sedimentFactor, 0, 1.0f));
     biomeMixColor(rgb, grass, 0.6f * biomeClampf(s->fertility, 0, 1.0f));
 
-    float m = biomeClampf(g->moisture, 0, 1.0f);
+    float m = biomeClampf(g->moisture_amount, 0, 1.0f);
     float darken = 1.0f - m * (0.35f + 0.3f * m);
     rgb[0] *= darken;
     rgb[1] *= darken;
@@ -209,13 +211,7 @@ static flecs_rgba_t biomeGroundColor(
 
     float roughness = 230.0f;
 
-    float water_f = g->water / (g->water + 0.2f);
-    float frozen = biomeClampf(g->frozen, 0, 1.0f);
-    float surface[3] = {liquid[0], liquid[1], liquid[2]};
-    biomeMixColor(surface, ice, frozen);
-    biomeMixColor(rgb, surface, water_f);
-    float surface_rough = 120.0f + (255.0f - 120.0f) * frozen;
-    roughness += (surface_rough - roughness) * water_f;
+    roughness = 255;
 
     return (flecs_rgba_t){
         (uint8_t)biomeClampf(rgb[0], 0, 255.0f),
@@ -262,10 +258,7 @@ static WeatherGroundTile biomeSampleGroundLinear(
 
     WeatherGroundTile result = {
         .temperature = BIOME_SAMPLE_FIELD(temperature),
-        .moisture = BIOME_SAMPLE_FIELD(moisture),
-        .water = BIOME_SAMPLE_FIELD(water),
-        .frozen = BIOME_SAMPLE_FIELD(frozen),
-        .albedo = BIOME_SAMPLE_FIELD(albedo)
+        .moisture_amount = BIOME_SAMPLE_FIELD(moisture_amount)
     };
 
 #undef BIOME_SAMPLE_FIELD
