@@ -95,6 +95,93 @@ void WeatherInit(ecs_iter_t *it) {
 
 void WeatherUpdate(ecs_iter_t *it) {
     ecs_assert(it->count == 1, ECS_INVALID_OPERATION, "can only have one terrain");
+
+    ecs_world_t *world = it->world;
+    ecs_entity_t e = it->entities[0];
+    const FlecsTerrain *t = ecs_field(it, FlecsTerrain, 0);
+    const Weather *weather = ecs_field(it, Weather, 1);
+    const WeatherInfiltration *config = &weather->infiltration;
+    if (!config->enabled || config->max_infiltration_rate <= 0 ||
+        config->ground_moisture_capacity <= 0 || it->delta_time <= 0)
+    {
+        return;
+    }
+
+    int32_t ground_w;
+    int32_t ground_d;
+    int32_t water_w;
+    int32_t water_d;
+    flecsEngine_terrainLayerDimensions(
+        t, TerrainGroundIndex, &ground_w, &ground_d);
+    flecsEngine_terrainLayerDimensions(
+        t, TerrainWaterIndex, &water_w, &water_d);
+    if (ground_w <= 0 || ground_d <= 0 ||
+        water_w != t->width || water_d != t->depth)
+    {
+        return;
+    }
+
+    WeatherGroundTile *ground = flecsEngine_terrain_getLayer(
+        world, e, TerrainGroundIndex, WeatherGroundTile);
+    WeatherWaterTile *water = flecsEngine_terrain_getLayer(
+        world, e, TerrainWaterIndex, WeatherWaterTile);
+    const TerrainSoil *soil = flecsEngine_terrain_getLayer(
+        world, e, TerrainSoilIndex, TerrainSoil);
+    if (!ground || !water || !soil) {
+        return;
+    }
+
+    int32_t ground_scale = flecsEngine_terrainLayerScale(
+        t, TerrainGroundIndex);
+    float capacity = config->ground_moisture_capacity;
+    float max_infiltration = config->max_infiltration_rate;
+    float dt = it->delta_time;
+    for (int32_t z = 0; z < water_d; z ++) {
+        int32_t ground_z = z / ground_scale;
+        if (ground_z >= ground_d) {
+            ground_z = ground_d - 1;
+        }
+        for (int32_t x = 0; x < water_w; x ++) {
+            int32_t i = z * water_w + x;
+            float surface_water = water[i].water_amount;
+            if (surface_water <= 0) {
+                continue;
+            }
+
+            int32_t ground_x = x / ground_scale;
+            if (ground_x >= ground_w) {
+                ground_x = ground_w - 1;
+            }
+            WeatherGroundTile *ground_tile = &ground[
+                ground_z * ground_w + ground_x];
+            float available_capacity = capacity -
+                ground_tile->moisture_amount;
+            if (available_capacity <= 0) {
+                continue;
+            }
+
+            float sediment_factor = soil[i].sedimentFactor;
+            if (sediment_factor <= 0) {
+                continue;
+            }
+            float saturation = ground_tile->moisture_amount / capacity;
+            float infiltration_rate = sediment_factor * max_infiltration *
+                (1.0f - saturation);
+            if (infiltration_rate <= 0) {
+                continue;
+            }
+
+            float infiltrated = infiltration_rate * dt;
+            if (infiltrated > surface_water) {
+                infiltrated = surface_water;
+            }
+            if (infiltrated > available_capacity) {
+                infiltrated = available_capacity;
+            }
+            water[i].water_amount -= infiltrated;
+            ground_tile->moisture_amount += infiltrated;
+        }
+    }
 }
 
 static void WeatherBuffers_fini(
@@ -144,6 +231,8 @@ void biomeWeatherImport(ecs_world_t *world) {
     ECS_META_COMPONENT(world, WeatherWaterTile);
     ECS_META_COMPONENT(world, WeatherAirTile);
     ECS_META_COMPONENT(world, WeatherConfig);
+    ECS_META_COMPONENT(world, WeatherInfiltration);
+    ECS_META_COMPONENT(world, Weather);
     ECS_META_COMPONENT(world, WeatherBuffers);
 
     ecs_set_hooks(world, WeatherBuffers, {
@@ -154,6 +243,7 @@ void biomeWeatherImport(ecs_world_t *world) {
     });
 
     ecs_add_id(world, ecs_id(WeatherConfig), EcsSingleton);
+    ecs_add_id(world, ecs_id(Weather), EcsSingleton);
     ecs_add_pair(world, ecs_id(Terrain), EcsWith, ecs_id(WeatherBuffers));
 
     ECS_SYSTEM(world, WeatherInit, EcsOnStart,
@@ -163,6 +253,6 @@ void biomeWeatherImport(ecs_world_t *world) {
 
     ECS_SYSTEM(world, WeatherUpdate, EcsPostUpdate,
         [inout] FlecsTerrain,
-        [in]    WeatherConfig,
+        [in]    Weather,
         [inout] WeatherBuffers);
 }

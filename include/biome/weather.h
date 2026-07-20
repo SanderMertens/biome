@@ -43,6 +43,16 @@ ECS_STRUCT(WeatherConfig, {
     float seed_variation;
 });
 
+ECS_STRUCT(WeatherInfiltration, {
+    bool enabled;
+    float max_infiltration_rate;
+    float ground_moisture_capacity;
+});
+
+ECS_STRUCT(Weather, {
+    WeatherInfiltration infiltration;
+});
+
 /* Contains buffers for double-buffering weather updates. These have the same
  * layout as the layer vectors in the Terrain, and will be swapped each frame. */
 ECS_STRUCT(WeatherBuffers, {

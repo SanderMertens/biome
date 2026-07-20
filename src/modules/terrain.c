@@ -255,27 +255,28 @@ static void biomeMixColor(float rgb[3], const float target[3], float f) {
 
 static flecs_rgba_t biomeGroundColor(
     const WeatherGroundTile *g,
-    const TerrainSoil *s)
+    const TerrainSoil *s,
+    float moisture_capacity)
 {
     static const float rock[3] = {125, 125, 125};
-    static const float sand[3] = {160, 120, 80};
+    static const float sand[3] = {178, 142, 104};
+    static const float wet_soil[3] = {58, 43, 31};
     static const float grass[3] = {70, 110, 45};
     static const float liquid[3] = {30, 70, 140};
     static const float ice[3] = {235, 240, 245};
 
+    float sediment = biomeClampf(s->sedimentFactor, 0, 1.0f);
     float rgb[3] = {rock[0], rock[1], rock[2]};
-    biomeMixColor(rgb, sand, biomeClampf(s->sedimentFactor, 0, 1.0f));
+    biomeMixColor(rgb, sand, sediment);
     biomeMixColor(rgb, grass, 0.6f * biomeClampf(s->fertility, 0, 1.0f));
 
-    float m = biomeClampf(g->moisture_amount, 0, 1.0f);
-    float darken = 1.0f - m * (0.35f + 0.3f * m);
-    rgb[0] *= darken;
-    rgb[1] *= darken;
-    rgb[2] *= darken;
-
-    float roughness = 230.0f;
-
-    roughness = 255;
+    float moisture = moisture_capacity > 0
+        ? biomeClampf(g->moisture_amount / moisture_capacity, 0, 1.0f)
+        : 0;
+    moisture = moisture * moisture * (3.0f - 2.0f * moisture);
+    float wetness = moisture * sediment;
+    biomeMixColor(rgb, wet_soil, wetness);
+    float roughness = 250.0f - 100.0f * wetness;
 
     return (flecs_rgba_t){
         (uint8_t)biomeClampf(rgb[0], 0, 255.0f),
@@ -337,6 +338,10 @@ void ApplyTerrainColors(ecs_iter_t *it) {
     ecs_entity_t e = it->entities[0];
     FlecsTerrain *t = ecs_field(it, FlecsTerrain, 0);
     const Terrain *cfg = ecs_get(world, e, Terrain);
+    const Weather *weather = ecs_singleton_get(world, Weather);
+    float moisture_capacity = weather
+        ? weather->infiltration.ground_moisture_capacity
+        : 0;
 
     int32_t cells = t->width * t->depth;
     if (cells <= 0 || ecs_vec_count(&t->colors) != cells) {
@@ -373,14 +378,16 @@ void ApplyTerrainColors(ecs_iter_t *it) {
             if (sample_kind == TerrainSampleKindLinear) {
                 WeatherGroundTile sample = biomeSampleGroundLinear(
                     ground, ground_w, ground_d, ground_scale, x, z);
-                colors[i] = biomeGroundColor(&sample, &soil[i]);
+                colors[i] = biomeGroundColor(
+                    &sample, &soil[i], moisture_capacity);
             } else {
                 int32_t ground_x = x / ground_scale;
                 int32_t ground_z = z / ground_scale;
                 if (ground_x >= ground_w) ground_x = ground_w - 1;
                 if (ground_z >= ground_d) ground_z = ground_d - 1;
                 colors[i] = biomeGroundColor(
-                    &ground[ground_z * ground_w + ground_x], &soil[i]);
+                    &ground[ground_z * ground_w + ground_x], &soil[i],
+                    moisture_capacity);
             }
         }
     }
