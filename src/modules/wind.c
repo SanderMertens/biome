@@ -80,6 +80,10 @@ void WindEmit(ecs_iter_t *it) {
     ecs_entity_t e = it->entities[0];
     const FlecsTerrain *t = ecs_field(it, FlecsTerrain, 0);
     WindState *ws = ecs_field(it, WindState, 1);
+    const Weather *weather = ecs_field(it, Weather, 2);
+    if (!weather->wind.enabled) {
+        return;
+    }
 
     int32_t w = t->width, d = t->depth;
     int32_t cells = w * d;
@@ -155,6 +159,10 @@ void WindParticleUpdate(ecs_iter_t *it) {
     ecs_entity_t e = it->entities[0];
     const FlecsTerrain *t = ecs_field(it, FlecsTerrain, 0);
     WindState *ws = ecs_field(it, WindState, 1);
+    const Weather *weather = ecs_field(it, Weather, 2);
+    if (!weather->wind.enabled) {
+        return;
+    }
 
     FlecsParticles *p = ecs_get_mut(world, ws->pool, FlecsParticles);
     if (!p || !p->count) {
@@ -213,6 +221,8 @@ void WindParticleUpdate(ecs_iter_t *it) {
 void biomeWindImport(ecs_world_t *world) {
     ECS_MODULE(world, biomeWind);
 
+    ECS_IMPORT(world, biomeWeather);
+
     ecs_set_name_prefix(world, "Wind");
 
     ECS_META_COMPONENT(world, WindState);
@@ -232,10 +242,10 @@ void biomeWindImport(ecs_world_t *world) {
     ECS_SYSTEM(world, WindEmit, EcsPreStore,
         [in]    FlecsTerrain,
         [inout] WindState,
-        [in]    WeatherBuffers);
+        [in]    Weather);
 
     ECS_SYSTEM(world, WindParticleUpdate, EcsPreStore,
         [in]    FlecsTerrain,
         [inout] WindState,
-        [in]    WeatherBuffers);
+        [in]    Weather);
 }

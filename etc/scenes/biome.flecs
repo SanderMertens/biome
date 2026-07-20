@@ -64,6 +64,12 @@ $ {
             enabled: true
             rate: 1
         }
+        wind: {
+            enabled: true
+            acceleration: 1
+            drag: 0.1
+            max_velocity: 30
+        }
         infiltration: {
             enabled: true
             max_infiltration_rate: 100

@@ -4,6 +4,7 @@
 #include "../../src/modules/thermal_exchange.h"
 #include "../../src/modules/weather_aggregate.h"
 #include "../../src/modules/weather_ocean.h"
+#include "../../src/modules/weather_wind.h"
 #include <biome_test.h>
 
 void Weather_thermal_exchange(void) {
@@ -124,6 +125,52 @@ void Weather_evaporation(void) {
         20.0f * 4184.0f / BiomeEvaporationLatentHeat);
     test_assert(isinf(
         biomeEvaporationEnergyLimit(20.0f, 4184.0f, 0.0f)));
+}
+
+void Weather_wind(void) {
+    WeatherAirTile pressure_air[3] = {
+        { .o2_amount = 300.0f },
+        { .o2_amount = 200.0f },
+        { .o2_amount = 100.0f }
+    };
+    biomeComputeAirPressure(
+        pressure_air, 3, 1, 3, 1, 1, 1.0f, 10.0f);
+    test_flt(pressure_air[0].pressure, 3000.0f);
+    test_flt(pressure_air[1].pressure, 2000.0f);
+    test_flt(pressure_air[2].pressure, 1000.0f);
+    biomeComputeWind(
+        pressure_air, 3, 1, 10.0f, 1.0f, 0.0f, 100.0f, 1.0f);
+    test_assert(pressure_air[0].wind_velocity.x > 0);
+    test_assert(pressure_air[1].wind_velocity.x > 0);
+    test_assert(pressure_air[2].wind_velocity.x > 0);
+
+    WeatherAirTile air[3] = {
+        {
+            .temperature = 10.0f,
+            .ghg_amount = 10.0f,
+            .wind_velocity = { 0.5f, 0, 0 }
+        },
+        {
+            .temperature = 20.0f,
+            .o2_amount = 20.0f,
+            .wind_velocity = { 0.5f, 0, 0 }
+        },
+        {
+            .temperature = 30.0f,
+            .vapor_amount = 30.0f
+        }
+    };
+    WeatherAirTile next[3];
+    biomeApplyWind(air, next, 3, 1, 1.0f, 1.0f);
+
+    test_flt(next[0].ghg_amount, 5.0f);
+    test_flt(next[1].ghg_amount, 5.0f);
+    test_flt(next[1].o2_amount, 10.0f);
+    test_flt(next[2].o2_amount, 10.0f);
+    test_flt(next[2].vapor_amount, 30.0f);
+    test_flt(next[0].temperature, 10.0f);
+    test_flt(next[1].temperature, 50.0f / 3.0f);
+    test_flt(next[2].temperature, 27.5f);
 }
 
 void Weather_aggregate(void) {

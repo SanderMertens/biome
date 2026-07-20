@@ -10,6 +10,7 @@
 
 // Testsuite 'Weather'
 void Weather_thermal_exchange(void);
+void Weather_wind(void);
 void Weather_evaporation(void);
 void Weather_aggregate(void);
 void Weather_radiative_balance(void);
@@ -41,6 +42,10 @@ bake_test_case Weather_testcases[] = {
     {
         "thermal_exchange",
         Weather_thermal_exchange
+    },
+    {
+        "wind",
+        Weather_wind
     },
     {
         "evaporation",
@@ -133,7 +138,7 @@ static bake_test_suite suites[] = {
         "Weather",
         NULL,
         NULL,
-        5,
+        6,
         Weather_testcases
     },
     {

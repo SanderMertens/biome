@@ -6,6 +6,7 @@
 #include "thermal_exchange.h"
 #include "weather_aggregate.h"
 #include "weather_ocean.h"
+#include "weather_wind.h"
 
 void WeatherInit(ecs_iter_t *it) {
     ecs_assert(it->count == 1, ECS_INVALID_OPERATION, "can only have one terrain");
@@ -275,6 +276,77 @@ void ThermalExchange(ecs_iter_t *it) {
     ecs_os_memcpy_n(ground, next_ground, WeatherGroundTile, ground_count);
     ecs_os_memcpy_n(water, next_water, WeatherWaterTile, water_count);
     ecs_os_memcpy_n(air, next_air, WeatherAirTile, ground_count);
+}
+
+void ComputeWind(ecs_iter_t *it) {
+    ecs_assert(it->count == 1, ECS_INVALID_OPERATION, "can only have one terrain");
+
+    ecs_world_t *world = it->world;
+    ecs_entity_t e = it->entities[0];
+    const FlecsTerrain *t = ecs_field(it, FlecsTerrain, 0);
+    const Weather *weather = ecs_field(it, Weather, 1);
+    WeatherAirTile *air = flecsEngine_terrain_getLayer(
+        world, e, TerrainAirIndex, WeatherAirTile);
+    int32_t width;
+    int32_t depth;
+    flecsEngine_terrainLayerDimensions(
+        t, TerrainAirIndex, &width, &depth);
+    if (!air || width <= 0 || depth <= 0) {
+        return;
+    }
+
+    int32_t scale = flecsEngine_terrainLayerScale(t, TerrainAirIndex);
+    float cell_size = t->cell_size > 0 ? t->cell_size : 1.0f;
+    biomeComputeAirPressure(
+        air, width, depth, t->width, t->depth, scale,
+        cell_size * cell_size, weather->gravity);
+
+    const WeatherWind *config = &weather->wind;
+    if (!config->enabled || config->acceleration <= 0 ||
+        it->delta_time <= 0)
+    {
+        return;
+    }
+    biomeComputeWind(
+        air, width, depth, weather->gravity, config->acceleration, config->drag,
+        config->max_velocity, it->delta_time);
+}
+
+void ApplyWind(ecs_iter_t *it) {
+    ecs_assert(it->count == 1, ECS_INVALID_OPERATION, "can only have one terrain");
+
+    ecs_world_t *world = it->world;
+    ecs_entity_t e = it->entities[0];
+    const FlecsTerrain *t = ecs_field(it, FlecsTerrain, 0);
+    const Weather *weather = ecs_field(it, Weather, 1);
+    WeatherBuffers *buffers = ecs_field(it, WeatherBuffers, 2);
+    if (!weather->wind.enabled || it->delta_time <= 0) {
+        return;
+    }
+
+    int32_t width;
+    int32_t depth;
+    flecsEngine_terrainLayerDimensions(
+        t, TerrainAirIndex, &width, &depth);
+    WeatherAirTile *air = flecsEngine_terrain_getLayer(
+        world, e, TerrainAirIndex, WeatherAirTile);
+    if (!air || width <= 0 || depth <= 0) {
+        return;
+    }
+
+    int32_t count = width * depth;
+    ecs_vec_set_count_t(
+        NULL, &buffers->air_buffer, WeatherAirTile, count);
+    WeatherAirTile *next = ecs_vec_first_t(
+        &buffers->air_buffer, WeatherAirTile);
+    float cell_size = t->cell_size > 0 ? t->cell_size : 1.0f;
+    int32_t scale = flecsEngine_terrainLayerScale(t, TerrainAirIndex);
+    biomeApplyWind(
+        air, next, width, depth, cell_size * (float)scale, it->delta_time);
+    biomeComputeAirPressure(
+        next, width, depth, t->width, t->depth, scale,
+        cell_size * cell_size, weather->gravity);
+    ecs_os_memcpy_n(air, next, WeatherAirTile, count);
 }
 
 void Evaporation(ecs_iter_t *it) {
@@ -600,6 +672,7 @@ void biomeWeatherImport(ecs_world_t *world) {
     ECS_META_COMPONENT(world, WeatherConfig);
     ECS_META_COMPONENT(world, WeatherInfiltration);
     ECS_META_COMPONENT(world, WeatherThermalExchange);
+    ECS_META_COMPONENT(world, WeatherWind);
     ECS_META_COMPONENT(world, WeatherEvaporation);
     ECS_META_COMPONENT(world, WeatherRadiativeBalance);
     ECS_META_COMPONENT(world, Weather);
@@ -646,6 +719,15 @@ void biomeWeatherImport(ecs_world_t *world) {
     ECS_SYSTEM(world, RadiativeBalance, EcsPostUpdate,
         [inout] FlecsTerrain,
         [in]    Weather);
+
+    ECS_SYSTEM(world, ComputeWind, EcsPostUpdate,
+        [inout] FlecsTerrain,
+        [in]    Weather);
+
+    ECS_SYSTEM(world, ApplyWind, EcsPostUpdate,
+        [inout] FlecsTerrain,
+        [in]    Weather,
+        [inout] WeatherBuffers);
 
     ECS_SYSTEM(world, WeatherComputeAggregate, EcsPreStore,
         [in]  FlecsTerrain,

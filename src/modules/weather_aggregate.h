@@ -69,28 +69,29 @@ void biomeWeatherComputeAggregate(
     }
 
     if (air && air_count > 0) {
-        float min_values[8] = {
+        float min_values[9] = {
             FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX,
-            FLT_MAX, FLT_MAX, FLT_MAX
+            FLT_MAX, FLT_MAX, FLT_MAX, FLT_MAX
         };
-        float max_values[8] = {
+        float max_values[9] = {
             -FLT_MAX, -FLT_MAX, -FLT_MAX, -FLT_MAX, -FLT_MAX,
-            -FLT_MAX, -FLT_MAX, -FLT_MAX
+            -FLT_MAX, -FLT_MAX, -FLT_MAX, -FLT_MAX
         };
-        double sums[8] = {0};
+        double sums[9] = {0};
         for (int32_t i = 0; i < air_count; i ++) {
             const WeatherAirTile *tile = &air[i];
-            float values[8] = {
+            float values[9] = {
                 tile->temperature,
                 tile->ghg_amount,
                 tile->o2_amount,
                 tile->vapor_amount,
                 tile->water,
+                tile->pressure,
                 tile->wind_velocity.x,
                 tile->wind_velocity.y,
                 tile->wind_velocity.z
             };
-            for (int32_t v = 0; v < 8; v ++) {
+            for (int32_t v = 0; v < 9; v ++) {
                 if (values[v] < min_values[v]) {
                     min_values[v] = values[v];
                 }
@@ -102,22 +103,22 @@ void biomeWeatherComputeAggregate(
         }
         result->air.min = (WeatherAirTile){
             min_values[0], min_values[1], min_values[2], min_values[3],
-            min_values[4],
-            { min_values[5], min_values[6], min_values[7] }
+            min_values[4], min_values[5],
+            { min_values[6], min_values[7], min_values[8] }
         };
         result->air.max = (WeatherAirTile){
             max_values[0], max_values[1], max_values[2], max_values[3],
-            max_values[4],
-            { max_values[5], max_values[6], max_values[7] }
+            max_values[4], max_values[5],
+            { max_values[6], max_values[7], max_values[8] }
         };
-        float averages[8];
-        for (int32_t v = 0; v < 8; v ++) {
+        float averages[9];
+        for (int32_t v = 0; v < 9; v ++) {
             averages[v] = (float)(sums[v] / air_count);
         }
         result->air.avg = (WeatherAirTile){
             averages[0], averages[1], averages[2], averages[3],
-            averages[4],
-            { averages[5], averages[6], averages[7] }
+            averages[4], averages[5],
+            { averages[6], averages[7], averages[8] }
         };
     }
 }
