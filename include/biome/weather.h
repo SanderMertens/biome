@@ -55,6 +55,13 @@ ECS_STRUCT(WeatherThermalExchange, {
     float rate;
 });
 
+ECS_STRUCT(WeatherEvaporation, {
+    bool enabled;
+    float surface_water_rate;
+    float ground_moisture_rate;
+    float evaporative_cooling;
+});
+
 ECS_STRUCT(WeatherRadiativeBalance, {
     bool enabled;
     float radiative_cooling;
@@ -66,6 +73,7 @@ ECS_STRUCT(Weather, {
     float stellar_intensity;
     WeatherInfiltration infiltration;
     WeatherThermalExchange thermal_exchange;
+    WeatherEvaporation evaporation;
     WeatherRadiativeBalance radiative_balance;
 });
 

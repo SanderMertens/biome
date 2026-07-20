@@ -68,6 +68,12 @@ $ {
             max_infiltration_rate: 100
             ground_moisture_capacity: 100000
         }
+        evaporation: {
+            enabled: true
+            surface_water_rate: 0.0000347
+            ground_moisture_rate: 0.0000116
+            evaporative_cooling: 1
+        }
         radiative_balance: {
             enabled: true
             radiative_cooling: 0.01

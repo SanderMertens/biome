@@ -1,4 +1,5 @@
 #include <biome.h>
+#include "../../src/modules/evaporation.h"
 #include "../../src/modules/radiative_balance.h"
 #include "../../src/modules/thermal_exchange.h"
 #include "../../src/modules/weather_ocean.h"
@@ -64,6 +65,34 @@ void Weather_thermal_exchange(void) {
 
     test_flt(next_air[0].temperature, 0.0f);
     test_flt(next_air[1].temperature, 20.0f);
+}
+
+void Weather_evaporation(void) {
+    float area = 900.0f;
+    float saturation = biomeSaturationVaporDensity(20.0f) *
+        area * BiomeEvaporationMixingHeight;
+
+    test_assert(saturation > 15000.0f);
+    test_assert(saturation < 16000.0f);
+    test_flt(biomeSaturationVaporCapacity(20.0f, area), saturation);
+    test_flt(biomeEvaporationHumidityFactor(0, 20.0f, area), 1.0f);
+    test_flt(
+        biomeEvaporationHumidityFactor(saturation * 0.5f, 20.0f, area),
+        0.5f);
+    test_flt(
+        biomeEvaporationHumidityFactor(saturation, 20.0f, area),
+        0.0f);
+    test_assert(
+        biomeEvaporationTemperatureFactor(30.0f) >
+        biomeEvaporationTemperatureFactor(20.0f));
+    test_flt(biomeEvaporationTemperatureFactor(0.0f), 0.0f);
+    test_assert(biomeEvaporativeCooling(1.0f, 4184.0f, 1.0f) > 500.0f);
+    test_flt(biomeEvaporativeCooling(1.0f, 4184.0f, 0.0f), 0.0f);
+    test_flt(
+        biomeEvaporationEnergyLimit(20.0f, 4184.0f, 1.0f),
+        20.0f * 4184.0f / BiomeEvaporationLatentHeat);
+    test_assert(isinf(
+        biomeEvaporationEnergyLimit(20.0f, 4184.0f, 0.0f)));
 }
 
 void Weather_radiative_balance(void) {
