@@ -16,6 +16,7 @@ ECS_STRUCT(BiomePower, {
 /* Dynamic power configuration power consumers */
 ECS_STRUCT(BiomePowerConsumer, {
     bool powered;
+    uint32_t network;
 });
 
 /* Dynamic power configuration power providers */

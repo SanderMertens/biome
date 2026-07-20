@@ -53,6 +53,19 @@ static bool biome_logistics_entityPowered(
     return !power || power->powered;
 }
 
+static bool biome_logistics_sameNetwork(
+    const ecs_world_t *world,
+    ecs_entity_t first,
+    ecs_entity_t second)
+{
+    const BiomePowerConsumer *first_power = ecs_get(
+        world, first, BiomePowerConsumer);
+    const BiomePowerConsumer *second_power = ecs_get(
+        world, second, BiomePowerConsumer);
+    return first_power && second_power && first_power->network &&
+        first_power->network == second_power->network;
+}
+
 static bool biome_logistics_playerFits(
     ecs_world_t *world,
     const BiomeLogisticsPlayerAttrs *attrs,
@@ -291,6 +304,28 @@ static bool biome_logistics_acceptRequestWithAttrs(
     return true;
 }
 
+static bool biome_logistics_acceptRequestForCarrier(
+    ecs_world_t *world,
+    const BiomeLogisticsPlayerAttrs *attrs,
+    ecs_entity_t request_entity,
+    const BiomeLogisticsCarrier *carrier,
+    ecs_vec_t *accepted,
+    BiomeLogisticsJob *job)
+{
+    BiomeLogisticsRequest request;
+    if (!carrier || !carrier->home ||
+        !biome_logistics_getRequest(world, request_entity, &request) ||
+        !biome_logistics_sameNetwork(
+            world, carrier->home, request.source))
+    {
+        ecs_vec_clear(accepted);
+        return false;
+    }
+
+    return biome_logistics_acceptRequestWithAttrs(
+        world, attrs, request_entity, carrier->storage, accepted, job);
+}
+
 static bool biome_logistics_acceptRequest(
     ecs_world_t *world,
     ecs_entity_t request_entity,
@@ -396,7 +431,6 @@ static void BiomeLogisticsDispatch(ecs_iter_t *it) {
     BiomeLogisticsPlayerAttrs attrs =
         biome_logistics_playerAttrs(it->world);
 
-    int32_t request_index = 0;
     int32_t request_count = 0;
     ecs_entity_t *request_entities = NULL;
     bool requests_collected = false;
@@ -410,16 +444,10 @@ static void BiomeLogisticsDispatch(ecs_iter_t *it) {
             requests_collected = true;
         }
 
-        if (request_index >= request_count) {
-            continue;
-        }
-
         BiomeLogisticsWaiter *waiters = ecs_field(
             it, BiomeLogisticsWaiter, 0);
 
-        for (int32_t i = 0;
-            i < it->count && request_index < request_count;
-            i ++)
+        for (int32_t i = 0; i < it->count; i ++)
         {
             const BiomeLogisticsCarrier *carrier = ecs_get(
                 it->world, it->entities[i], BiomeLogisticsCarrier);
@@ -433,11 +461,10 @@ static void BiomeLogisticsDispatch(ecs_iter_t *it) {
 
             BiomeLogisticsJob job;
             ecs_entity_t request = 0;
-            while (request_index < request_count) {
-                ecs_entity_t candidate =
-                    request_entities[request_index ++];
-                if (biome_logistics_acceptRequestWithAttrs(
-                    it->world, &attrs, candidate, carrier->storage,
+            for (int32_t r = 0; r < request_count; r ++) {
+                ecs_entity_t candidate = request_entities[r];
+                if (biome_logistics_acceptRequestForCarrier(
+                    it->world, &attrs, candidate, carrier,
                     &accepted, &job))
                 {
                     request = candidate;
@@ -445,7 +472,7 @@ static void BiomeLogisticsDispatch(ecs_iter_t *it) {
                 }
             }
             if (!request) {
-                break;
+                continue;
             }
 
             ecs_value_t value = {

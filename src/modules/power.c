@@ -267,13 +267,15 @@ static void biome_power_flood(
 static void biome_power_setPowered(
     ecs_world_t *world,
     ecs_entity_t e,
-    bool powered)
+    bool powered,
+    uint32_t network)
 {
     BiomePowerConsumer *c = ecs_get_mut(world, e, BiomePowerConsumer);
     if (c) {
         c->powered = powered;
+        c->network = network;
     } else {
-        ecs_set(world, e, BiomePowerConsumer, { powered });
+        ecs_set(world, e, BiomePowerConsumer, { powered, network });
     }
 }
 
@@ -419,7 +421,7 @@ static bool biome_power_rebuild(
                 c->distance = best;
                 c->demand = power->demand;
             } else {
-                biome_power_setPowered(world, e, false);
+                biome_power_setPowered(world, e, false, 0);
             }
         }
     }
@@ -470,7 +472,8 @@ static void biome_power_distribute(
                 budget -= consumers[c].demand;
             }
 
-            biome_power_setPowered(world, consumers[c].entity, powered);
+            biome_power_setPowered(
+                world, consumers[c].entity, powered, (uint32_t)n + 1);
         }
 
         total_production += net->production;

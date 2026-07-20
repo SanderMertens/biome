@@ -24,6 +24,7 @@ void Logistics_combine_pickup_requests(void);
 void Logistics_combine_dropoff_requests(void);
 void Logistics_combine_matching_resources_only(void);
 void Logistics_dispatch_finishes_iterator(void);
+void Logistics_same_power_network_only(void);
 void Logistics_player_storage_transfer(void);
 void Logistics_player_storage_capacity(void);
 void Logistics_closest_storage(void);
@@ -91,6 +92,10 @@ bake_test_case Logistics_testcases[] = {
         Logistics_dispatch_finishes_iterator
     },
     {
+        "same_power_network_only",
+        Logistics_same_power_network_only
+    },
+    {
         "player_storage_transfer",
         Logistics_player_storage_transfer
     },
@@ -152,7 +157,7 @@ static bake_test_suite suites[] = {
         "Logistics",
         NULL,
         NULL,
-        10,
+        11,
         Logistics_testcases
     },
     {

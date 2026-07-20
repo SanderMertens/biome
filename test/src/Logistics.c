@@ -142,6 +142,7 @@ void Logistics_setupWorld(ecs_world_t *world) {
 
     ECS_COMPONENT_DEFINE(world, BiomeFactory);
     ECS_COMPONENT_DEFINE(world, BiomePowerConsumer);
+    ECS_COMPONENT_DEFINE(world, BiomeLogisticsCarrier);
     ECS_COMPONENT_DEFINE(world, BiomeResourceStorageDesc);
     ECS_COMPONENT_DEFINE(world, BiomeResourceStorage);
     ECS_COMPONENT_DEFINE(world, BiomeResource);
@@ -643,6 +644,55 @@ void Logistics_dispatch_finishes_iterator(void) {
         world, waiter_b, BiomeLogisticsWaiter));
 
     ecs_query_fini(query);
+    ecs_fini(world);
+}
+
+void Logistics_same_power_network_only(void) {
+    ecs_world_t *world = Logistics_world();
+
+    ecs_entity_t resource = ecs_new(world);
+    ecs_entity_t home = ecs_new(world);
+    ecs_entity_t other_home = ecs_new(world);
+    ecs_entity_t source = Logistics_storage(
+        world, BiomeResourceStorageKindSource, 100);
+    ecs_entity_t storage = Logistics_playerStorage(
+        world, resource, 100);
+
+    ecs_set(world, home, BiomePowerConsumer, {true, 1});
+    ecs_set(world, other_home, BiomePowerConsumer, {true, 2});
+    ecs_set(world, source, BiomePowerConsumer, {true, 1});
+    Logistics_setResource(world, source, resource, 20);
+    biome_logistics_postRequest(
+        world, BiomeRequestPickup, source, resource, 20, 0);
+
+    BiomeLogisticsCarrier carrier = {other_home, storage};
+    BiomeLogisticsPlayerAttrs attrs =
+        biome_logistics_playerAttrs(world);
+    ecs_vec_t accepted;
+    ecs_vec_init_t(NULL, &accepted, ecs_entity_t, 0);
+    BiomeLogisticsJob job;
+    ecs_entity_t request = Logistics_request(world, source, 0);
+
+    test_assert(!biome_logistics_acceptRequestForCarrier(
+        world, &attrs, request, &carrier, &accepted, &job));
+    test_int(ecs_vec_count(&accepted), 0);
+
+    carrier.home = home;
+    test_assert(biome_logistics_acceptRequestForCarrier(
+        world, &attrs, request, &carrier, &accepted, &job));
+    test_int(ecs_vec_count(&accepted), 1);
+    test_uint(job.src, source);
+    test_uint(job.dst, storage);
+
+    ecs_set(world, source, BiomePowerConsumer, {false, 0});
+    test_assert(!biome_logistics_acceptRequestForCarrier(
+        world, &attrs, request, &carrier, &accepted, &job));
+    test_int(ecs_vec_count(&accepted), 0);
+
+    ecs_vec_fini_t(NULL, &accepted, ecs_entity_t);
+    Logistics_deleteRequests(world, source);
+    Logistics_storageFini(world, source);
+    Logistics_storageFini(world, storage);
     ecs_fini(world);
 }
 
