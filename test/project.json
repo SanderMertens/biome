@@ -13,7 +13,8 @@
             {
                 "id": "Weather",
                 "testcases": [
-                    "thermal_exchange"
+                    "thermal_exchange",
+                    "radiative_balance"
                 ]
             },
             {

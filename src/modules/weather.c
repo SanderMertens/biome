@@ -1,6 +1,7 @@
 #define BIOME_WEATHER_IMPL
 
 #include "biome.h"
+#include "radiative_balance.h"
 #include "thermal_exchange.h"
 
 void WeatherInit(ecs_iter_t *it) {
@@ -255,6 +256,54 @@ void ThermalExchange(ecs_iter_t *it) {
     ecs_os_memcpy_n(air, next_air, WeatherAirTile, ground_count);
 }
 
+void RadiativeBalance(ecs_iter_t *it) {
+    ecs_assert(it->count == 1, ECS_INVALID_OPERATION, "can only have one terrain");
+
+    ecs_world_t *world = it->world;
+    ecs_entity_t e = it->entities[0];
+    const FlecsTerrain *t = ecs_field(it, FlecsTerrain, 0);
+    const Weather *weather = ecs_field(it, Weather, 1);
+    const WeatherRadiativeBalance *config = &weather->radiative_balance;
+    if (!config->enabled || it->delta_time <= 0) {
+        return;
+    }
+
+    int32_t ground_width;
+    int32_t ground_depth;
+    int32_t water_width;
+    int32_t water_depth;
+    flecsEngine_terrainLayerDimensions(
+        t, TerrainGroundIndex, &ground_width, &ground_depth);
+    flecsEngine_terrainLayerDimensions(
+        t, TerrainWaterIndex, &water_width, &water_depth);
+    if (ground_width <= 0 || ground_depth <= 0) {
+        return;
+    }
+
+    WeatherGroundTile *ground = flecsEngine_terrain_getLayer(
+        world, e, TerrainGroundIndex, WeatherGroundTile);
+    WeatherWaterTile *water = flecsEngine_terrain_getLayer(
+        world, e, TerrainWaterIndex, WeatherWaterTile);
+    const WeatherAirTile *air = flecsEngine_terrain_getLayer(
+        world, e, TerrainAirIndex, WeatherAirTile);
+    if (!ground || !air) {
+        return;
+    }
+
+    biomeRadiativeBalanceSurface(
+        ground,
+        water,
+        air,
+        ground_width,
+        ground_depth,
+        water_width,
+        water_depth,
+        flecsEngine_terrainLayerScale(t, TerrainGroundIndex),
+        weather->stellar_intensity,
+        config,
+        it->delta_time);
+}
+
 static void WeatherBuffers_fini(
     WeatherBuffers *ptr)
 {
@@ -304,6 +353,7 @@ void biomeWeatherImport(ecs_world_t *world) {
     ECS_META_COMPONENT(world, WeatherConfig);
     ECS_META_COMPONENT(world, WeatherInfiltration);
     ECS_META_COMPONENT(world, WeatherThermalExchange);
+    ECS_META_COMPONENT(world, WeatherRadiativeBalance);
     ECS_META_COMPONENT(world, Weather);
     ECS_META_COMPONENT(world, WeatherBuffers);
 
@@ -332,4 +382,8 @@ void biomeWeatherImport(ecs_world_t *world) {
         [inout] FlecsTerrain,
         [in]    Weather,
         [inout] WeatherBuffers);
+
+    ECS_SYSTEM(world, RadiativeBalance, EcsPostUpdate,
+        [inout] FlecsTerrain,
+        [in]    Weather);
 }

@@ -10,6 +10,7 @@
 
 // Testsuite 'Weather'
 void Weather_thermal_exchange(void);
+void Weather_radiative_balance(void);
 
 // Testsuite 'Logistics'
 void Logistics_first_come_first_serve(void);
@@ -36,6 +37,10 @@ bake_test_case Weather_testcases[] = {
     {
         "thermal_exchange",
         Weather_thermal_exchange
+    },
+    {
+        "radiative_balance",
+        Weather_radiative_balance
     }
 };
 
@@ -112,7 +117,7 @@ static bake_test_suite suites[] = {
         "Weather",
         NULL,
         NULL,
-        1,
+        2,
         Weather_testcases
     },
     {

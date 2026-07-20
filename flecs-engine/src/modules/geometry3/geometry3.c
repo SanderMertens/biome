@@ -611,12 +611,6 @@ void FlecsEngineGeometry3Import(
     ecs_struct(world, {
         .entity = ecs_id(FlecsMesh3),
         .members = {
-            { .name = "vertices", .type = flecsEngine_vecVec3(world) },
-            { .name = "normals", .type = flecsEngine_vecVec3(world) },
-            { .name = "uvs", .type = flecsEngine_vecVec2(world) },
-            { .name = "indices", .type = flecsEngine_vecU16(world) },
-            { .name = "colors", .type = flecsEngine_vecRgba(world),
-              .offset = offsetof(FlecsMesh3, colors) },
             { .name = "shadow_sink", .type = ecs_id(ecs_f32_t),
               .offset = offsetof(FlecsMesh3, shadow_sink) }
         }

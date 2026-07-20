@@ -54,9 +54,18 @@ ECS_STRUCT(WeatherThermalExchange, {
     float rate;
 });
 
+ECS_STRUCT(WeatherRadiativeBalance, {
+    bool enabled;
+    float radiative_cooling;
+    float stellar_heating;
+    float greenhouse_effect;
+});
+
 ECS_STRUCT(Weather, {
+    float stellar_intensity;
     WeatherInfiltration infiltration;
     WeatherThermalExchange thermal_exchange;
+    WeatherRadiativeBalance radiative_balance;
 });
 
 /* Contains buffers for double-buffering weather updates. These have the same
