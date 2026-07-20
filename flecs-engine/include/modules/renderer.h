@@ -108,4 +108,9 @@ void flecsEngine_renderBatchSetInsertBefore(
     ecs_entity_t batch,
     ecs_entity_t before);
 
+void flecsEngine_renderBatchSetDepthWrite(
+    ecs_world_t *world,
+    ecs_entity_t batch,
+    bool enabled);
+
 #endif

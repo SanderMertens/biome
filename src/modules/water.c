@@ -117,6 +117,68 @@ static void biomeWaterNormal(
     *result = (flecs_vec3_t){nx / length, 1.0f / length, nz / length};
 }
 
+static void biomeWaterEmitSide(
+    flecs_vec3_t *vertices,
+    flecs_vec3_t *normals,
+    flecs_vec2_t *uvs,
+    uint32_t *indices,
+    int32_t *vertex_index,
+    int32_t *index,
+    flecs_vec3_t top_a,
+    flecs_vec3_t top_b,
+    float bottom_a_height,
+    float bottom_b_height,
+    flecs_vec3_t normal,
+    float water_depth,
+    float temperature)
+{
+    int32_t v = *vertex_index;
+    if (bottom_a_height > top_a.y) {
+        bottom_a_height = top_a.y;
+    }
+    if (bottom_b_height > top_b.y) {
+        bottom_b_height = top_b.y;
+    }
+    flecs_vec3_t bottom_a = {top_a.x, bottom_a_height, top_a.z};
+    flecs_vec3_t bottom_b = {top_b.x, bottom_b_height, top_b.z};
+    vertices[v] = top_a;
+    vertices[v + 1] = top_b;
+    vertices[v + 2] = bottom_b;
+    vertices[v + 3] = bottom_a;
+    for (int32_t i = 0; i < 4; i ++) {
+        normals[v + i] = normal;
+        uvs[v + i] = (flecs_vec2_t){water_depth, temperature};
+    }
+
+    flecs_vec3_t ab = {
+        top_b.x - top_a.x,
+        top_b.y - top_a.y,
+        top_b.z - top_a.z
+    };
+    flecs_vec3_t ac = {
+        bottom_b.x - top_a.x,
+        bottom_b.y - top_a.y,
+        bottom_b.z - top_a.z
+    };
+    flecs_vec3_t face_normal = {
+        ab.y * ac.z - ab.z * ac.y,
+        ab.z * ac.x - ab.x * ac.z,
+        ab.x * ac.y - ab.y * ac.x
+    };
+    bool reverse =
+        face_normal.x * normal.x +
+        face_normal.y * normal.y +
+        face_normal.z * normal.z < 0;
+    indices[*index] = (uint32_t)v;
+    indices[*index + 1] = (uint32_t)(v + (reverse ? 2 : 1));
+    indices[*index + 2] = (uint32_t)(v + (reverse ? 1 : 2));
+    indices[*index + 3] = (uint32_t)v;
+    indices[*index + 4] = (uint32_t)(v + (reverse ? 3 : 2));
+    indices[*index + 5] = (uint32_t)(v + (reverse ? 2 : 3));
+    *vertex_index += 4;
+    *index += 6;
+}
+
 static void biomeWaterEnsureAsset(
     ecs_world_t *world,
     ecs_entity_t terrain,
@@ -240,23 +302,32 @@ static void biomeWaterBuildMesh(
     }
 
     int32_t wet_count = 0;
+    int32_t edge_count = 0;
     for (int32_t i = 0; i < width * depth; i ++) {
         float amount = water[i].water_amount;
         if (amount > 0) {
             wet_count ++;
         }
     }
+    for (int32_t x = 0; x < width; x ++) {
+        edge_count += water[x].water_amount > 0;
+        edge_count += water[(depth - 1) * width + x].water_amount > 0;
+    }
+    for (int32_t z = 0; z < depth; z ++) {
+        edge_count += water[z * width].water_amount > 0;
+        edge_count += water[z * width + width - 1].water_amount > 0;
+    }
 
     biomeWaterEnsureAsset(world, terrain_entity, state);
     FlecsMesh3 *mesh = ecs_ensure(world, state->asset, FlecsMesh3);
     ecs_vec_set_count_t(
-        NULL, &mesh->vertices, flecs_vec3_t, corner_count);
+        NULL, &mesh->vertices, flecs_vec3_t, corner_count + edge_count * 4);
     ecs_vec_set_count_t(
-        NULL, &mesh->normals, flecs_vec3_t, corner_count);
+        NULL, &mesh->normals, flecs_vec3_t, corner_count + edge_count * 4);
     ecs_vec_set_count_t(
-        NULL, &mesh->uvs, flecs_vec2_t, corner_count);
+        NULL, &mesh->uvs, flecs_vec2_t, corner_count + edge_count * 4);
     ecs_vec_set_count_t(
-        NULL, &mesh->indices, uint32_t, wet_count * 6);
+        NULL, &mesh->indices, uint32_t, (wet_count + edge_count) * 6);
     ecs_vec_set_count_t(NULL, &mesh->colors, flecs_rgba_t, 0);
 
     flecs_vec3_t *vertices = ecs_vec_first_t(
@@ -284,8 +355,6 @@ static void biomeWaterBuildMesh(
             };
         }
     }
-    ecs_os_free(shore_depth);
-    ecs_os_free(temperature);
 
     int32_t index = 0;
     for (int32_t z = 0; z < depth; z ++) {
@@ -320,6 +389,62 @@ static void biomeWaterBuildMesh(
         }
     }
 
+    int32_t vertex_index = corner_count;
+    for (int32_t x = 0; x < width; x ++) {
+        int32_t cell = x;
+        if (water[cell].water_amount > 0) {
+            int32_t a = x;
+            int32_t b = x + 1;
+            biomeWaterEmitSide(
+                vertices, normals, uvs, indices, &vertex_index, &index,
+                vertices[a], vertices[b],
+                terrain_height[a], terrain_height[b],
+                (flecs_vec3_t){0, 0, -1},
+                water[cell].water_amount / (density * tile_area),
+                water[cell].temperature);
+        }
+        cell = (depth - 1) * width + x;
+        if (water[cell].water_amount > 0) {
+            int32_t a = depth * stride + x;
+            int32_t b = a + 1;
+            biomeWaterEmitSide(
+                vertices, normals, uvs, indices, &vertex_index, &index,
+                vertices[a], vertices[b],
+                terrain_height[a], terrain_height[b],
+                (flecs_vec3_t){0, 0, 1},
+                water[cell].water_amount / (density * tile_area),
+                water[cell].temperature);
+        }
+    }
+    for (int32_t z = 0; z < depth; z ++) {
+        int32_t cell = z * width;
+        if (water[cell].water_amount > 0) {
+            int32_t a = z * stride;
+            int32_t b = (z + 1) * stride;
+            biomeWaterEmitSide(
+                vertices, normals, uvs, indices, &vertex_index, &index,
+                vertices[a], vertices[b],
+                terrain_height[a], terrain_height[b],
+                (flecs_vec3_t){-1, 0, 0},
+                water[cell].water_amount / (density * tile_area),
+                water[cell].temperature);
+        }
+        cell = z * width + width - 1;
+        if (water[cell].water_amount > 0) {
+            int32_t a = z * stride + width;
+            int32_t b = (z + 1) * stride + width;
+            biomeWaterEmitSide(
+                vertices, normals, uvs, indices, &vertex_index, &index,
+                vertices[a], vertices[b],
+                terrain_height[a], terrain_height[b],
+                (flecs_vec3_t){1, 0, 0},
+                water[cell].water_amount / (density * tile_area),
+                water[cell].temperature);
+        }
+    }
+
+    ecs_os_free(shore_depth);
+    ecs_os_free(temperature);
     ecs_os_free(surface);
     ecs_modified(world, state->asset, FlecsMesh3);
     biomeWaterEnsureInstance(world, terrain_entity, state, shader);
@@ -565,6 +690,7 @@ void biomeWaterConfigureRenderer(
                     world, geometry, "WaterShader",
                     render->shader, true);
             }
+            flecsEngine_renderBatchSetDepthWrite(world, batch, true);
             ecs_entity_t transparent = ecs_lookup_child(
                 world, geometry, "TransparentMeshes");
             flecsEngine_renderBatchSetInsertBefore(

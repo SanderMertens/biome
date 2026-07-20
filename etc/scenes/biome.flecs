@@ -44,17 +44,17 @@ $ {
         ocean_octaves: 2
         ocean_level: 0.45
         ocean_shore_width: 0.04
-        ocean_depth: 32
+        ocean_depth: 16
     }
 
     weather.Config: {
         sun: sky.sun
 
-        seed_ground: {temperature: -5, moisture_amount: 5000}
-        seed_water: {temperature: 0, water_amount: 0}
-        seed_air: {temperature: -5, vapor_amount: 1}
+        seed_ground: {temperature: 20, moisture_amount: 0}
+        seed_water: {temperature: 20, water_amount: 0}
+        seed_air: {temperature: 20, vapor_amount: 0}
         seed_variation: 1
-        ocean_level: 0
+        ocean_level: -1
     }
 
     weather.Weather: {
@@ -70,7 +70,7 @@ $ {
         }
         radiative_balance: {
             enabled: true
-            radiative_cooling: 0.1
+            radiative_cooling: 0.01
             stellar_heating: 0.002
             greenhouse_effect: 0.1
         }

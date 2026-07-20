@@ -74,6 +74,20 @@ void flecsEngine_renderBatchSetInsertBefore(
     ecs_modified(world, batch_set, FlecsRenderBatchSet);
 }
 
+void flecsEngine_renderBatchSetDepthWrite(
+    ecs_world_t *world,
+    ecs_entity_t batch,
+    bool enabled)
+{
+    FlecsRenderBatch *render_batch = ecs_get_mut(
+        world, batch, FlecsRenderBatch);
+    if (!render_batch || render_batch->depth_write == enabled) {
+        return;
+    }
+    render_batch->depth_write = enabled;
+    ecs_modified(world, batch, FlecsRenderBatch);
+}
+
 bool flecsEngine_renderBatchSet_hasTransmission(
     ecs_world_t *world,
     FlecsEngineImpl *engine,
