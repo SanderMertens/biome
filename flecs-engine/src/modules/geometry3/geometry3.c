@@ -504,6 +504,68 @@ void flecsEngine_mesh3_updateColorRange(
         (size_t)count * sizeof(flecs_rgba_t));
 }
 
+void flecsEngine_mesh3_updateVertices(
+    ecs_world_t *world,
+    ecs_entity_t mesh_entity)
+{
+    const FlecsMesh3 *mesh = ecs_get(world, mesh_entity, FlecsMesh3);
+    FlecsMesh3Impl *mesh_impl = ecs_get_mut(
+        world, mesh_entity, FlecsMesh3Impl);
+    int32_t vertex_count = mesh
+        ? ecs_vec_count(&mesh->vertices)
+        : 0;
+    if (!mesh || !mesh_impl ||
+        vertex_count != mesh_impl->vertex_count ||
+        !mesh_impl->vertex_buffer ||
+        !mesh_impl->vertex_uv_buffer)
+    {
+        ecs_modified(world, mesh_entity, FlecsMesh3);
+        return;
+    }
+
+    const FlecsEngineImpl *impl = ecs_singleton_get(world, FlecsEngineImpl);
+    ecs_assert(impl != NULL, ECS_INVALID_OPERATION, NULL);
+    const flecs_vec3_t *vertices = ecs_vec_first_t(
+        &mesh->vertices, flecs_vec3_t);
+    const flecs_vec3_t *normals = ecs_vec_count(&mesh->normals) == vertex_count
+        ? ecs_vec_first_t(&mesh->normals, flecs_vec3_t)
+        : NULL;
+    const flecs_vec2_t *uvs = ecs_vec_count(&mesh->uvs) == vertex_count
+        ? ecs_vec_first_t(&mesh->uvs, flecs_vec2_t)
+        : NULL;
+    const flecs_vec4_t *tangents =
+        ecs_vec_count(&mesh->tangents) == vertex_count
+            ? ecs_vec_first_t(&mesh->tangents, flecs_vec4_t)
+            : NULL;
+    FlecsGpuVertex *position_vertices = ecs_os_malloc_n(
+        FlecsGpuVertex, vertex_count);
+    FlecsGpuVertexLitUv *lit_vertices = ecs_os_malloc_n(
+        FlecsGpuVertexLitUv, vertex_count);
+
+    for (int32_t i = 0; i < vertex_count; i ++) {
+        position_vertices[i].p = vertices[i];
+        lit_vertices[i].p = vertices[i];
+        lit_vertices[i].n = normals
+            ? normals[i]
+            : (flecs_vec3_t){0, 1, 0};
+        lit_vertices[i].uv = uvs
+            ? uvs[i]
+            : (flecs_vec2_t){0};
+        lit_vertices[i].t = tangents
+            ? tangents[i]
+            : (flecs_vec4_t){0};
+    }
+
+    wgpuQueueWriteBuffer(
+        impl->queue, mesh_impl->vertex_buffer, 0, position_vertices,
+        (size_t)vertex_count * sizeof(FlecsGpuVertex));
+    wgpuQueueWriteBuffer(
+        impl->queue, mesh_impl->vertex_uv_buffer, 0, lit_vertices,
+        (size_t)vertex_count * sizeof(FlecsGpuVertexLitUv));
+    ecs_os_free(position_vertices);
+    ecs_os_free(lit_vertices);
+}
+
 ecs_entity_t flecsEngine_geometry3_createAsset(
     ecs_world_t *world,
     FlecsGeometry3Cache *ctx,

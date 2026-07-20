@@ -41,6 +41,39 @@ void flecsEngine_renderBatchSetAppend(
     ecs_modified(world, batch_set, FlecsRenderBatchSet);
 }
 
+void flecsEngine_renderBatchSetInsertBefore(
+    ecs_world_t *world,
+    ecs_entity_t batch_set,
+    ecs_entity_t batch,
+    ecs_entity_t before)
+{
+    FlecsRenderBatchSet *set = ecs_ensure(
+        world, batch_set, FlecsRenderBatchSet);
+    int32_t count = ecs_vec_count(&set->batches);
+    ecs_entity_t *batches = ecs_vec_first_t(
+        &set->batches, ecs_entity_t);
+    int32_t insert = count;
+    for (int32_t i = 0; i < count; i ++) {
+        if (batches[i] == batch) {
+            return;
+        }
+        if (batches[i] == before) {
+            insert = i;
+        }
+    }
+
+    ecs_vec_append_t(NULL, &set->batches, ecs_entity_t)[0] = batch;
+    batches = ecs_vec_first_t(&set->batches, ecs_entity_t);
+    if (insert < count) {
+        ecs_os_memmove(
+            &batches[insert + 1],
+            &batches[insert],
+            (ecs_size_t)(count - insert) * ECS_SIZEOF(ecs_entity_t));
+        batches[insert] = batch;
+    }
+    ecs_modified(world, batch_set, FlecsRenderBatchSet);
+}
+
 bool flecsEngine_renderBatchSet_hasTransmission(
     ecs_world_t *world,
     FlecsEngineImpl *engine,

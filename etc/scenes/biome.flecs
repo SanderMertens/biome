@@ -57,6 +57,10 @@ $ {
     }
 
     weather.Weather: {
+        thermal_exchange: {
+            enabled: true
+            rate: 1
+        }
         infiltration: {
             enabled: true
             max_infiltration_rate: 100

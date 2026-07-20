@@ -32,6 +32,10 @@ void flecsEngine_mesh3_updateColorRange(
     int32_t first,
     int32_t count);
 
+void flecsEngine_mesh3_updateVertices(
+    ecs_world_t *world,
+    ecs_entity_t mesh_entity);
+
 bool flecsEngine_objectWorldAABB(
     const ecs_world_t *world,
     ecs_entity_t entity,

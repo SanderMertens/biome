@@ -49,8 +49,14 @@ ECS_STRUCT(WeatherInfiltration, {
     float ground_moisture_capacity;
 });
 
+ECS_STRUCT(WeatherThermalExchange, {
+    bool enabled;
+    float rate;
+});
+
 ECS_STRUCT(Weather, {
     WeatherInfiltration infiltration;
+    WeatherThermalExchange thermal_exchange;
 });
 
 /* Contains buffers for double-buffering weather updates. These have the same

@@ -565,8 +565,10 @@ void biomeWaterConfigureRenderer(
                     world, geometry, "WaterShader",
                     render->shader, true);
             }
-            flecsEngine_renderBatchSetAppend(
-                world, geometry, batch);
+            ecs_entity_t transparent = ecs_lookup_child(
+                world, geometry, "TransparentMeshes");
+            flecsEngine_renderBatchSetInsertBefore(
+                world, geometry, batch, transparent);
         }
     }
 }

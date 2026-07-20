@@ -1,6 +1,7 @@
 #define BIOME_WEATHER_IMPL
 
 #include "biome.h"
+#include "thermal_exchange.h"
 
 void WeatherInit(ecs_iter_t *it) {
     ecs_assert(it->count == 1, ECS_INVALID_OPERATION, "can only have one terrain");
@@ -184,6 +185,76 @@ void WeatherUpdate(ecs_iter_t *it) {
     }
 }
 
+void ThermalExchange(ecs_iter_t *it) {
+    ecs_assert(it->count == 1, ECS_INVALID_OPERATION, "can only have one terrain");
+
+    ecs_world_t *world = it->world;
+    ecs_entity_t e = it->entities[0];
+    const FlecsTerrain *t = ecs_field(it, FlecsTerrain, 0);
+    const Weather *weather = ecs_field(it, Weather, 1);
+    WeatherBuffers *buffers = ecs_field(it, WeatherBuffers, 2);
+    float rate = weather->thermal_exchange.rate;
+    if (!weather->thermal_exchange.enabled || rate <= 0 ||
+        it->delta_time <= 0)
+    {
+        return;
+    }
+
+    int32_t ground_w;
+    int32_t ground_d;
+    int32_t water_w;
+    int32_t water_d;
+    flecsEngine_terrainLayerDimensions(
+        t, TerrainGroundIndex, &ground_w, &ground_d);
+    flecsEngine_terrainLayerDimensions(
+        t, TerrainWaterIndex, &water_w, &water_d);
+    if (ground_w <= 0 || ground_d <= 0 ||
+        water_w <= 0 || water_d <= 0)
+    {
+        return;
+    }
+
+    WeatherGroundTile *ground = flecsEngine_terrain_getLayer(
+        world, e, TerrainGroundIndex, WeatherGroundTile);
+    WeatherWaterTile *water = flecsEngine_terrain_getLayer(
+        world, e, TerrainWaterIndex, WeatherWaterTile);
+    WeatherAirTile *air = flecsEngine_terrain_getLayer(
+        world, e, TerrainAirIndex, WeatherAirTile);
+    if (!ground || !water || !air) {
+        return;
+    }
+
+    int32_t ground_count = ground_w * ground_d;
+    int32_t water_count = water_w * water_d;
+    ecs_vec_set_count_t(
+        NULL, &buffers->ground_buffer, WeatherGroundTile, ground_count);
+    ecs_vec_set_count_t(
+        NULL, &buffers->water_buffer, WeatherWaterTile, water_count);
+    ecs_vec_set_count_t(
+        NULL, &buffers->air_buffer, WeatherAirTile, ground_count);
+
+    WeatherGroundTile *next_ground = ecs_vec_first_t(
+        &buffers->ground_buffer, WeatherGroundTile);
+    WeatherWaterTile *next_water = ecs_vec_first_t(
+        &buffers->water_buffer, WeatherWaterTile);
+    WeatherAirTile *next_air = ecs_vec_first_t(
+        &buffers->air_buffer, WeatherAirTile);
+
+    biomeGroundThermalExchange(
+        ground, next_ground, ground_w, ground_d,
+        biomeThermalExchangeFactor(0.05f * rate, it->delta_time));
+    biomeWaterThermalExchange(
+        water, next_water, water_w, water_d,
+        biomeThermalExchangeFactor(0.1f * rate, it->delta_time));
+    biomeAirThermalExchange(
+        air, next_air, ground_w, ground_d,
+        biomeThermalExchangeFactor(0.2f * rate, it->delta_time));
+
+    ecs_os_memcpy_n(ground, next_ground, WeatherGroundTile, ground_count);
+    ecs_os_memcpy_n(water, next_water, WeatherWaterTile, water_count);
+    ecs_os_memcpy_n(air, next_air, WeatherAirTile, ground_count);
+}
+
 static void WeatherBuffers_fini(
     WeatherBuffers *ptr)
 {
@@ -232,6 +303,7 @@ void biomeWeatherImport(ecs_world_t *world) {
     ECS_META_COMPONENT(world, WeatherAirTile);
     ECS_META_COMPONENT(world, WeatherConfig);
     ECS_META_COMPONENT(world, WeatherInfiltration);
+    ECS_META_COMPONENT(world, WeatherThermalExchange);
     ECS_META_COMPONENT(world, Weather);
     ECS_META_COMPONENT(world, WeatherBuffers);
 
@@ -252,6 +324,11 @@ void biomeWeatherImport(ecs_world_t *world) {
         [inout] WeatherBuffers);
 
     ECS_SYSTEM(world, WeatherUpdate, EcsPostUpdate,
+        [inout] FlecsTerrain,
+        [in]    Weather,
+        [inout] WeatherBuffers);
+
+    ECS_SYSTEM(world, ThermalExchange, EcsPostUpdate,
         [inout] FlecsTerrain,
         [in]    Weather,
         [inout] WeatherBuffers);

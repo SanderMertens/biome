@@ -3,6 +3,18 @@
 #include "biome.h"
 
 #define BiomeToolMaxGhosts (65536)
+#define BiomeToolCursorValid (1)
+#define BiomeToolCursorInvalid (2)
+#define BiomeToolCursorDoze (3)
+
+typedef struct ToolCursorState {
+    ecs_entity_t scope;
+    ecs_entity_t valid;
+    ecs_entity_t invalid;
+    ecs_entity_t doze;
+} ToolCursorState;
+
+ECS_COMPONENT_DECLARE(ToolCursorState);
 
 void biomeToolPlaceBuilding(
     ecs_world_t *world,
@@ -436,6 +448,207 @@ static float biome_tool_maxHeight(
     return height;
 }
 
+static ecs_entity_t biome_tool_cursorAsset(
+    ecs_world_t *world,
+    ecs_entity_t *asset,
+    ecs_entity_t parent,
+    const char *name,
+    flecs_rgba_t color)
+{
+    if (*asset) {
+        return *asset;
+    }
+
+    *asset = ecs_entity(world, {
+        .name = name,
+        .parent = parent,
+        .add = ecs_ids(EcsPrefab)
+    });
+    ecs_ensure(world, *asset, FlecsMesh3);
+    ecs_set_ptr(world, *asset, FlecsRgba, &color);
+    ecs_set(world, *asset, FlecsPbrMaterial, {
+        .metallic = 0,
+        .roughness = 1.0f
+    });
+    ecs_set(world, *asset, FlecsEmissive, {
+        .strength = 0.35f,
+        .color = { color.r, color.g, color.b, 255 }
+    });
+    ecs_add_id(world, *asset, FlecsAlphaBlend);
+    return *asset;
+}
+
+static void biome_tool_cursorVertex(
+    flecs_vec3_t *vertices,
+    flecs_vec3_t *normals,
+    uint32_t *indices,
+    int32_t index,
+    float x,
+    float y,
+    float z)
+{
+    vertices[index] = (flecs_vec3_t){x, y, z};
+    normals[index] = (flecs_vec3_t){0, 1, 0};
+    indices[index] = (uint32_t)index;
+}
+
+static int32_t biome_tool_cursorMesh(
+    ecs_world_t *world,
+    ecs_entity_t asset,
+    const FlecsTerrain *t,
+    const uint8_t *cells,
+    uint8_t value)
+{
+    int32_t cell_count = 0;
+    for (int32_t i = 0; i < t->width * t->depth; i ++) {
+        if (cells[i] == value) {
+            cell_count ++;
+        }
+    }
+    if (!cell_count) {
+        return 0;
+    }
+
+    int32_t vertex_count = t->width * t->depth * 6;
+    FlecsMesh3 *mesh = ecs_ensure(world, asset, FlecsMesh3);
+    ecs_vec_set_count_t(
+        NULL, &mesh->vertices, flecs_vec3_t, vertex_count);
+    ecs_vec_set_count_t(
+        NULL, &mesh->normals, flecs_vec3_t, vertex_count);
+    ecs_vec_set_count_t(
+        NULL, &mesh->indices, uint32_t, vertex_count);
+    ecs_vec_set_count_t(NULL, &mesh->uvs, flecs_vec2_t, 0);
+    ecs_vec_set_count_t(NULL, &mesh->tangents, flecs_vec4_t, 0);
+    ecs_vec_set_count_t(NULL, &mesh->colors, flecs_rgba_t, 0);
+
+    flecs_vec3_t *vertices = ecs_vec_first_t(
+        &mesh->vertices, flecs_vec3_t);
+    flecs_vec3_t *normals = ecs_vec_first_t(
+        &mesh->normals, flecs_vec3_t);
+    uint32_t *indices = ecs_vec_first_t(
+        &mesh->indices, uint32_t);
+    const float *heights = ecs_vec_first_t(&t->heights, float);
+    int32_t stride = t->width + 1;
+    float lift = t->cell_size * 0.01f;
+    int32_t v = 0;
+
+    for (int32_t z = 0; z < t->depth; z ++) {
+        for (int32_t x = 0; x < t->width; x ++) {
+            float x0 = (float)x * t->cell_size;
+            float x1 = (float)(x + 1) * t->cell_size;
+            float z0 = (float)z * t->cell_size;
+            float z1 = (float)(z + 1) * t->cell_size;
+            float h00 = heights[z * stride + x] + lift;
+            float h10 = heights[z * stride + x + 1] + lift;
+            float h01 = heights[(z + 1) * stride + x] + lift;
+            float h11 = heights[(z + 1) * stride + x + 1] + lift;
+
+            if (cells[z * t->width + x] != value) {
+                for (int32_t i = 0; i < 6; i ++) {
+                    biome_tool_cursorVertex(
+                        vertices, normals, indices, v ++, x0, h00, z0);
+                }
+                continue;
+            }
+
+            if (fabsf(h00 - h11) <= fabsf(h10 - h01)) {
+                biome_tool_cursorVertex(
+                    vertices, normals, indices, v ++, x0, h00, z0);
+                biome_tool_cursorVertex(
+                    vertices, normals, indices, v ++, x1, h11, z1);
+                biome_tool_cursorVertex(
+                    vertices, normals, indices, v ++, x1, h10, z0);
+                biome_tool_cursorVertex(
+                    vertices, normals, indices, v ++, x0, h00, z0);
+                biome_tool_cursorVertex(
+                    vertices, normals, indices, v ++, x0, h01, z1);
+                biome_tool_cursorVertex(
+                    vertices, normals, indices, v ++, x1, h11, z1);
+            } else {
+                biome_tool_cursorVertex(
+                    vertices, normals, indices, v ++, x0, h00, z0);
+                biome_tool_cursorVertex(
+                    vertices, normals, indices, v ++, x0, h01, z1);
+                biome_tool_cursorVertex(
+                    vertices, normals, indices, v ++, x1, h10, z0);
+                biome_tool_cursorVertex(
+                    vertices, normals, indices, v ++, x1, h10, z0);
+                biome_tool_cursorVertex(
+                    vertices, normals, indices, v ++, x0, h01, z1);
+                biome_tool_cursorVertex(
+                    vertices, normals, indices, v ++, x1, h11, z1);
+            }
+        }
+    }
+
+    flecsEngine_mesh3_updateVertices(world, asset);
+    return cell_count;
+}
+
+static void biome_tool_cursorDraw(
+    ecs_world_t *world,
+    ecs_entity_t asset,
+    const FlecsTerrain *t,
+    const FlecsPosition3 *terrain_pos,
+    const uint8_t *cells,
+    uint8_t value)
+{
+    if (!biome_tool_cursorMesh(world, asset, t, cells, value)) {
+        return;
+    }
+
+    flecs_draw_instance_t instance = {0};
+    if (terrain_pos) {
+        instance.position = *terrain_pos;
+    }
+    flecsEngine_draw(world, asset, &instance, 1);
+}
+
+static void biome_tool_cursorRender(
+    ecs_world_t *world,
+    const FlecsTerrain *t,
+    const FlecsPosition3 *terrain_pos,
+    const uint8_t *cells)
+{
+    ToolCursorState *state = ecs_singleton_get_mut(
+        world, ToolCursorState);
+    ecs_entity_t valid = biome_tool_cursorAsset(
+        world, &state->valid, state->scope, "cursor_valid",
+        (flecs_rgba_t){90, 210, 90, 230});
+    ecs_entity_t invalid = biome_tool_cursorAsset(
+        world, &state->invalid, state->scope, "cursor_invalid",
+        (flecs_rgba_t){220, 60, 50, 230});
+    ecs_entity_t doze = biome_tool_cursorAsset(
+        world, &state->doze, state->scope, "cursor_doze",
+        (flecs_rgba_t){230, 120, 40, 230});
+    biome_tool_cursorDraw(
+        world, valid, t, terrain_pos, cells, BiomeToolCursorValid);
+    biome_tool_cursorDraw(
+        world, invalid, t, terrain_pos, cells, BiomeToolCursorInvalid);
+    biome_tool_cursorDraw(
+        world, doze, t, terrain_pos, cells, BiomeToolCursorDoze);
+}
+
+static void biome_tool_cursorMark(
+    const FlecsTerrain *t,
+    uint8_t *cells,
+    int32_t x,
+    int32_t y,
+    int32_t width,
+    int32_t height,
+    uint8_t value)
+{
+    int32_t x0 = x < 0 ? 0 : x;
+    int32_t y0 = y < 0 ? 0 : y;
+    int32_t x1 = x + width > t->width ? t->width : x + width;
+    int32_t y1 = y + height > t->depth ? t->depth : y + height;
+    for (int32_t cy = y0; cy < y1; cy ++) {
+        for (int32_t cx = x0; cx < x1; cx ++) {
+            cells[cy * t->width + cx] = value;
+        }
+    }
+}
+
 static void biome_tool_ghostInstance(
     const FlecsTerrain *t,
     const FlecsPosition3 *terrain_pos,
@@ -615,24 +828,21 @@ void BiomeToolPreview(ecs_iter_t *it) {
         int32_t count = region.count;
 
         if (tool->doze) {
-            if (ecs_vec_count(&t[i].colors) == t[i].width * t[i].depth) {
-                flecs_rgba_t *colors = ecs_vec_first_t(
-                    &t[i].colors, flecs_rgba_t);
-                int32_t cy0 = y0 < 0 ? 0 : y0;
-                int32_t cx0 = x0 < 0 ? 0 : x0;
-                int32_t cy1 = y1 >= t[i].depth ? t[i].depth - 1 : y1;
-                int32_t cx1 = x1 >= t[i].width ? t[i].width - 1 : x1;
-                for (int32_t cy = cy0; cy <= cy1; cy ++) {
-                    for (int32_t cx = cx0; cx <= cx1; cx ++) {
-                        if (!biome_tool_regionContains(&region, cx, cy)) {
-                            continue;
-                        }
-                        colors[cy * t[i].width + cx] =
-                            (flecs_rgba_t){ 230, 120, 40, 230 };
+            uint8_t *cursor = ecs_os_calloc_n(
+                uint8_t, t[i].width * t[i].depth);
+            for (int32_t cy = y0; cy <= y1; cy ++) {
+                for (int32_t cx = x0; cx <= x1; cx ++) {
+                    if (biome_tool_regionContains(&region, cx, cy)) {
+                        biome_tool_cursorMark(
+                            &t[i], cursor, cx, cy, 1, 1,
+                            BiomeToolCursorDoze);
                     }
                 }
-                flecsEngine_terrainColorsModified(world, terrain);
             }
+            biome_tool_cursorRender(
+                world, &t[i],
+                ecs_get(world, terrain, FlecsPosition3), cursor);
+            ecs_os_free(cursor);
             continue;
         }
 
@@ -654,31 +864,20 @@ void BiomeToolPreview(ecs_iter_t *it) {
             (freeSlots + curCount) > maxCount) ||
             freeSlots > affordable;
 
-        if (ecs_vec_count(&t[i].colors) == t[i].width * t[i].depth) {
-            flecs_rgba_t *colors = ecs_vec_first_t(&t[i].colors, flecs_rgba_t);
-            int32_t p = 0;
-            for (int32_t sy = y0; sy <= y1; sy += step_y) {
-                for (int32_t sx = x0; sx <= x1; sx += step_x) {
-                    if (!biome_tool_regionContains(&region, sx, sy)) {
-                        continue;
-                    }
-                    BiomeBuildingRulePlacement *placement = &placements[p ++];
-                    flecs_rgba_t color = (tooMany || !placement->active)
-                        ? (flecs_rgba_t){ 220, 60, 50, 230 }
-                        : (flecs_rgba_t){ 90, 210, 90, 230 };
-                    int32_t cy0 = sy < 0 ? 0 : sy;
-                    int32_t cx0 = sx < 0 ? 0 : sx;
-                    int32_t cy1 = sy + fh > t[i].depth ? t[i].depth : sy + fh;
-                    int32_t cx1 = sx + fw > t[i].width ? t[i].width : sx + fw;
-                    for (int32_t cy = cy0; cy < cy1; cy ++) {
-                        for (int32_t cx = cx0; cx < cx1; cx ++) {
-                            colors[cy * t[i].width + cx] = color;
-                        }
-                    }
-                }
-            }
-            flecsEngine_terrainColorsModified(world, terrain);
+        uint8_t *cursor = ecs_os_calloc_n(
+            uint8_t, t[i].width * t[i].depth);
+        for (int32_t p = 0; p < region.count; p ++) {
+            BiomeBuildingRulePlacement *placement = &placements[p];
+            biome_tool_cursorMark(
+                &t[i], cursor, placement->x, placement->y, fw, fh,
+                tooMany || !placement->active
+                    ? BiomeToolCursorInvalid
+                    : BiomeToolCursorValid);
         }
+        biome_tool_cursorRender(
+            world, &t[i],
+            ecs_get(world, terrain, FlecsPosition3), cursor);
+        ecs_os_free(cursor);
 
         if (tooMany) {
             count = 0;
@@ -854,13 +1053,19 @@ void biomeToolImport(ecs_world_t *world) {
     ecs_set_name_prefix(world, "Biome");
 
     ECS_META_COMPONENT(world, BiomeTool);
+    ECS_COMPONENT_DEFINE(world, ToolCursorState);
 
     ecs_add_id(world, ecs_id(BiomeTool), EcsSingleton);
+    ecs_add_id(world, ecs_id(ToolCursorState), EcsSingleton);
     ecs_singleton_set(world, BiomeTool, {0});
 
     ecs_entity_t old_scope = ecs_set_scope(world, 0);
     ecs_entity(world, { .name = "scene.buildings" });
+    ecs_entity_t cursor_scope = ecs_entity(world, { .name = "tool_cursor" });
     ecs_set_scope(world, old_scope);
+    ecs_singleton_set(world, ToolCursorState, {
+        .scope = cursor_scope
+    });
 
     ECS_SYSTEM(world, BiomeToolBind, EcsOnStart, [inout] BiomeTool);
 

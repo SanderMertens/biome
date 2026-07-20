@@ -11,6 +11,12 @@
     "test": {
         "testsuites": [
             {
+                "id": "Weather",
+                "testcases": [
+                    "thermal_exchange"
+                ]
+            },
+            {
                 "id": "Logistics",
                 "testcases": [
                     "first_come_first_serve",
@@ -36,6 +42,12 @@
                 "id": "BuildingRule",
                 "testcases": [
                     "self_referencing_drag"
+                ]
+            },
+            {
+                "id": "Tool",
+                "testcases": [
+                    "render_ghost"
                 ]
             }
         ]

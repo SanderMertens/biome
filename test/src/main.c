@@ -8,6 +8,9 @@
 
 #include <biome_test.h>
 
+// Testsuite 'Weather'
+void Weather_thermal_exchange(void);
+
 // Testsuite 'Logistics'
 void Logistics_first_come_first_serve(void);
 void Logistics_combine_requests(void);
@@ -26,6 +29,15 @@ void Factory_request_drone_amount_edge_cases(void);
 
 // Testsuite 'BuildingRule'
 void BuildingRule_self_referencing_drag(void);
+
+void Tool_render_ghost(void);
+
+bake_test_case Weather_testcases[] = {
+    {
+        "thermal_exchange",
+        Weather_thermal_exchange
+    }
+};
 
 bake_test_case Logistics_testcases[] = {
     {
@@ -88,7 +100,21 @@ bake_test_case BuildingRule_testcases[] = {
     }
 };
 
+bake_test_case Tool_testcases[] = {
+    {
+        "render_ghost",
+        Tool_render_ghost
+    }
+};
+
 static bake_test_suite suites[] = {
+    {
+        "Weather",
+        NULL,
+        NULL,
+        1,
+        Weather_testcases
+    },
     {
         "Logistics",
         NULL,
@@ -109,9 +135,16 @@ static bake_test_suite suites[] = {
         NULL,
         1,
         BuildingRule_testcases
+    },
+    {
+        "Tool",
+        NULL,
+        NULL,
+        1,
+        Tool_testcases
     }
 };
 
 int main(int argc, char *argv[]) {
-    return bake_test_run("biome_test", argc, argv, suites, 3);
+    return bake_test_run("biome_test", argc, argv, suites, 5);
 }

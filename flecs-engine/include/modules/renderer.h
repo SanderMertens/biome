@@ -102,4 +102,10 @@ void flecsEngine_renderBatchSetAppend(
     ecs_entity_t batch_set,
     ecs_entity_t batch);
 
+void flecsEngine_renderBatchSetInsertBefore(
+    ecs_world_t *world,
+    ecs_entity_t batch_set,
+    ecs_entity_t batch,
+    ecs_entity_t before);
+
 #endif
