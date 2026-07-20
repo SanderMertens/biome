@@ -73,6 +73,8 @@ static uint64_t biomeWaterHash(
     for (int32_t i = 0; i < cell_count; i ++) {
         hash = biomeWaterHashBytes(
             hash, &water[i].water_amount, ECS_SIZEOF(float));
+        hash = biomeWaterHashBytes(
+            hash, &water[i].temperature, ECS_SIZEOF(float));
     }
     return biomeWaterHashBytes(
         hash, config, ECS_SIZEOF(WaterConfig));
@@ -187,12 +189,14 @@ static void biomeWaterBuildMesh(
     float tile_area = (float)(TerrainCellSize * TerrainCellSize);
     float *surface = ecs_os_malloc_n(float, corner_count);
     float *shore_depth = ecs_os_malloc_n(float, corner_count);
+    float *temperature = ecs_os_malloc_n(float, corner_count);
     const float *terrain_height = ecs_vec_first_t(
         &terrain->heights, float);
 
     for (int32_t z = 0; z <= depth; z ++) {
         for (int32_t x = 0; x <= width; x ++) {
             float surface_sum = 0;
+            float temperature_sum = 0;
             float edge_depth = 1000000.0f;
             int32_t samples = 0;
             int32_t adjacent = 0;
@@ -218,6 +222,8 @@ static void biomeWaterBuildMesh(
                         surface_sum += biomeWaterTerrainCellHeight(
                             terrain_height, stride, cx, cz) +
                             water_depth;
+                        temperature_sum +=
+                            water[cz * width + cx].temperature;
                         samples ++;
                     }
                 }
@@ -227,6 +233,9 @@ static void biomeWaterBuildMesh(
                 ? surface_sum / (float)samples
                 : terrain_height[z * stride + x];
             shore_depth[i] = adjacent ? edge_depth : 0;
+            temperature[i] = samples
+                ? temperature_sum / (float)samples
+                : 0;
         }
     }
 
@@ -258,7 +267,6 @@ static void biomeWaterBuildMesh(
         &mesh->uvs, flecs_vec2_t);
     uint32_t *indices = ecs_vec_first_t(
         &mesh->indices, uint32_t);
-    float extent_z = (float)depth * TerrainCellSize;
 
     for (int32_t z = 0; z <= depth; z ++) {
         for (int32_t x = 0; x <= width; x ++) {
@@ -272,11 +280,12 @@ static void biomeWaterBuildMesh(
                 surface, width, depth, x, z, &normals[i]);
             uvs[i] = (flecs_vec2_t){
                 shore_depth[i],
-                (float)z * TerrainCellSize / extent_z
+                temperature[i]
             };
         }
     }
     ecs_os_free(shore_depth);
+    ecs_os_free(temperature);
 
     int32_t index = 0;
     for (int32_t z = 0; z < depth; z ++) {
