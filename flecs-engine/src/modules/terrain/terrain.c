@@ -186,13 +186,160 @@ static void flecsEngine_terrain_emitTriangle(
     }
 }
 
+static float flecsEngine_terrain_stratumHeight(
+    float base,
+    float top,
+    float x,
+    float z,
+    int32_t layer,
+    int32_t layer_count)
+{
+    float t = (float)layer / (float)layer_count;
+    float phase = (float)layer * 1.713f;
+    float warp = sinf(x * 0.031f + z * 0.023f + phase) * 0.018f;
+    warp += sinf(x * 0.011f - z * 0.017f + phase * 1.91f) * 0.012f;
+    t += warp * sinf(t * 3.14159265f);
+    return base + (top - base) * t;
+}
+
+static flecs_rgba_t flecsEngine_terrain_stratumColor(
+    int32_t layer,
+    int32_t segment,
+    int32_t side)
+{
+    static const flecs_rgba_t colors[] = {
+        { 96, 95, 93, 255 },
+        { 137, 107, 87, 255 },
+        { 166, 116, 91, 255 },
+        { 124, 125, 124, 255 },
+        { 178, 135, 103, 255 },
+        { 108, 106, 105, 255 },
+        { 148, 105, 87, 255 }
+    };
+    flecs_rgba_t color = colors[layer % 7];
+    int32_t variation = (int32_t)(
+        sinf((float)segment * 0.29f + (float)side * 1.7f) * 7.0f);
+    color.r = (uint8_t)((int32_t)color.r + variation);
+    color.g = (uint8_t)((int32_t)color.g + variation);
+    color.b = (uint8_t)((int32_t)color.b + variation);
+    return color;
+}
+
+static void flecsEngine_terrain_emitEdgeTriangle(
+    FlecsMesh3 *m,
+    int32_t v,
+    const float pa[3],
+    const float pb[3],
+    const float pc[3],
+    const float normal[3],
+    flecs_rgba_t color)
+{
+    const float *p1 = pb;
+    const float *p2 = pc;
+    float abx = pb[0] - pa[0];
+    float aby = pb[1] - pa[1];
+    float abz = pb[2] - pa[2];
+    float acx = pc[0] - pa[0];
+    float acy = pc[1] - pa[1];
+    float acz = pc[2] - pa[2];
+    float nx = aby * acz - abz * acy;
+    float ny = abz * acx - abx * acz;
+    float nz = abx * acy - aby * acx;
+    if (nx * normal[0] + ny * normal[1] + nz * normal[2] < 0) {
+        p1 = pc;
+        p2 = pb;
+    }
+
+    flecs_vec3_t *verts = ecs_vec_first_t(&m->vertices, flecs_vec3_t);
+    flecs_vec3_t *normals = ecs_vec_first_t(&m->normals, flecs_vec3_t);
+    flecs_vec2_t *uvs = ecs_vec_first_t(&m->uvs, flecs_vec2_t);
+    flecs_rgba_t *colors = ecs_vec_first_t(&m->colors, flecs_rgba_t);
+    uint32_t *indices = ecs_vec_first_t(&m->indices, uint32_t);
+    const float *p[3] = { pa, p1, p2 };
+    for (int32_t k = 0; k < 3; k ++) {
+        verts[v + k] = (flecs_vec3_t){ p[k][0], p[k][1], p[k][2] };
+        normals[v + k] = (flecs_vec3_t){
+            normal[0], normal[1], normal[2] };
+        uvs[v + k] = (flecs_vec2_t){ p[k][0], p[k][1] };
+        colors[v + k] = color;
+        indices[v + k] = (uint32_t)(v + k);
+    }
+}
+
+static int32_t flecsEngine_terrain_emitEdge(
+    FlecsMesh3 *m,
+    int32_t v,
+    const float *h,
+    int32_t w,
+    int32_t d,
+    float cs,
+    float base,
+    int32_t side,
+    int32_t layer_count)
+{
+    int32_t segment_count = side < 2 ? w : d;
+    float normal[3] = { 0, 0, 0 };
+    if (side == 0) normal[2] = -1;
+    if (side == 1) normal[2] = 1;
+    if (side == 2) normal[0] = -1;
+    if (side == 3) normal[0] = 1;
+
+    for (int32_t segment = 0; segment < segment_count; segment ++) {
+        int32_t x0, z0, x1, z1;
+        if (side < 2) {
+            x0 = segment;
+            x1 = segment + 1;
+            z0 = z1 = side == 0 ? 0 : d;
+        } else {
+            z0 = segment;
+            z1 = segment + 1;
+            x0 = x1 = side == 2 ? 0 : w;
+        }
+
+        float px0 = (float)x0 * cs;
+        float pz0 = (float)z0 * cs;
+        float px1 = (float)x1 * cs;
+        float pz1 = (float)z1 * cs;
+        float top0 = h[z0 * (w + 1) + x0];
+        float top1 = h[z1 * (w + 1) + x1];
+
+        for (int32_t layer = 0; layer < layer_count; layer ++) {
+            float y00 = flecsEngine_terrain_stratumHeight(
+                base, top0, px0, pz0, layer, layer_count);
+            float y10 = flecsEngine_terrain_stratumHeight(
+                base, top1, px1, pz1, layer, layer_count);
+            float y01 = flecsEngine_terrain_stratumHeight(
+                base, top0, px0, pz0, layer + 1, layer_count);
+            float y11 = flecsEngine_terrain_stratumHeight(
+                base, top1, px1, pz1, layer + 1, layer_count);
+            float p00[3] = { px0, y00, pz0 };
+            float p10[3] = { px1, y10, pz1 };
+            float p01[3] = { px0, y01, pz0 };
+            float p11[3] = { px1, y11, pz1 };
+            flecs_rgba_t color = flecsEngine_terrain_stratumColor(
+                layer, segment, side);
+
+            flecsEngine_terrain_emitEdgeTriangle(
+                m, v, p01, p11, p10, normal, color);
+            flecsEngine_terrain_emitEdgeTriangle(
+                m, v + 3, p01, p10, p00, normal, color);
+            v += 6;
+        }
+    }
+
+    return v;
+}
+
 static void flecsEngine_terrain_generateMesh(
     const FlecsTerrain *t,
     FlecsMesh3 *m)
 {
     int32_t w = t->width, d = t->depth;
     float cs = t->cell_size;
-    int32_t vert_count = w * d * 6;
+    int32_t layer_count = 7;
+    int32_t surface_vert_count = w * d * 6;
+    int32_t edge_vert_count = (w + d) * 2 * layer_count * 6;
+    int32_t vert_count = surface_vert_count + edge_vert_count;
 
     m->shadow_sink = 0.25f * cs;
 
@@ -205,6 +352,13 @@ static void flecsEngine_terrain_generateMesh(
     const float *h = ecs_vec_first_t(&t->heights, float);
     const flecs_rgba_t *cell_colors = ecs_vec_count(&t->colors)
         ? ecs_vec_first_t(&t->colors, flecs_rgba_t) : NULL;
+    float min_height = h[0];
+    for (int32_t i = 1; i < (w + 1) * (d + 1); i ++) {
+        if (h[i] < min_height) {
+            min_height = h[i];
+        }
+    }
+    float base_height = min_height - cs * 6.0f;
 
     float inv_extent_x = 1.0f / ((float)w * cs);
     float inv_extent_z = 1.0f / ((float)d * cs);
@@ -256,6 +410,12 @@ static void flecsEngine_terrain_generateMesh(
                     n10, n11, n01, inv_extent_x, inv_extent_z, color);
             }
         }
+    }
+
+    int32_t edge_v = surface_vert_count;
+    for (int32_t side = 0; side < 4; side ++) {
+        edge_v = flecsEngine_terrain_emitEdge(
+            m, edge_v, h, w, d, cs, base_height, side, layer_count);
     }
 
     ecs_os_free(cn);
@@ -685,7 +845,7 @@ void flecsEngine_terrainColorsModified(
     }
 
     FlecsMesh3 *mesh = ecs_get_mut(world, mesh_e, FlecsMesh3);
-    if (!mesh || ecs_vec_count(&mesh->colors) != cell_count * 6) {
+    if (!mesh || ecs_vec_count(&mesh->colors) < cell_count * 6) {
         return;
     }
 
@@ -703,7 +863,7 @@ void flecsEngine_terrainColorsModified(
         vert_colors[v + 5] = c;
     }
 
-    flecsEngine_mesh3_updateColors(world, mesh_e);
+    flecsEngine_mesh3_updateColorRange(world, mesh_e, 0, cell_count * 6);
 }
 
 void flecsEngine_terrain_computeSlope(

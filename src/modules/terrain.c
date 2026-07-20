@@ -174,14 +174,7 @@ void FlecsTerrainOnSet(ecs_iter_t *it) {
             if (sand < 0) sand = 0;
             if (sand > 1.0f) sand = 1.0f;
 
-            float v = biomeFbm2(
-                (float)x * 0.045f + 91.7f, (float)z * 0.045f + 23.1f, 3);
-            float vein = 1.0f - fabsf(2.0f * v - 1.0f);
-            vein = (vein - 0.9f) * 12.0f;
-            if (vein < 0) vein = 0;
-            if (vein > 1.0f) vein = 1.0f;
-
-            soil[i].sedimentFactor = sand * (1.0f - vein);
+            soil[i].sedimentFactor = sand;
             soil[i].fertility = 0;
         }
     }

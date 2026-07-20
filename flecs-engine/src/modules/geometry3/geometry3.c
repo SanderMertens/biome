@@ -464,9 +464,27 @@ void flecsEngine_mesh3_updateColors(
         return;
     }
 
+    flecsEngine_mesh3_updateColorRange(
+        world, mesh_entity, 0, ecs_vec_count(&mesh->colors));
+}
+
+void flecsEngine_mesh3_updateColorRange(
+    ecs_world_t *world,
+    ecs_entity_t mesh_entity,
+    int32_t first,
+    int32_t count)
+{
+    const FlecsMesh3 *mesh = ecs_get(world, mesh_entity, FlecsMesh3);
+    if (!mesh) {
+        return;
+    }
+
     FlecsMesh3Impl *mesh_impl = ecs_get_mut(
         world, mesh_entity, FlecsMesh3Impl);
     int32_t color_count = ecs_vec_count(&mesh->colors);
+    if (first < 0 || count <= 0 || first > color_count - count) {
+        return;
+    }
     if (!mesh_impl || !mesh_impl->vertex_color_buffer ||
         color_count != mesh_impl->vertex_count)
     {
@@ -476,9 +494,14 @@ void flecsEngine_mesh3_updateColors(
 
     const FlecsEngineImpl *impl = ecs_singleton_get(world, FlecsEngineImpl);
     ecs_assert(impl != NULL, ECS_INVALID_OPERATION, NULL);
-    wgpuQueueWriteBuffer(impl->queue, mesh_impl->vertex_color_buffer, 0,
-        ecs_vec_first_t(&mesh->colors, flecs_rgba_t),
-        (size_t)color_count * sizeof(flecs_rgba_t));
+    const flecs_rgba_t *colors = ecs_vec_first_t(
+        &mesh->colors, flecs_rgba_t);
+    wgpuQueueWriteBuffer(
+        impl->queue,
+        mesh_impl->vertex_color_buffer,
+        (uint64_t)first * sizeof(flecs_rgba_t),
+        &colors[first],
+        (size_t)count * sizeof(flecs_rgba_t));
 }
 
 ecs_entity_t flecsEngine_geometry3_createAsset(
