@@ -2,6 +2,7 @@
 #include "../../src/modules/evaporation.h"
 #include "../../src/modules/radiative_balance.h"
 #include "../../src/modules/thermal_exchange.h"
+#include "../../src/modules/weather_aggregate.h"
 #include "../../src/modules/weather_ocean.h"
 #include <biome_test.h>
 
@@ -69,19 +70,49 @@ void Weather_thermal_exchange(void) {
 
 void Weather_evaporation(void) {
     float area = 900.0f;
-    float saturation = biomeSaturationVaporDensity(20.0f) *
-        area * BiomeEvaporationMixingHeight;
+    float gravity = 9.80665f;
+    float saturation = biomeSaturationVaporPressure(20.0f) * area /
+        gravity;
 
-    test_assert(saturation > 15000.0f);
-    test_assert(saturation < 16000.0f);
-    test_flt(biomeSaturationVaporCapacity(20.0f, area), saturation);
-    test_flt(biomeEvaporationHumidityFactor(0, 20.0f, area), 1.0f);
+    test_assert(saturation > 214000.0f);
+    test_assert(saturation < 215000.0f);
     test_flt(
-        biomeEvaporationHumidityFactor(saturation * 0.5f, 20.0f, area),
+        biomeSaturationVaporCapacity(20.0f, area, gravity),
+        saturation);
+    test_flt(
+        biomeSaturationVaporCapacity(20.0f, area, gravity * 0.5f),
+        saturation * 2.0f);
+    test_flt(
+        biomeEvaporationHumidityFactor(0, 20.0f, area, gravity),
+        1.0f);
+    test_flt(
+        biomeEvaporationHumidityFactor(
+            saturation * 0.5f, 20.0f, area, gravity),
         0.5f);
     test_flt(
-        biomeEvaporationHumidityFactor(saturation, 20.0f, area),
+        biomeEvaporationHumidityFactor(
+            saturation, 20.0f, area, gravity),
         0.0f);
+    WeatherAirTile vacuum = {0};
+    WeatherAirTile atmosphere = {
+        .ghg_amount = 1000.0f,
+        .o2_amount = 2000.0f,
+        .vapor_amount = 500.0f
+    };
+    test_flt(
+        biomeAtmosphericPressure(&vacuum, area, gravity),
+        0.0f);
+    test_flt(
+        biomeAtmosphericPressure(&atmosphere, area, gravity),
+        3500.0f * gravity / area);
+    test_flt(
+        biomeAtmosphericPressure(&atmosphere, area, gravity * 0.5f),
+        3500.0f * gravity * 0.5f / area);
+    test_flt(biomeEvaporationAirEnergyShare(0), 0.0f);
+    test_flt(
+        biomeEvaporationAirEnergyShare(
+            BiomeEvaporationStandardPressure),
+        BiomeEvaporationMaxAirEnergyShare);
     test_assert(
         biomeEvaporationTemperatureFactor(30.0f) >
         biomeEvaporationTemperatureFactor(20.0f));
@@ -93,6 +124,67 @@ void Weather_evaporation(void) {
         20.0f * 4184.0f / BiomeEvaporationLatentHeat);
     test_assert(isinf(
         biomeEvaporationEnergyLimit(20.0f, 4184.0f, 0.0f)));
+}
+
+void Weather_aggregate(void) {
+    WeatherGroundTile ground[2] = {
+        { .temperature = 10.0f, .moisture_amount = 20.0f },
+        { .temperature = 30.0f, .moisture_amount = 60.0f }
+    };
+    WeatherWaterTile water[2] = {
+        { .temperature = 5.0f, .water_amount = 100.0f },
+        { .temperature = 15.0f, .water_amount = 300.0f }
+    };
+    WeatherAirTile air[2] = {
+        {
+            .temperature = -10.0f,
+            .ghg_amount = 2.0f,
+            .o2_amount = 4.0f,
+            .vapor_amount = 6.0f,
+            .water = 8.0f,
+            .wind_velocity = { -3.0f, 2.0f, 7.0f }
+        },
+        {
+            .temperature = 30.0f,
+            .ghg_amount = 6.0f,
+            .o2_amount = 8.0f,
+            .vapor_amount = 10.0f,
+            .water = 12.0f,
+            .wind_velocity = { 5.0f, -4.0f, 1.0f }
+        }
+    };
+    WeatherAggregate aggregate;
+
+    biomeWeatherComputeAggregate(
+        ground, 2, water, 2, air, 2, &aggregate);
+
+    test_flt(aggregate.ground.min.temperature, 10.0f);
+    test_flt(aggregate.ground.avg.temperature, 20.0f);
+    test_flt(aggregate.ground.max.temperature, 30.0f);
+    test_flt(aggregate.ground.min.moisture_amount, 20.0f);
+    test_flt(aggregate.ground.avg.moisture_amount, 40.0f);
+    test_flt(aggregate.ground.max.moisture_amount, 60.0f);
+    test_flt(aggregate.water.min.temperature, 5.0f);
+    test_flt(aggregate.water.avg.temperature, 10.0f);
+    test_flt(aggregate.water.max.temperature, 15.0f);
+    test_flt(aggregate.water.min.water_amount, 100.0f);
+    test_flt(aggregate.water.avg.water_amount, 200.0f);
+    test_flt(aggregate.water.max.water_amount, 300.0f);
+    test_flt(aggregate.air.min.temperature, -10.0f);
+    test_flt(aggregate.air.avg.temperature, 10.0f);
+    test_flt(aggregate.air.max.temperature, 30.0f);
+    test_flt(aggregate.air.min.vapor_amount, 6.0f);
+    test_flt(aggregate.air.avg.vapor_amount, 8.0f);
+    test_flt(aggregate.air.max.vapor_amount, 10.0f);
+    test_flt(aggregate.air.min.wind_velocity.x, -3.0f);
+    test_flt(aggregate.air.avg.wind_velocity.x, 1.0f);
+    test_flt(aggregate.air.max.wind_velocity.x, 5.0f);
+    test_flt(aggregate.air.min.wind_velocity.y, -4.0f);
+    test_flt(aggregate.air.avg.wind_velocity.y, -1.0f);
+    test_flt(aggregate.air.max.wind_velocity.y, 2.0f);
+    test_flt(aggregate.air.min.wind_velocity.z, 1.0f);
+    test_flt(aggregate.air.avg.wind_velocity.z, 4.0f);
+    test_flt(aggregate.air.max.wind_velocity.z, 7.0f);
 }
 
 void Weather_radiative_balance(void) {

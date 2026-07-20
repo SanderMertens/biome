@@ -28,8 +28,6 @@ ECS_STRUCT(WeatherAirTile, {
     float vapor_amount;             /* Water vapor in air */
     float water;                    /* Water in clouds */
     flecs_vec3_t wind_velocity;     /* Transports air contents to neighboring tiles */
-
-    /* Pressure is computed from the sum of the gasses + temperature */
 });
 
 /* Static weather configuration */
@@ -71,10 +69,35 @@ ECS_STRUCT(WeatherRadiativeBalance, {
 
 ECS_STRUCT(Weather, {
     float stellar_intensity;
+    float gravity;
     WeatherInfiltration infiltration;
     WeatherThermalExchange thermal_exchange;
     WeatherEvaporation evaporation;
     WeatherRadiativeBalance radiative_balance;
+});
+
+ECS_STRUCT(WeatherGroundAggregate, {
+    WeatherGroundTile min;
+    WeatherGroundTile avg;
+    WeatherGroundTile max;
+});
+
+ECS_STRUCT(WeatherWaterAggregate, {
+    WeatherWaterTile min;
+    WeatherWaterTile avg;
+    WeatherWaterTile max;
+});
+
+ECS_STRUCT(WeatherAirAggregate, {
+    WeatherAirTile min;
+    WeatherAirTile avg;
+    WeatherAirTile max;
+});
+
+ECS_STRUCT(WeatherAggregate, {
+    WeatherGroundAggregate ground;
+    WeatherWaterAggregate water;
+    WeatherAirAggregate air;
 });
 
 /* Contains buffers for double-buffering weather updates. These have the same

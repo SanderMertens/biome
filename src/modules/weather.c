@@ -4,6 +4,7 @@
 #include "evaporation.h"
 #include "radiative_balance.h"
 #include "thermal_exchange.h"
+#include "weather_aggregate.h"
 #include "weather_ocean.h"
 
 void WeatherInit(ecs_iter_t *it) {
@@ -316,6 +317,10 @@ void Evaporation(ecs_iter_t *it) {
     float cell_area = cell_size * cell_size;
     float capacity = weather->infiltration.ground_moisture_capacity;
     float cooling = config->evaporative_cooling;
+    float gravity = weather->gravity;
+    if (gravity <= 0) {
+        return;
+    }
 
     for (int32_t gz = 0; gz < ground_d; gz ++) {
         for (int32_t gx = 0; gx < ground_w; gx ++) {
@@ -335,12 +340,18 @@ void Evaporation(ecs_iter_t *it) {
             }
             float air_area = cell_area *
                 (float)((max_x - min_x) * (max_z - min_z));
+            float atmospheric_pressure = biomeAtmosphericPressure(
+                air_tile, air_area, gravity);
+            float air_energy_share = biomeEvaporationAirEnergyShare(
+                atmospheric_pressure);
+            float surface_energy_share = 1.0f - air_energy_share;
             float vapor_capacity = biomeSaturationVaporCapacity(
-                air_tile->temperature, air_area);
+                air_tile->temperature, air_area, gravity);
             float vapor_available = vapor_capacity -
                 air_tile->vapor_amount;
             float humidity_factor = biomeEvaporationHumidityFactor(
-                air_tile->vapor_amount, air_tile->temperature, air_area);
+                air_tile->vapor_amount, air_tile->temperature, air_area,
+                gravity);
             if (humidity_factor <= 0 || vapor_available <= 0) {
                 continue;
             }
@@ -362,7 +373,7 @@ void Evaporation(ecs_iter_t *it) {
                         amount = water_tile->water_amount;
                     }
                     float surface_cooling = cooling *
-                        BiomeEvaporationSurfaceEnergyShare;
+                        surface_energy_share;
                     float energy_limit = biomeEvaporationEnergyLimit(
                         water_tile->temperature,
                         water_tile->water_amount *
@@ -407,7 +418,7 @@ void Evaporation(ecs_iter_t *it) {
                     ground_evaporated = ground_tile->moisture_amount;
                 }
                 float surface_cooling = cooling *
-                    BiomeEvaporationSurfaceEnergyShare;
+                    surface_energy_share;
                 float ground_heat_capacity = exposed_area *
                     BiomeEvaporationGroundHeatCapacity;
                 float energy_limit = biomeEvaporationEnergyLimit(
@@ -431,12 +442,11 @@ void Evaporation(ecs_iter_t *it) {
 
             float evaporated = surface_evaporated + ground_evaporated;
             air_tile->vapor_amount += evaporated;
-            float air_volume = air_area * BiomeEvaporationMixingHeight;
+            float atmospheric_mass = biomeAtmosphericMass(air_tile);
             air_tile->temperature -= biomeEvaporativeCooling(
                 evaporated,
-                air_volume * BiomeEvaporationAirDensity *
-                    BiomeEvaporationAirHeatCapacity,
-                cooling * (1.0f - BiomeEvaporationSurfaceEnergyShare));
+                atmospheric_mass * BiomeEvaporationAirHeatCapacity,
+                cooling * air_energy_share);
         }
     }
 }
@@ -487,6 +497,41 @@ void RadiativeBalance(ecs_iter_t *it) {
         weather->stellar_intensity,
         config,
         it->delta_time);
+}
+
+void WeatherComputeAggregate(ecs_iter_t *it) {
+    ecs_assert(it->count == 1, ECS_INVALID_OPERATION, "can only have one terrain");
+
+    ecs_world_t *world = it->world;
+    ecs_entity_t e = it->entities[0];
+    const FlecsTerrain *t = ecs_field(it, FlecsTerrain, 0);
+    WeatherAggregate *aggregate = ecs_field(it, WeatherAggregate, 1);
+
+    int32_t ground_width;
+    int32_t ground_depth;
+    int32_t water_width;
+    int32_t water_depth;
+    int32_t air_width;
+    int32_t air_depth;
+    flecsEngine_terrainLayerDimensions(
+        t, TerrainGroundIndex, &ground_width, &ground_depth);
+    flecsEngine_terrainLayerDimensions(
+        t, TerrainWaterIndex, &water_width, &water_depth);
+    flecsEngine_terrainLayerDimensions(
+        t, TerrainAirIndex, &air_width, &air_depth);
+
+    const WeatherGroundTile *ground = flecsEngine_terrain_getLayer(
+        world, e, TerrainGroundIndex, WeatherGroundTile);
+    const WeatherWaterTile *water = flecsEngine_terrain_getLayer(
+        world, e, TerrainWaterIndex, WeatherWaterTile);
+    const WeatherAirTile *air = flecsEngine_terrain_getLayer(
+        world, e, TerrainAirIndex, WeatherAirTile);
+
+    biomeWeatherComputeAggregate(
+        ground, ground_width * ground_depth,
+        water, water_width * water_depth,
+        air, air_width * air_depth,
+        aggregate);
 }
 
 static void WeatherBuffers_fini(
@@ -541,6 +586,10 @@ void biomeWeatherImport(ecs_world_t *world) {
     ECS_META_COMPONENT(world, WeatherEvaporation);
     ECS_META_COMPONENT(world, WeatherRadiativeBalance);
     ECS_META_COMPONENT(world, Weather);
+    ECS_META_COMPONENT(world, WeatherGroundAggregate);
+    ECS_META_COMPONENT(world, WeatherWaterAggregate);
+    ECS_META_COMPONENT(world, WeatherAirAggregate);
+    ECS_META_COMPONENT(world, WeatherAggregate);
     ECS_META_COMPONENT(world, WeatherBuffers);
 
     ecs_set_hooks(world, WeatherBuffers, {
@@ -552,6 +601,8 @@ void biomeWeatherImport(ecs_world_t *world) {
 
     ecs_add_id(world, ecs_id(WeatherConfig), EcsSingleton);
     ecs_add_id(world, ecs_id(Weather), EcsSingleton);
+    ecs_add_id(world, ecs_id(WeatherAggregate), EcsSingleton);
+    ecs_singleton_set(world, WeatherAggregate, {0});
     ecs_add_pair(world, ecs_id(Terrain), EcsWith, ecs_id(WeatherBuffers));
 
     ECS_SYSTEM(world, WeatherInit, EcsOnStart,
@@ -577,4 +628,8 @@ void biomeWeatherImport(ecs_world_t *world) {
     ECS_SYSTEM(world, RadiativeBalance, EcsPostUpdate,
         [inout] FlecsTerrain,
         [in]    Weather);
+
+    ECS_SYSTEM(world, WeatherComputeAggregate, EcsPreStore,
+        [in]  FlecsTerrain,
+        [out] WeatherAggregate);
 }

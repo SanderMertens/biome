@@ -51,14 +51,15 @@ $ {
         sun: sky.sun
 
         seed_ground: {temperature: 20, moisture_amount: 0}
-        seed_water: {temperature: 20, water_amount: 0}
-        seed_air: {temperature: 20, vapor_amount: 0}
+        seed_water: {temperature: 10, water_amount: 0}
+        seed_air: {temperature: 2, vapor_amount: 0}
         seed_variation: 1
         ocean_level: -1
     }
 
     weather.Weather: {
         stellar_intensity: 1
+        gravity: 9.80665
         thermal_exchange: {
             enabled: true
             rate: 1

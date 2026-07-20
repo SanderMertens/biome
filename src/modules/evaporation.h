@@ -1,38 +1,84 @@
 #include <math.h>
 
-#define BiomeEvaporationMixingHeight (1000.0f)
+#define BiomeEvaporationStandardPressure (101325.0f)
 #define BiomeEvaporationLatentHeat (2450000.0f)
 #define BiomeEvaporationWaterHeatCapacity (4184.0f)
-#define BiomeEvaporationAirDensity (1.225f)
 #define BiomeEvaporationAirHeatCapacity (1005.0f)
 #define BiomeEvaporationGroundHeatCapacity (2000000.0f)
-#define BiomeEvaporationSurfaceEnergyShare (0.8f)
+#define BiomeEvaporationMaxAirEnergyShare (0.2f)
+
+static
+float biomeSaturationVaporPressure(
+    float temperature)
+{
+    return 610.94f * expf(
+        17.625f * temperature / (temperature + 243.04f));
+}
 
 static
 float biomeSaturationVaporDensity(
     float temperature)
 {
-    float vapor_pressure = 610.94f * expf(
-        17.625f * temperature / (temperature + 243.04f));
-    return vapor_pressure * 0.00216679f / (temperature + 273.15f);
+    return biomeSaturationVaporPressure(temperature) *
+        0.00216679f / (temperature + 273.15f);
+}
+
+static
+float biomeAtmosphericMass(
+    const WeatherAirTile *air)
+{
+    float mass = air->ghg_amount + air->o2_amount + air->vapor_amount;
+    return mass > 0 ? mass : 0;
+}
+
+static
+float biomeAtmosphericPressure(
+    const WeatherAirTile *air,
+    float area,
+    float gravity)
+{
+    if (area <= 0 || gravity <= 0) {
+        return 0;
+    }
+    return biomeAtmosphericMass(air) * gravity / area;
 }
 
 static
 float biomeSaturationVaporCapacity(
     float temperature,
-    float area)
+    float area,
+    float gravity)
 {
-    return biomeSaturationVaporDensity(temperature) * area *
-        BiomeEvaporationMixingHeight;
+    if (area <= 0 || gravity <= 0) {
+        return 0;
+    }
+    return biomeSaturationVaporPressure(temperature) * area /
+        gravity;
+}
+
+static
+float biomeEvaporationAirEnergyShare(
+    float pressure)
+{
+    if (pressure <= 0) {
+        return 0;
+    }
+    float pressure_factor = pressure / BiomeEvaporationStandardPressure;
+    if (pressure_factor > 1.0f) {
+        pressure_factor = 1.0f;
+    }
+    return BiomeEvaporationMaxAirEnergyShare * pressure_factor;
 }
 
 static
 float biomeEvaporationHumidityFactor(
     float vapor_amount,
     float air_temperature,
-    float area)
+    float area,
+    float gravity)
 {
-    float capacity = biomeSaturationVaporCapacity(air_temperature, area);
+    float capacity = biomeSaturationVaporCapacity(
+        air_temperature, area, gravity);
     if (capacity <= 0) {
         return 0;
     }

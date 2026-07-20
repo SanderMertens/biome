@@ -15,6 +15,7 @@
                 "testcases": [
                     "thermal_exchange",
                     "evaporation",
+                    "aggregate",
                     "radiative_balance",
                     "ocean_level"
                 ]
