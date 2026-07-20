@@ -66,9 +66,8 @@ ECS_STRUCT(Terrain, {
     int16_t river_octaves;
     float river_width;
     float river_depth;
-    float ocean_freq;
-    int16_t ocean_octaves;
-    float ocean_level;
+    float ocean_scale;
+    float ocean_amount;
     float ocean_shore_width;
     float ocean_depth;
     float ground_moisture;

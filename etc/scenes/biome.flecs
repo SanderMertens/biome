@@ -28,7 +28,7 @@ $ {
         scale: 100
         octaves: 5
         warp_octaves: 3
-        warp: 1.9
+        warp: 1.2
         ridge_freq: 2.2
         ridge_octaves: 3
         ridge_mix: 0.3
@@ -38,13 +38,12 @@ $ {
         max_height: 30 // meters, lowlands
         river_freq: 1.4
         river_octaves: 4
-        river_width: 0.09
+        river_width: 0.03
         river_depth: 4
-        ocean_freq: 3
-        ocean_octaves: 2
-        ocean_level: 0.45
+        ocean_scale: 30
+        ocean_amount: 0.35
         ocean_shore_width: 0.04
-        ocean_depth: 16
+        ocean_depth: 32
         ground_moisture: 0
     }
 

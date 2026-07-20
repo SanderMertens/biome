@@ -101,22 +101,27 @@ float biomeTerrainHeightF(const Terrain *t, float fx, float fz) {
         h -= river_mask * t->river_depth;
     }
 
-    if (t->ocean_depth > 0 && t->ocean_freq > 0 &&
-        t->ocean_octaves > 0)
+    if (t->ocean_depth > 0 && t->ocean_scale > 0 &&
+        t->ocean_amount > 0)
     {
+        float ocean_amount = t->ocean_amount;
+        if (ocean_amount > 1.0f) ocean_amount = 1.0f;
+        float ocean_freq = t->scale / t->ocean_scale;
         float ocean = biomeFbm2(
-            dx * t->ocean_freq + 251.9f,
-            dz * t->ocean_freq + 337.1f,
-            t->ocean_octaves);
+            dx * ocean_freq + 251.9f,
+            dz * ocean_freq + 337.1f,
+            2);
         float shore = t->ocean_shore_width;
         float ocean_mask;
-        if (shore > 0) {
+        if (ocean_amount == 1.0f) {
+            ocean_mask = 1.0f;
+        } else if (shore > 0) {
             ocean_mask = 1.0f - biomeSmoothstep(
-                t->ocean_level - shore,
-                t->ocean_level + shore,
+                ocean_amount - shore,
+                ocean_amount + shore,
                 ocean);
         } else {
-            ocean_mask = ocean < t->ocean_level;
+            ocean_mask = ocean < ocean_amount;
         }
         h -= ocean_mask * t->ocean_depth;
     }

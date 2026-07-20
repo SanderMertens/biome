@@ -263,7 +263,6 @@ static void biomeWaterBuildMesh(
     const float *height = ecs_vec_first_t(&terrain->heights, float);
     float water_level = weather->water_level;
     float frozen = biomeWaterFrozen(weather->temperature);
-    float *shore_depth = ecs_os_malloc_n(float, corner_count);
     int32_t wet_count = 0;
     int32_t edge_count = 0;
 
@@ -284,32 +283,6 @@ static void biomeWaterBuildMesh(
             height, stride, 0, z, water_level);
         edge_count += biomeWaterTerrainCellSubmerged(
             height, stride, width - 1, z, water_level);
-    }
-
-    for (int32_t z = 0; z <= depth; z ++) {
-        for (int32_t x = 0; x <= width; x ++) {
-            float edge_depth = INFINITY;
-            int32_t adjacent = 0;
-            for (int32_t dz = -1; dz <= 0; dz ++) {
-                int32_t cell_z = z + dz;
-                if (cell_z < 0 || cell_z >= depth) {
-                    continue;
-                }
-                for (int32_t dx = -1; dx <= 0; dx ++) {
-                    int32_t cell_x = x + dx;
-                    if (cell_x < 0 || cell_x >= width) {
-                        continue;
-                    }
-                    float cell_depth = biomeWaterTerrainCellDepth(
-                        height, stride, cell_x, cell_z, water_level);
-                    if (cell_depth < edge_depth) {
-                        edge_depth = cell_depth;
-                    }
-                    adjacent ++;
-                }
-            }
-            shore_depth[z * stride + x] = adjacent ? edge_depth : 0;
-        }
     }
 
     biomeWaterEnsureAsset(world, terrain_entity, state);
@@ -346,7 +319,7 @@ static void biomeWaterBuildMesh(
                 (float)z * TerrainCellSize
             };
             normals[i] = (flecs_vec3_t){0, 1, 0};
-            uvs[i] = (flecs_vec2_t){shore_depth[i], frozen};
+            uvs[i] = (flecs_vec2_t){water_level - height[i], frozen};
         }
     }
 
@@ -440,7 +413,6 @@ static void biomeWaterBuildMesh(
         }
     }
 
-    ecs_os_free(shore_depth);
     bool was_deferred = ecs_is_deferred(world);
     if (was_deferred && rebuild) {
         ecs_defer_suspend(world);
