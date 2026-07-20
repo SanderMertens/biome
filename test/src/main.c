@@ -8,6 +8,9 @@
 
 #include <biome_test.h>
 
+// Testsuite 'Terrain'
+void Terrain_regenerate_moisture(void);
+
 // Testsuite 'Weather'
 void Weather_global_temperature(void);
 void Weather_water_state(void);
@@ -34,6 +37,13 @@ void BuildingRule_self_referencing_drag(void);
 
 // Testsuite 'Tool'
 void Tool_render_ghost(void);
+
+bake_test_case Terrain_testcases[] = {
+    {
+        "regenerate_moisture",
+        Terrain_regenerate_moisture
+    }
+};
 
 bake_test_case Weather_testcases[] = {
     {
@@ -120,6 +130,13 @@ bake_test_case Tool_testcases[] = {
 
 static bake_test_suite suites[] = {
     {
+        "Terrain",
+        NULL,
+        NULL,
+        1,
+        Terrain_testcases
+    },
+    {
         "Weather",
         NULL,
         NULL,
@@ -157,5 +174,5 @@ static bake_test_suite suites[] = {
 };
 
 int main(int argc, char *argv[]) {
-    return bake_test_run("biome_test", argc, argv, suites, 5);
+    return bake_test_run("biome_test", argc, argv, suites, 6);
 }

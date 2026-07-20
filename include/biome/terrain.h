@@ -70,7 +70,9 @@ ECS_STRUCT(Terrain, {
     float ocean_amount;
     float ocean_shore_width;
     float ocean_depth;
+    float water_level;
     float ground_moisture;
+    float water_moisture_range_tiles;
 });
 
 float biomeHash2(int32_t x, int32_t z);

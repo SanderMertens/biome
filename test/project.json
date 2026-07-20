@@ -11,6 +11,12 @@
     "test": {
         "testsuites": [
             {
+                "id": "Terrain",
+                "testcases": [
+                    "regenerate_moisture"
+                ]
+            },
+            {
                 "id": "Weather",
                 "testcases": [
                     "global_temperature",

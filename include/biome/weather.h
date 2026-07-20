@@ -13,7 +13,6 @@ ECS_STRUCT(Weather, {
     float radiative_cooling;
     float stellar_heating;
     float temperature;
-    float water_level;
 });
 
 void biomeWeatherImport(ecs_world_t *world);

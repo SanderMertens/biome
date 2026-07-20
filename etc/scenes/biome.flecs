@@ -44,7 +44,9 @@ $ {
         ocean_amount: 0.35
         ocean_shore_width: 0.04
         ocean_depth: 32
+        water_level: -2
         ground_moisture: 0
+        water_moisture_range_tiles: 6
     }
 
     weather.Weather: {
@@ -54,7 +56,6 @@ $ {
         radiative_cooling: 0.01
         stellar_heating: 0.002
         temperature: 10
-        water_level: -2
     }
 }
 

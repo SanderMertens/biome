@@ -133,6 +133,11 @@ float biomeCornerHeight(const Terrain *t, int32_t x, int32_t z) {
     return biomeTerrainHeightF(t, (float)x - 0.5f, (float)z - 0.5f);
 }
 
+static void biomeTerrainInitializeMoisture(
+    const FlecsTerrain *terrain,
+    const Terrain *config,
+    TerrainGround *ground);
+
 void FlecsTerrainOnSet(ecs_iter_t *it) {
     ecs_assert(it->count == 1, ECS_INVALID_OPERATION, "can only have one terrain");
 
@@ -191,6 +196,12 @@ void TerrainOnSet(ecs_iter_t *it) {
     ecs_world_t *world = it->world;
     ecs_entity_t e = it->entities[0];
     Terrain *cfg = ecs_field(it, Terrain, 0);
+    Terrain config = *cfg;
+    cfg = &config;
+    bool was_deferred = ecs_is_deferred(world);
+    if (was_deferred) {
+        ecs_defer_suspend(world);
+    }
 
     float ex = (float)(cfg->width / 2) * TerrainCellSize;
     float ez = (float)(cfg->height / 2) * TerrainCellSize;
@@ -233,13 +244,81 @@ void TerrainOnSet(ecs_iter_t *it) {
 
     ecs_modified(world, e, FlecsTerrain);
 
+    const FlecsTerrain *generated = ecs_get(world, e, FlecsTerrain);
     TerrainGround *ground = flecsEngine_terrain_getLayer(
         world, e, TerrainGroundIndex, TerrainGround);
-    if (ground) {
-        for (int32_t i = 0; i < cells; i ++) {
-            ground[i].moisture = cfg->ground_moisture;
+    if (generated && ground) {
+        biomeTerrainInitializeMoisture(generated, cfg, ground);
+    }
+
+    if (was_deferred) {
+        ecs_defer_resume(world);
+    }
+}
+
+static void biomeTerrainInitializeMoisture(
+    const FlecsTerrain *terrain,
+    const Terrain *config,
+    TerrainGround *ground)
+{
+    int32_t width = terrain->width;
+    int32_t depth = terrain->depth;
+    int32_t cell_count = width * depth;
+    bool *submerged = ecs_os_malloc_n(bool, cell_count);
+    float baseline = config->ground_moisture;
+    if (baseline < 0) baseline = 0;
+    if (baseline > 1) baseline = 1;
+
+    for (int32_t z = 0; z < depth; z ++) {
+        for (int32_t x = 0; x < width; x ++) {
+            int32_t i = z * width + x;
+            submerged[i] = flecsEngine_terrainCellHeight(
+                terrain, x, z) <= config->water_level;
+            ground[i].moisture = submerged[i] ? 1.0f : baseline;
         }
     }
+
+    float range = config->water_moisture_range_tiles;
+    int32_t radius = (int32_t)ceilf(range);
+    float range_squared = range * range;
+    if (range > 0) {
+        for (int32_t z = 0; z < depth; z ++) {
+            for (int32_t x = 0; x < width; x ++) {
+                int32_t i = z * width + x;
+                if (submerged[i]) {
+                    continue;
+                }
+                float nearest_squared = range_squared;
+                int32_t min_z = z > radius ? z - radius : 0;
+                int32_t max_z = z + radius < depth
+                    ? z + radius : depth - 1;
+                int32_t min_x = x > radius ? x - radius : 0;
+                int32_t max_x = x + radius < width
+                    ? x + radius : width - 1;
+                for (int32_t water_z = min_z; water_z <= max_z; water_z ++) {
+                    for (int32_t water_x = min_x;
+                        water_x <= max_x; water_x ++)
+                    {
+                        if (!submerged[water_z * width + water_x]) {
+                            continue;
+                        }
+                        float dx = (float)(water_x - x);
+                        float dz = (float)(water_z - z);
+                        float distance_squared = dx * dx + dz * dz;
+                        if (distance_squared < nearest_squared) {
+                            nearest_squared = distance_squared;
+                        }
+                    }
+                }
+                float moisture = 1.0f - sqrtf(nearest_squared) / range;
+                if (moisture > ground[i].moisture) {
+                    ground[i].moisture = moisture;
+                }
+            }
+        }
+    }
+
+    ecs_os_free(submerged);
 }
 
 static float biomeClampf(float v, float lo, float hi) {
