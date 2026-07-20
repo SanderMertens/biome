@@ -11,10 +11,10 @@
 #define TerrainSlopeIndex (0)       /* flecs_vec2_t (height gradient of tile) */
 #define TerrainSoilIndex (1)        /* TerrainSoil */
 #define TerrainGroundIndex (2)      /* WeatherGround */
-#define TerrainWaterIndex (2)       /* WeatherWater (oceans, rivers) */
 #define TerrainAirIndex (3)         /* Air column above tile */
 #define TerrainOccupancyIndex (4)
 #define TerrainPowerIndex (5)
+#define TerrainWaterIndex (6)       /* WeatherWater (oceans, rivers) */
 #define TerrainWeatherScale (6)
 
 ECS_ENUM(TerrainSampleKind, {

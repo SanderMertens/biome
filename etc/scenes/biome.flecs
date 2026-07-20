@@ -16,14 +16,14 @@ camera {
     LookAt: {0, 26.361, 255.828}
     CameraController: {terrain: terrain.Terrain, clearance: 2}
     Camera: {
-        far_: 2000
+        far_: 4000
     }
 }
 
 $ {
     terrain.Terrain: {
-        width: 512 // tiles
-        height: 512
+        width: 128 // tiles
+        height: 128
         sample_kind: Linear
         scale: 80
         octaves: 5
@@ -50,9 +50,17 @@ $ {
     weather.Config: {
         sun: sky.sun
 
-        seed_ground: {temperature: 30, moisture_amount: 1}
-        seed_air: {temperature: 30, vapor_amount: 0.0}
-        seed_variation: 1
+        seed_ground: {temperature: 20, moisture_amount: 1000}
+        seed_water: {temperature: 20, water_amount: 5000}
+        seed_air: {temperature: 20, vapor_amount: 1}
+        seed_variation: 100
+    }
+
+    water.Config: {
+        density: 997
+        surface_offset: 0.01
+        flow_rate: 0.25
+        min_flow: 0.1
     }
 }
 

@@ -6,6 +6,7 @@
 
 #include "biome/terrain.h"
 #include "biome/weather.h"
+#include "biome/water.h"
 #include "biome/wind.h"
 #include "biome/precipitation.h"
 #include "biome/cloud.h"

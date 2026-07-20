@@ -219,7 +219,7 @@ void TerrainOnSet(ecs_iter_t *it) {
         colors[i] = (flecs_rgba_t){ 120, 96, 74, 230 };
     }
 
-    ecs_vec_set_count_t(NULL, &t->layerTypes, ecs_entity_t, 6);
+    ecs_vec_set_count_t(NULL, &t->layerTypes, ecs_entity_t, 7);
     ecs_entity_t *layerTypes = ecs_vec_first_t(&t->layerTypes, ecs_entity_t);
     layerTypes[TerrainSlopeIndex] = ecs_id(flecs_vec2_t);
     layerTypes[TerrainSoilIndex] = ecs_id(TerrainSoil);
@@ -227,15 +227,15 @@ void TerrainOnSet(ecs_iter_t *it) {
     layerTypes[TerrainAirIndex] = ecs_id(WeatherAirTile);
     layerTypes[TerrainOccupancyIndex] = ecs_id(TerrainOccupancy);
     layerTypes[TerrainPowerIndex] = ecs_id(TerrainPower);
+    layerTypes[TerrainWaterIndex] = ecs_id(WeatherWaterTile);
 
-    ecs_vec_set_count_t(NULL, &t->layer_scale, int8_t, 6);
+    ecs_vec_set_count_t(NULL, &t->layer_scale, int8_t, 7);
     int8_t *layer_scale = ecs_vec_first_t(&t->layer_scale, int8_t);
-    for (int32_t i = 0; i < 6; i ++) {
+    for (int32_t i = 0; i < 7; i ++) {
         layer_scale[i] = 1;
     }
 
     layer_scale[TerrainGroundIndex] = TerrainWeatherScale;
-    layer_scale[TerrainAirIndex] = TerrainWeatherScale;
     layer_scale[TerrainAirIndex] = TerrainWeatherScale;
 
     ecs_modified(world, e, FlecsTerrain);

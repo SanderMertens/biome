@@ -63,6 +63,7 @@ int main(int argc, char *argv[]) {
 
     ECS_IMPORT(world, biomeTerrain);
     ECS_IMPORT(world, biomeWeather);
+    ECS_IMPORT(world, biomeWater);
     ECS_IMPORT(world, biomeWind);
     ECS_IMPORT(world, biomePrecipitation);
     ECS_IMPORT(world, biomeCloud);
