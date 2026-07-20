@@ -329,19 +329,32 @@ static float biomeWaterFlowPotential(
     float surface_a,
     float surface_b,
     float capacity,
-    float flow_rate)
+    float flow_rate,
+    float temperature)
 {
+    if (temperature <= -10) {
+        return 0;
+    }
+    float thawed = (temperature + 10.0f) / 10.0f;
+    if (thawed > 1) thawed = 1;
+    thawed = thawed * thawed * (3.0f - 2.0f * thawed);
+    float warm = temperature / 30.0f;
+    if (warm < 0) warm = 0;
+    if (warm > 1) warm = 1;
+    warm = warm * warm * (3.0f - 2.0f * warm);
+    float mobility = (0.45f + 0.55f * warm) * thawed;
     float difference = surface_a - surface_b;
     if (difference < 0) {
         difference = -difference;
     }
-    return difference * capacity * 0.5f * flow_rate;
+    return difference * capacity * 0.5f * flow_rate * mobility;
 }
 
 static void biomeWaterAccumulateOutflow(
     int32_t a,
     int32_t b,
     const float *surface,
+    const WeatherWaterTile *water,
     WeatherWaterTile *next,
     float capacity,
     float flow_rate,
@@ -353,7 +366,8 @@ static void biomeWaterAccumulateOutflow(
     }
     int32_t source = difference > 0 ? a : b;
     float flow = biomeWaterFlowPotential(
-        surface[a], surface[b], capacity, flow_rate);
+        surface[a], surface[b], capacity, flow_rate,
+        water[source].temperature);
     if (flow >= min_flow) {
         next[source].temperature += flow;
     }
@@ -376,7 +390,8 @@ static void biomeWaterApplyFlow(
     int32_t source = difference > 0 ? a : b;
     int32_t destination = difference > 0 ? b : a;
     float flow = biomeWaterFlowPotential(
-        surface[a], surface[b], capacity, flow_rate);
+        surface[a], surface[b], capacity, flow_rate,
+        water[source].temperature);
     if (flow < min_flow) {
         return;
     }
@@ -458,12 +473,12 @@ static void WaterFlow(ecs_iter_t *it) {
                 int32_t i = row + x;
                 if (x + 1 < width) {
                     biomeWaterAccumulateOutflow(
-                        i, i + 1, surface, next,
+                        i, i + 1, surface, water, next,
                         capacity, flow_rate, min_flow);
                 }
                 if (z + 1 < depth) {
                     biomeWaterAccumulateOutflow(
-                        i, i + width, surface, next,
+                        i, i + width, surface, water, next,
                         capacity, flow_rate, min_flow);
                 }
             }

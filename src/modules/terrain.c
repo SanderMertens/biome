@@ -249,7 +249,8 @@ static void biomeMixColor(float rgb[3], const float target[3], float f) {
 static flecs_rgba_t biomeGroundColor(
     const WeatherGroundTile *g,
     const TerrainSoil *s,
-    float moisture_capacity)
+    float moisture_capacity,
+    float temperature)
 {
     static const float rock[3] = {125, 125, 125};
     static const float sand[3] = {178, 142, 104};
@@ -268,7 +269,7 @@ static flecs_rgba_t biomeGroundColor(
     moisture = moisture * moisture * (3.0f - 2.0f * moisture);
     float wetness = moisture * sediment;
     biomeMixColor(rgb, wet_soil, wetness);
-    float frozen = biomeClampf(-g->temperature / 10.0f, 0, 1.0f);
+    float frozen = biomeClampf(-temperature / 10.0f, 0, 1.0f);
     biomeMixColor(rgb, ice, wetness * frozen);
     float roughness = 250.0f - 100.0f * wetness;
 
@@ -349,6 +350,8 @@ void ApplyTerrainColors(ecs_iter_t *it) {
         world, e, TerrainGroundIndex, WeatherGroundTile);
     const TerrainSoil *soil = flecsEngine_terrain_getLayer(
         world, e, TerrainSoilIndex, TerrainSoil);
+    const WeatherWaterTile *water = flecsEngine_terrain_getLayer(
+        world, e, TerrainWaterIndex, WeatherWaterTile);
     if (!ground || !soil) {
         return;
     }
@@ -372,16 +375,23 @@ void ApplyTerrainColors(ecs_iter_t *it) {
             if (sample_kind == TerrainSampleKindLinear) {
                 WeatherGroundTile sample = biomeSampleGroundLinear(
                     ground, ground_w, ground_d, ground_scale, x, z);
+                float temperature = water && water[i].water_amount > 0
+                    ? water[i].temperature
+                    : sample.temperature;
                 colors[i] = biomeGroundColor(
-                    &sample, &soil[i], moisture_capacity);
+                    &sample, &soil[i], moisture_capacity, temperature);
             } else {
                 int32_t ground_x = x / ground_scale;
                 int32_t ground_z = z / ground_scale;
                 if (ground_x >= ground_w) ground_x = ground_w - 1;
                 if (ground_z >= ground_d) ground_z = ground_d - 1;
+                const WeatherGroundTile *sample = &ground[
+                    ground_z * ground_w + ground_x];
+                float temperature = water && water[i].water_amount > 0
+                    ? water[i].temperature
+                    : sample->temperature;
                 colors[i] = biomeGroundColor(
-                    &ground[ground_z * ground_w + ground_x], &soil[i],
-                    moisture_capacity);
+                    sample, &soil[i], moisture_capacity, temperature);
             }
         }
     }

@@ -129,9 +129,10 @@ static const char *biomeWaterShaderSource =
     "    + ambient * ice_base * 0.22\n"
     "    + uniforms.light_color.rgb * ice_sun * 0.8;\n"
     "  let surface_color = mix(color, ice_color, frozen);\n"
-    "  let visibility = smoothstep(0.0, 0.16, input.shore_depth);\n"
-    "  let opacity = mix(visibility, max(visibility, frozen * 0.94), frozen);\n"
-    "  return vec4<f32>(mix(scene_color, surface_color, opacity), 1.0);\n"
+    "  let water_visibility = smoothstep(0.0, 0.16, input.shore_depth);\n"
+    "  let ice_visibility = smoothstep(0.0, 1.0, input.shore_depth);\n"
+    "  let visibility = mix(water_visibility, ice_visibility, frozen);\n"
+    "  return vec4<f32>(mix(scene_color, surface_color, visibility), 1.0);\n"
     "}\n";
 
 #endif

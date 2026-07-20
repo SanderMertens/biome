@@ -144,7 +144,7 @@ void WeatherUpdate(ecs_iter_t *it) {
         for (int32_t x = 0; x < water_w; x ++) {
             int32_t i = z * water_w + x;
             float surface_water = water[i].water_amount;
-            if (surface_water <= 0) {
+            if (surface_water <= 0 || water[i].temperature <= 0) {
                 continue;
             }
 
