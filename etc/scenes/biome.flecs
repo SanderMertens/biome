@@ -36,6 +36,15 @@ $ {
         height_gain: 3
         height_base: 0.44
         max_height: 40 // meters, lowlands
+        river_freq: 1.4
+        river_octaves: 4
+        river_width: 0.09
+        river_depth: 4
+        ocean_freq: 0.28
+        ocean_octaves: 3
+        ocean_level: 0.46
+        ocean_shore_width: 0.08
+        ocean_depth: 18
     }
 
     weather.Config: {

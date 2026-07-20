@@ -39,13 +39,32 @@ float biomeFbm2(float x, float z, int32_t octaves) {
     return sum / norm;
 }
 
+static float biomeSmoothstep(float lo, float hi, float v) {
+    if (v <= lo) return 0;
+    if (v >= hi) return 1;
+    v = (v - lo) / (hi - lo);
+    return v * v * (3.0f - 2.0f * v);
+}
+
+static float biomeRiverDistance(
+    const Terrain *t,
+    float x,
+    float z)
+{
+    return fabsf(2.0f * biomeFbm2(
+        x * t->river_freq + 113.7f,
+        z * t->river_freq + 197.3f,
+        t->river_octaves) - 1.0f);
+}
+
 float biomeTerrainHeightF(const Terrain *t, float fx, float fz) {
     float wx = fx / t->scale, wz = fz / t->scale;
 
     float qx = biomeFbm2(wx + 13.7f, wz + 71.3f, t->warp_octaves);
     float qz = biomeFbm2(wx + 47.2f, wz + 5.9f, t->warp_octaves);
-    float h = biomeFbm2(
-        wx + t->warp * (qx - 0.5f), wz + t->warp * (qz - 0.5f), t->octaves);
+    float dx = wx + t->warp * (qx - 0.5f);
+    float dz = wz + t->warp * (qz - 0.5f);
+    float h = biomeFbm2(dx, dz, t->octaves);
 
     float r = 1.0f - fabsf(2.0f * biomeFbm2(
         wx * t->ridge_freq + 29.0f, wz * t->ridge_freq + 83.0f,
@@ -57,7 +76,52 @@ float biomeTerrainHeightF(const Terrain *t, float fx, float fz) {
     if (h > 1.0f) h = 1.0f;
     h = h * h * (3.0f - 2.0f * h);
 
-    return h * t->max_height;
+    h *= t->max_height;
+
+    if (t->river_depth > 0 && t->river_freq > 0 &&
+        t->river_width > 0 && t->river_octaves > 0)
+    {
+        float river = biomeRiverDistance(t, dx, dz);
+        float step = 1.0f / t->scale;
+        float filter = fabsf(
+            river - biomeRiverDistance(t, dx - step, dz));
+        float sample = fabsf(
+            river - biomeRiverDistance(t, dx + step, dz));
+        if (sample > filter) filter = sample;
+        sample = fabsf(
+            river - biomeRiverDistance(t, dx, dz - step));
+        if (sample > filter) filter = sample;
+        sample = fabsf(
+            river - biomeRiverDistance(t, dx, dz + step));
+        if (sample > filter) filter = sample;
+        float inner = t->river_width - filter;
+        if (inner < 0) inner = 0;
+        float river_mask = 1.0f - biomeSmoothstep(
+            inner, t->river_width + filter, river);
+        h -= river_mask * t->river_depth;
+    }
+
+    if (t->ocean_depth > 0 && t->ocean_freq > 0 &&
+        t->ocean_octaves > 0)
+    {
+        float ocean = biomeFbm2(
+            dx * t->ocean_freq + 251.9f,
+            dz * t->ocean_freq + 337.1f,
+            t->ocean_octaves);
+        float shore = t->ocean_shore_width;
+        float ocean_mask;
+        if (shore > 0) {
+            ocean_mask = 1.0f - biomeSmoothstep(
+                t->ocean_level - shore,
+                t->ocean_level + shore,
+                ocean);
+        } else {
+            ocean_mask = ocean < t->ocean_level;
+        }
+        h -= ocean_mask * t->ocean_depth;
+    }
+
+    return h;
 }
 
 float biomeCornerHeight(const Terrain *t, int32_t x, int32_t z) {
