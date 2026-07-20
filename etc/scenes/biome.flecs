@@ -50,9 +50,9 @@ $ {
     weather.Config: {
         sun: sky.sun
 
-        seed_ground: {temperature: 20, moisture_amount: 0}
-        seed_water: {temperature: 10, water_amount: 0}
-        seed_air: {temperature: 2, vapor_amount: 0}
+        seed_ground: {temperature: 10, moisture_amount: 0}
+        seed_water: {temperature: 20, water_amount: 1}
+        seed_air: {temperature: 0, vapor_amount: 100000}
         seed_variation: 1
         ocean_level: -1
     }
@@ -69,6 +69,13 @@ $ {
             acceleration: 1
             drag: 0.1
             max_velocity: 30
+        }
+        condensation: {
+            enabled: true
+            rate: 1
+            latent_heating: 1
+            precipitation_threshold: 100
+            precipitation_rate: 0.2
         }
         infiltration: {
             enabled: true

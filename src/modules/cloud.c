@@ -8,7 +8,6 @@
 #define CloudCapacity (65536)
 #define CloudFadeIn (0.01f)
 #define CloudFadeOut (0.3f)
-#define CloudThickness (5.0f)
 #define CloudMinSize (5.0f)
 #define CloudSizeVariance (3.0f)
 #define CloudMinAge (15.0f)
@@ -25,13 +24,35 @@ static float cloudRandf(uint32_t *state, float max) {
     return max * (float)(s & 0xffffff) / (float)0x1000000;
 }
 
+static int32_t cloudGcd(int32_t a, int32_t b) {
+    while (b) {
+        int32_t next = a % b;
+        a = b;
+        b = next;
+    }
+    return a;
+}
+
+static int32_t cloudStride(uint32_t *state, int32_t cells) {
+    int32_t stride = 1 +
+        (int32_t)cloudRandf(state, (float)(cells - 1));
+    while (cloudGcd(stride, cells) != 1) {
+        stride ++;
+        if (stride >= cells) {
+            stride = 1;
+        }
+    }
+    return stride;
+}
+
 void CloudEmit(ecs_iter_t *it) {
     ecs_assert(it->count == 1, ECS_INVALID_OPERATION, "can only have one terrain");
 
     ecs_world_t *world = it->world;
     ecs_entity_t e = it->entities[0];
     const FlecsTerrain *t = ecs_field(it, FlecsTerrain, 0);
-    CloudEmitter *em = ecs_field(it, CloudEmitter, 1);
+    const Terrain *terrain = ecs_field(it, Terrain, 1);
+    CloudEmitter *em = ecs_field(it, CloudEmitter, 2);
 
     int32_t w = t->width, d = t->depth;
     if (w <= 0 || d <= 0) {
@@ -61,55 +82,81 @@ void CloudEmit(ecs_iter_t *it) {
         dt = CloudMaxDeltaTime;
     }
 
-    for (int32_t z = 0; z < d; z ++) {
-        for (int32_t x = 0; x < w; x ++) {
-            int32_t i = (z / air_scale) * air_w + x / air_scale;
-            float cw = air[i].water;
-            if (cw <= CloudVisibleFloor) {
-                continue;
-            }
+    const FlecsParticles *pool = ecs_get(
+        world, em->cloud_pool, FlecsParticles);
+    int32_t cells = w * d;
+    int32_t start = (int32_t)cloudRandf(
+        &em->rand_state, (float)cells);
+    int32_t stride = cloudStride(&em->rand_state, cells);
+    for (int32_t j = 0; j < cells; j ++) {
+        if (pool && pool->count >= pool->capacity) {
+            break;
+        }
 
-            float expect = cw * CloudEmitScale * dt;
-            int32_t count = (int32_t)expect;
-            if (cloudRandf(&em->rand_state, 1.0f) < expect - (float)count) {
-                count ++;
-            }
-            if (count > CloudMaxPerCell) {
-                count = CloudMaxPerCell;
-            }
-            if (!count) {
-                continue;
-            }
+        int32_t cell = (int32_t)(
+            (start + (int64_t)j * stride) % cells);
+        int32_t x = cell % w;
+        int32_t z = cell / w;
+        int32_t i = (z / air_scale) * air_w + x / air_scale;
+        int32_t air_x = x / air_scale;
+        int32_t air_z = z / air_scale;
+        int32_t covered_width = w - air_x * air_scale;
+        int32_t covered_depth = d - air_z * air_scale;
+        if (covered_width > air_scale) {
+            covered_width = air_scale;
+        }
+        if (covered_depth > air_scale) {
+            covered_depth = air_scale;
+        }
+        float cw = air[i].water /
+            (float)(covered_width * covered_depth);
+        if (cw <= CloudVisibleFloor) {
+            continue;
+        }
 
-            float h = flecsEngine_terrainCellHeight(t, x, z);
+        float expect = cw * CloudEmitScale * dt;
+        int32_t count = (int32_t)expect;
+        if (cloudRandf(&em->rand_state, 1.0f) < expect - (float)count) {
+            count ++;
+        }
+        if (count > CloudMaxPerCell) {
+            count = CloudMaxPerCell;
+        }
+        if (!count) {
+            continue;
+        }
 
-            for (int32_t k = 0; k < count; k ++) {
-                float size = CloudMinSize +
-                    cloudRandf(&em->rand_state, CloudSizeVariance);
-                float y = h + CloudBaseHeight + size * 0.5f +
-                    cloudRandf(&em->rand_state, CloudThickness);
-
-                flecsEngine_particlesEmit(world, em->cloud_pool,
-                    &(flecs_particle_t){
-                        .pos = {
-                            ((float)x + cloudRandf(&em->rand_state, 1.0f)) *
-                                cs + ox,
-                            y,
-                            ((float)z + cloudRandf(&em->rand_state, 1.0f)) *
-                                cs + oz },
-                        .size = size,
-                        .stretch = 1.0f,
-                        .max_age = CloudMinAge +
-                            cloudRandf(&em->rand_state, CloudAgeVariance),
-                        .color = { 255, 255, 255, CloudAlpha }
-                    });
+        for (int32_t k = 0; k < count; k ++) {
+            if (pool && pool->count >= pool->capacity) {
+                break;
             }
+            float size = CloudMinSize +
+                cloudRandf(&em->rand_state, CloudSizeVariance);
+            float y = (tp ? tp->y : 0) + terrain->max_height +
+                CloudBaseHeight + size * 0.5f;
+
+            flecsEngine_particlesEmit(world, em->cloud_pool,
+                &(flecs_particle_t){
+                    .pos = {
+                        ((float)x + cloudRandf(&em->rand_state, 1.0f)) *
+                            cs + ox,
+                        y,
+                        ((float)z + cloudRandf(&em->rand_state, 1.0f)) *
+                            cs + oz },
+                    .size = size,
+                    .stretch = 1.0f,
+                    .max_age = CloudMinAge +
+                        cloudRandf(&em->rand_state, CloudAgeVariance),
+                    .color = { 255, 255, 255, CloudAlpha }
+                });
         }
     }
 }
 
 void biomeCloudImport(ecs_world_t *world) {
     ECS_MODULE(world, biomeCloud);
+
+    ECS_IMPORT(world, biomeWeather);
 
     ecs_set_name_prefix(world, "Cloud");
 
@@ -134,6 +181,7 @@ void biomeCloudImport(ecs_world_t *world) {
 
     ECS_SYSTEM(world, CloudEmit, EcsPreStore,
         [in]    FlecsTerrain,
+        [in]    Terrain,
         [inout] CloudEmitter,
-        [none]  WeatherBuffers);
+        [in]    Weather);
 }

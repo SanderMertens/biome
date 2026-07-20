@@ -125,6 +125,98 @@ static void biomeAirThermalExchange(
     }
 }
 
+static void biomeGroundThermalExchangePeriodic(
+    const WeatherGroundTile *ground,
+    WeatherGroundTile *next,
+    int32_t width,
+    int32_t depth,
+    float factor)
+{
+    biomeGroundThermalExchange(ground, next, width, depth, factor);
+    if (width > 2) {
+        for (int32_t z = 0; z < depth; z ++) {
+            int32_t first = z * width;
+            int32_t last = first + width - 1;
+            biomeThermalTransfer(
+                ground[last].temperature, ground[first].temperature,
+                &next[last].temperature, &next[first].temperature, factor);
+        }
+    }
+    if (depth > 2) {
+        for (int32_t x = 0; x < width; x ++) {
+            int32_t first = x;
+            int32_t last = (depth - 1) * width + x;
+            biomeThermalTransfer(
+                ground[last].temperature, ground[first].temperature,
+                &next[last].temperature, &next[first].temperature, factor);
+        }
+    }
+}
+
+static void biomeWaterThermalExchangePeriodic(
+    const WeatherWaterTile *water,
+    WeatherWaterTile *next,
+    int32_t width,
+    int32_t depth,
+    float factor)
+{
+    biomeWaterThermalExchange(water, next, width, depth, factor);
+    if (width > 2) {
+        for (int32_t z = 0; z < depth; z ++) {
+            int32_t first = z * width;
+            int32_t last = first + width - 1;
+            if (water[first].water_amount > 0 &&
+                water[last].water_amount > 0)
+            {
+                biomeWaterThermalTransfer(
+                    &water[last], &water[first],
+                    &next[last], &next[first], factor);
+            }
+        }
+    }
+    if (depth > 2) {
+        for (int32_t x = 0; x < width; x ++) {
+            int32_t first = x;
+            int32_t last = (depth - 1) * width + x;
+            if (water[first].water_amount > 0 &&
+                water[last].water_amount > 0)
+            {
+                biomeWaterThermalTransfer(
+                    &water[last], &water[first],
+                    &next[last], &next[first], factor);
+            }
+        }
+    }
+}
+
+static void biomeAirThermalExchangePeriodic(
+    const WeatherAirTile *air,
+    WeatherAirTile *next,
+    int32_t width,
+    int32_t depth,
+    float factor)
+{
+    biomeAirThermalExchange(air, next, width, depth, factor);
+    if (width > 2) {
+        for (int32_t z = 0; z < depth; z ++) {
+            int32_t first = z * width;
+            int32_t last = first + width - 1;
+            biomeThermalTransfer(
+                air[last].temperature, air[first].temperature,
+                &next[last].temperature, &next[first].temperature, factor);
+        }
+    }
+    if (depth > 2) {
+        for (int32_t x = 0; x < width; x ++) {
+            int32_t first = x;
+            int32_t last = (depth - 1) * width + x;
+            biomeThermalTransfer(
+                air[last].temperature, air[first].temperature,
+                &next[last].temperature, &next[first].temperature, factor);
+        }
+    }
+}
+
 static void biomeSurfaceThermalExchange(
     const WeatherGroundTile *ground,
     const WeatherWaterTile *water,

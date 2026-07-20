@@ -2,10 +2,12 @@
 
 #include "biome.h"
 #include "evaporation.h"
+#include "condensation.h"
 #include "radiative_balance.h"
 #include "thermal_exchange.h"
 #include "weather_aggregate.h"
 #include "weather_ocean.h"
+#include "weather_seed.h"
 #include "weather_wind.h"
 
 void WeatherInit(ecs_iter_t *it) {
@@ -69,13 +71,23 @@ void WeatherInit(ecs_iter_t *it) {
         for (int32_t x = 0; x < w; x ++) {
             int32_t i = z * w + x;
             float variation = (
-                biomeFbm2((float)x * 0.13f + 17.0f,
-                    (float)z * 0.13f + 31.0f, 3) - 0.5f) *
+                biomeWeatherPeriodicFbm2(
+                    (float)x, (float)z, (float)w, (float)d,
+                    0.13f, 17.0f, 31.0f, 3) - 0.5f) *
                 2.0f * c->seed_variation;
             ground[i] = c->seed_ground;
             ground[i].temperature += variation;
             air[i] = c->seed_air;
             air[i].temperature += variation;
+            float coverage = biomeWeatherTileCoverage(
+                x, z, t->width, t->depth, scale);
+            ground[i].moisture_amount *= coverage;
+            air[i].ghg_amount *= coverage;
+            air[i].o2_amount *= coverage;
+            air[i].vapor_amount *= coverage;
+            air[i].water *= coverage;
+            air[i].precipitation_rate = 0;
+            air[i].pressure = 0;
         }
     }
 
@@ -83,8 +95,10 @@ void WeatherInit(ecs_iter_t *it) {
         for (int32_t x = 0; x < water_w; x ++) {
             int32_t i = z * water_w + x;
             float variation = (
-                biomeFbm2((float)x * 0.0216667f + 17.0f,
-                    (float)z * 0.0216667f + 31.0f, 3) - 0.5f) *
+                biomeWeatherPeriodicFbm2(
+                    (float)x, (float)z,
+                    (float)water_w, (float)water_d,
+                    0.0216667f, 17.0f, 31.0f, 3) - 0.5f) *
                 2.0f * c->seed_variation;
             water[i] = c->seed_water;
             water[i].temperature += variation;
@@ -258,13 +272,13 @@ void ThermalExchange(ecs_iter_t *it) {
     WeatherAirTile *next_air = ecs_vec_first_t(
         &buffers->air_buffer, WeatherAirTile);
 
-    biomeGroundThermalExchange(
+    biomeGroundThermalExchangePeriodic(
         ground, next_ground, ground_w, ground_d,
         biomeThermalExchangeFactor(0.05f * rate, it->delta_time));
-    biomeWaterThermalExchange(
+    biomeWaterThermalExchangePeriodic(
         water, next_water, water_w, water_d,
         biomeThermalExchangeFactor(0.1f * rate, it->delta_time));
-    biomeAirThermalExchange(
+    biomeAirThermalExchangePeriodic(
         air, next_air, ground_w, ground_d,
         biomeThermalExchangeFactor(0.2f * rate, it->delta_time));
     biomeSurfaceThermalExchange(
@@ -341,7 +355,7 @@ void ApplyWind(ecs_iter_t *it) {
         &buffers->air_buffer, WeatherAirTile);
     float cell_size = t->cell_size > 0 ? t->cell_size : 1.0f;
     int32_t scale = flecsEngine_terrainLayerScale(t, TerrainAirIndex);
-    biomeApplyWind(
+    biomeApplyWindConservative(
         air, next, width, depth, cell_size * (float)scale, it->delta_time);
     biomeComputeAirPressure(
         next, width, depth, t->width, t->depth, scale,
@@ -576,6 +590,43 @@ void RadiativeBalance(ecs_iter_t *it) {
         it->delta_time);
 }
 
+void Condensation(ecs_iter_t *it) {
+    ecs_assert(it->count == 1, ECS_INVALID_OPERATION, "can only have one terrain");
+
+    ecs_world_t *world = it->world;
+    ecs_entity_t e = it->entities[0];
+    const FlecsTerrain *t = ecs_field(it, FlecsTerrain, 0);
+    const Weather *weather = ecs_field(it, Weather, 1);
+    if (it->delta_time <= 0) {
+        return;
+    }
+
+    int32_t air_width;
+    int32_t air_depth;
+    int32_t water_width;
+    int32_t water_depth;
+    flecsEngine_terrainLayerDimensions(
+        t, TerrainAirIndex, &air_width, &air_depth);
+    flecsEngine_terrainLayerDimensions(
+        t, TerrainWaterIndex, &water_width, &water_depth);
+    WeatherAirTile *air = flecsEngine_terrain_getLayer(
+        world, e, TerrainAirIndex, WeatherAirTile);
+    WeatherWaterTile *water = flecsEngine_terrain_getLayer(
+        world, e, TerrainWaterIndex, WeatherWaterTile);
+    if (!air || !water || air_width <= 0 || air_depth <= 0 ||
+        water_width <= 0 || water_depth <= 0)
+    {
+        return;
+    }
+
+    float cell_size = t->cell_size > 0 ? t->cell_size : 1.0f;
+    biomeCondensationStep(
+        air, air_width, air_depth, water, water_width, water_depth,
+        flecsEngine_terrainLayerScale(t, TerrainAirIndex),
+        cell_size * cell_size, weather->gravity,
+        &weather->condensation, it->delta_time);
+}
+
 void WeatherComputeAggregate(ecs_iter_t *it) {
     ecs_assert(it->count == 1, ECS_INVALID_OPERATION, "can only have one terrain");
 
@@ -673,6 +724,7 @@ void biomeWeatherImport(ecs_world_t *world) {
     ECS_META_COMPONENT(world, WeatherInfiltration);
     ECS_META_COMPONENT(world, WeatherThermalExchange);
     ECS_META_COMPONENT(world, WeatherWind);
+    ECS_META_COMPONENT(world, WeatherCondensation);
     ECS_META_COMPONENT(world, WeatherEvaporation);
     ECS_META_COMPONENT(world, WeatherRadiativeBalance);
     ECS_META_COMPONENT(world, Weather);
@@ -717,6 +769,10 @@ void biomeWeatherImport(ecs_world_t *world) {
         [none]  WeatherBuffers);
 
     ECS_SYSTEM(world, RadiativeBalance, EcsPostUpdate,
+        [inout] FlecsTerrain,
+        [in]    Weather);
+
+    ECS_SYSTEM(world, Condensation, EcsPostUpdate,
         [inout] FlecsTerrain,
         [in]    Weather);
 

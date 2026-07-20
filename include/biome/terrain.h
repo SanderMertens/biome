@@ -15,7 +15,7 @@
 #define TerrainOccupancyIndex (4)
 #define TerrainPowerIndex (5)
 #define TerrainWaterIndex (6)       /* WeatherWater (oceans, rivers) */
-#define TerrainWeatherScale (6)
+#define TerrainWeatherScale (1)
 
 ECS_ENUM(TerrainSampleKind, {
     TerrainSampleKindNearest,

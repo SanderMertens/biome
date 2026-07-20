@@ -15,6 +15,7 @@
                 "testcases": [
                     "thermal_exchange",
                     "wind",
+                    "condensation",
                     "evaporation",
                     "aggregate",
                     "radiative_balance",

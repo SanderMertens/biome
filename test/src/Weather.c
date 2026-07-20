@@ -1,9 +1,11 @@
 #include <biome.h>
 #include "../../src/modules/evaporation.h"
+#include "../../src/modules/condensation.h"
 #include "../../src/modules/radiative_balance.h"
 #include "../../src/modules/thermal_exchange.h"
 #include "../../src/modules/weather_aggregate.h"
 #include "../../src/modules/weather_ocean.h"
+#include "../../src/modules/weather_seed.h"
 #include "../../src/modules/weather_wind.h"
 #include <biome_test.h>
 
@@ -140,15 +142,28 @@ void Weather_wind(void) {
     test_flt(pressure_air[2].pressure, 1000.0f);
     biomeComputeWind(
         pressure_air, 3, 1, 10.0f, 1.0f, 0.0f, 100.0f, 1.0f);
-    test_assert(pressure_air[0].wind_velocity.x > 0);
+    test_assert(pressure_air[0].wind_velocity.x < 0);
     test_assert(pressure_air[1].wind_velocity.x > 0);
-    test_assert(pressure_air[2].wind_velocity.x > 0);
+    test_assert(pressure_air[2].wind_velocity.x < 0);
+    flecs_vec3_t velocities[3] = {
+        pressure_air[0].wind_velocity,
+        pressure_air[1].wind_velocity,
+        pressure_air[2].wind_velocity
+    };
+    pressure_air[0].pressure = 2000.0f;
+    pressure_air[2].pressure = 2000.0f;
+    biomeComputeWind(
+        pressure_air, 3, 1, 10.0f, 1.0f, 1.0f, 100.0f, 1.0f);
+    test_flt(pressure_air[0].wind_velocity.x, velocities[0].x * expf(-1.0f));
+    test_flt(pressure_air[1].wind_velocity.x, velocities[1].x * expf(-1.0f));
+    test_flt(pressure_air[2].wind_velocity.x, velocities[2].x * expf(-1.0f));
 
     WeatherAirTile air[3] = {
         {
             .temperature = 10.0f,
-            .ghg_amount = 10.0f,
-            .wind_velocity = { 0.5f, 0, 0 }
+            .ghg_amount = 30.0f,
+            .water = 10.0f,
+            .wind_velocity = { -0.5f, 0, 0 }
         },
         {
             .temperature = 20.0f,
@@ -157,20 +172,78 @@ void Weather_wind(void) {
         },
         {
             .temperature = 30.0f,
-            .vapor_amount = 30.0f
+            .vapor_amount = 10.0f,
+            .wind_velocity = { 0.5f, 0, 0 }
         }
     };
     WeatherAirTile next[3];
     biomeApplyWind(air, next, 3, 1, 1.0f, 1.0f);
 
-    test_flt(next[0].ghg_amount, 5.0f);
-    test_flt(next[1].ghg_amount, 5.0f);
+    test_flt(next[0].ghg_amount, 15.0f);
+    test_flt(next[2].ghg_amount, 15.0f);
     test_flt(next[1].o2_amount, 10.0f);
     test_flt(next[2].o2_amount, 10.0f);
-    test_flt(next[2].vapor_amount, 30.0f);
-    test_flt(next[0].temperature, 10.0f);
-    test_flt(next[1].temperature, 50.0f / 3.0f);
-    test_flt(next[2].temperature, 27.5f);
+    test_flt(next[0].vapor_amount, 5.0f);
+    test_flt(next[2].vapor_amount, 5.0f);
+    test_flt(next[0].water, 5.0f);
+    test_flt(next[2].water, 5.0f);
+    test_assert(fabsf(
+        next[0].ghg_amount + next[1].ghg_amount +
+            next[2].ghg_amount - 30.0f) < 0.001f);
+    test_assert(fabsf(
+        next[0].o2_amount + next[1].o2_amount +
+            next[2].o2_amount - 20.0f) < 0.001f);
+    test_assert(fabsf(
+        next[0].vapor_amount + next[1].vapor_amount +
+            next[2].vapor_amount - 10.0f) < 0.001f);
+}
+
+void Weather_condensation(void) {
+    test_flt(biomeWeatherTileCoverage(0, 0, 128, 128, 6), 1.0f);
+    test_flt(biomeWeatherTileCoverage(21, 0, 128, 128, 6), 1.0f / 3.0f);
+    test_flt(biomeWeatherTileCoverage(0, 21, 128, 128, 6), 1.0f / 3.0f);
+    test_flt(biomeWeatherTileCoverage(21, 21, 128, 128, 6), 1.0f / 9.0f);
+
+    float temperature = 20.0f;
+    float capacity = biomeSaturationVaporCapacity(
+        temperature, 2.0f, 10.0f);
+    WeatherAirTile air = {
+        .temperature = temperature,
+        .o2_amount = 1000.0f,
+        .vapor_amount = capacity + 100.0f,
+        .water = 20.0f
+    };
+    WeatherWaterTile water[2] = {
+        { .temperature = 10.0f, .water_amount = 10.0f },
+        { .temperature = 0.0f }
+    };
+    WeatherCondensation config = {
+        .enabled = true,
+        .rate = INFINITY,
+        .precipitation_threshold = 40.0f,
+        .precipitation_rate = INFINITY
+    };
+
+    biomeCondensationStep(
+        &air, 1, 1, water, 2, 1, 2, 1.0f, 10.0f, &config, 1.0f);
+
+    test_flt(air.vapor_amount, capacity);
+    test_flt(air.water, 40.0f);
+    test_flt(air.precipitation_rate, 80.0f);
+    test_flt(water[0].water_amount, 50.0f);
+    test_flt(water[1].water_amount, 40.0f);
+    test_flt(water[0].temperature, 18.0f);
+    test_flt(water[1].temperature, 20.0f);
+    test_flt(
+        air.vapor_amount + air.water +
+            water[0].water_amount + water[1].water_amount,
+        capacity + 130.0f);
+
+    air.precipitation_rate = 10.0f;
+    config.enabled = false;
+    biomeCondensationStep(
+        &air, 1, 1, water, 2, 1, 2, 1.0f, 10.0f, &config, 1.0f);
+    test_flt(air.precipitation_rate, 0.0f);
 }
 
 void Weather_aggregate(void) {

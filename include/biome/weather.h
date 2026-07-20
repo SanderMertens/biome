@@ -27,6 +27,7 @@ ECS_STRUCT(WeatherAirTile, {
     float o2_amount;                /* Amount of oxygen */
     float vapor_amount;             /* Water vapor in air */
     float water;                    /* Water in clouds */
+    float precipitation_rate;
     float pressure;
     flecs_vec3_t wind_velocity;     /* Transports air contents to neighboring tiles */
 });
@@ -61,6 +62,14 @@ ECS_STRUCT(WeatherWind, {
     float max_velocity;
 });
 
+ECS_STRUCT(WeatherCondensation, {
+    bool enabled;
+    float rate;
+    float latent_heating;
+    float precipitation_threshold;
+    float precipitation_rate;
+});
+
 ECS_STRUCT(WeatherEvaporation, {
     bool enabled;
     float surface_water_rate;
@@ -81,6 +90,7 @@ ECS_STRUCT(Weather, {
     WeatherInfiltration infiltration;
     WeatherThermalExchange thermal_exchange;
     WeatherWind wind;
+    WeatherCondensation condensation;
     WeatherEvaporation evaporation;
     WeatherRadiativeBalance radiative_balance;
 });
