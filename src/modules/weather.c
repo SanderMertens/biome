@@ -266,6 +266,11 @@ void ThermalExchange(ecs_iter_t *it) {
     biomeAirThermalExchange(
         air, next_air, ground_w, ground_d,
         biomeThermalExchangeFactor(0.2f * rate, it->delta_time));
+    biomeSurfaceThermalExchange(
+        ground, water, air, next_ground, next_water, next_air,
+        ground_w, ground_d, water_w, water_d,
+        flecsEngine_terrainLayerScale(t, TerrainGroundIndex),
+        biomeThermalExchangeFactor(0.1f * rate, it->delta_time));
 
     ecs_os_memcpy_n(ground, next_ground, WeatherGroundTile, ground_count);
     ecs_os_memcpy_n(water, next_water, WeatherWaterTile, water_count);
