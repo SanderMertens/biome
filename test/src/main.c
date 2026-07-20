@@ -10,6 +10,7 @@
 
 // Testsuite 'Terrain'
 void Terrain_regenerate_moisture(void);
+void Terrain_spread_colors_across_frames(void);
 
 // Testsuite 'Weather'
 void Weather_global_temperature(void);
@@ -42,6 +43,10 @@ bake_test_case Terrain_testcases[] = {
     {
         "regenerate_moisture",
         Terrain_regenerate_moisture
+    },
+    {
+        "spread_colors_across_frames",
+        Terrain_spread_colors_across_frames
     }
 };
 
@@ -133,7 +138,7 @@ static bake_test_suite suites[] = {
         "Terrain",
         NULL,
         NULL,
-        1,
+        2,
         Terrain_testcases
     },
     {

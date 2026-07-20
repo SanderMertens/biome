@@ -906,9 +906,11 @@ static void flecsEngine_terrain_refreshPositions(
     }
 }
 
-void flecsEngine_terrainColorsModified(
+void flecsEngine_terrainColorsModifiedRange(
     ecs_world_t *world,
-    ecs_entity_t terrain)
+    ecs_entity_t terrain,
+    int32_t first,
+    int32_t count)
 {
     const FlecsTerrain *t = ecs_get(world, terrain, FlecsTerrain);
     if (!t) {
@@ -924,6 +926,25 @@ void flecsEngine_terrainColorsModified(
     if (ecs_vec_count(&t->colors) != cell_count) {
         return;
     }
+    if (first < 0) {
+        count += first;
+        first = 0;
+    }
+    if (count <= 0 || first >= cell_count) {
+        return;
+    }
+    int64_t requested_end = (int64_t)first + count;
+    int32_t end = requested_end > cell_count
+        ? cell_count
+        : (int32_t)requested_end;
+    first -= t->width + 1;
+    if (first < 0) {
+        first = 0;
+    }
+    end += t->width + 1;
+    if (end > cell_count) {
+        end = cell_count;
+    }
 
     FlecsMesh3 *mesh = ecs_get_mut(world, mesh_e, FlecsMesh3);
     if (!mesh || ecs_vec_count(&mesh->colors) < cell_count * 6) {
@@ -931,14 +952,25 @@ void flecsEngine_terrainColorsModified(
     }
 
     flecs_rgba_t *vert_colors = ecs_vec_first_t(&mesh->colors, flecs_rgba_t);
-    for (int32_t z = 0; z < t->depth; z ++) {
-        for (int32_t x = 0; x < t->width; x ++) {
-            flecsEngine_terrain_setCellVertexColors(
-                t, vert_colors, x, z);
-        }
+    for (int32_t i = first; i < end; i ++) {
+        flecsEngine_terrain_setCellVertexColors(
+            t, vert_colors, i % t->width, i / t->width);
     }
 
-    flecsEngine_mesh3_updateColorRange(world, mesh_e, 0, cell_count * 6);
+    flecsEngine_mesh3_updateColorRange(
+        world, mesh_e, first * 6, (end - first) * 6);
+}
+
+void flecsEngine_terrainColorsModified(
+    ecs_world_t *world,
+    ecs_entity_t terrain)
+{
+    const FlecsTerrain *t = ecs_get(world, terrain, FlecsTerrain);
+    if (!t) {
+        return;
+    }
+    flecsEngine_terrainColorsModifiedRange(
+        world, terrain, 0, t->width * t->depth);
 }
 
 void flecsEngine_terrain_computeSlope(

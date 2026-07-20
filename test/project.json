@@ -13,7 +13,8 @@
             {
                 "id": "Terrain",
                 "testcases": [
-                    "regenerate_moisture"
+                    "regenerate_moisture",
+                    "spread_colors_across_frames"
                 ]
             },
             {

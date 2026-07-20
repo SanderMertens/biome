@@ -25,6 +25,7 @@ $ {
         width: 256 // tiles
         height: 256
         sample_kind: Linear
+        color_update_frames: 60
         scale: 100
         octaves: 5
         warp_octaves: 3

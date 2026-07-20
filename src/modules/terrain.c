@@ -4,6 +4,14 @@
 
 ECS_COMPONENT_DECLARE(TerrainScatterAssets);
 
+typedef struct TerrainColorUpdateContext {
+    int32_t frame;
+} TerrainColorUpdateContext;
+
+static void biomeTerrainColorUpdateContextFree(void *ptr) {
+    ecs_os_free(ptr);
+}
+
 float biomeHash2(int32_t x, int32_t z) {
     uint32_t h = (uint32_t)x * 0x27d4eb2du;
     h ^= h >> 15;
@@ -448,28 +456,39 @@ void ApplyTerrainColors(ecs_iter_t *it) {
     TerrainSampleKind sample_kind = cfg
         ? cfg->sample_kind
         : TerrainSampleKindNearest;
-    for (int32_t z = 0; z < t->depth; z ++) {
-        for (int32_t x = 0; x < t->width; x ++) {
-            int32_t i = z * t->width + x;
-            if (sample_kind == TerrainSampleKindLinear) {
-                TerrainGround sample = biomeSampleGroundLinear(
-                    ground, ground_w, ground_d, ground_scale, x, z);
-                colors[i] = biomeGroundColor(
-                    &sample, &soil[i], temperature);
-            } else {
-                int32_t ground_x = x / ground_scale;
-                int32_t ground_z = z / ground_scale;
-                if (ground_x >= ground_w) ground_x = ground_w - 1;
-                if (ground_z >= ground_d) ground_z = ground_d - 1;
-                const TerrainGround *sample = &ground[
-                    ground_z * ground_w + ground_x];
-                colors[i] = biomeGroundColor(
-                    sample, &soil[i], temperature);
-            }
+    int32_t update_frames = cfg && cfg->color_update_frames > 0
+        ? cfg->color_update_frames
+        : 60;
+    TerrainColorUpdateContext *ctx = it->ctx;
+    int32_t frame = ctx->frame % update_frames;
+    int32_t begin = (int32_t)((int64_t)cells * frame / update_frames);
+    int32_t end = (int32_t)((int64_t)cells * (frame + 1) / update_frames);
+    ctx->frame = (frame + 1) % update_frames;
+
+    for (int32_t i = begin; i < end; i ++) {
+        int32_t x = i % t->width;
+        int32_t z = i / t->width;
+        if (sample_kind == TerrainSampleKindLinear) {
+            TerrainGround sample = biomeSampleGroundLinear(
+                ground, ground_w, ground_d, ground_scale, x, z);
+            colors[i] = biomeGroundColor(
+                &sample, &soil[i], temperature);
+        } else {
+            int32_t ground_x = x / ground_scale;
+            int32_t ground_z = z / ground_scale;
+            if (ground_x >= ground_w) ground_x = ground_w - 1;
+            if (ground_z >= ground_d) ground_z = ground_d - 1;
+            const TerrainGround *sample = &ground[
+                ground_z * ground_w + ground_x];
+            colors[i] = biomeGroundColor(
+                sample, &soil[i], temperature);
         }
     }
 
-    flecsEngine_terrainColorsModified(world, e);
+    if (begin != end) {
+        flecsEngine_terrainColorsModifiedRange(
+            world, e, begin, end - begin);
+    }
 }
 
 static uint32_t biomeScatterRandom(uint32_t *state) {
@@ -762,6 +781,12 @@ void biomeTerrainImport(ecs_world_t *world) {
         .callback = TerrainScatterOnSet
     });
 
-    ECS_SYSTEM(world, ApplyTerrainColors, EcsPreStore,
-        [inout] FlecsTerrain);
+    ecs_system(world, {
+        .entity = ecs_entity(world, { .name = "ApplyTerrainColors" }),
+        .query.terms = {{ .id = ecs_id(FlecsTerrain) }},
+        .phase = EcsPreStore,
+        .callback = ApplyTerrainColors,
+        .ctx = ecs_os_calloc_t(TerrainColorUpdateContext),
+        .ctx_free = biomeTerrainColorUpdateContextFree
+    });
 }

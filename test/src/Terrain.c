@@ -47,3 +47,56 @@ void Terrain_regenerate_moisture(void) {
 
     ecs_fini(world);
 }
+
+void Terrain_spread_colors_across_frames(void) {
+    ecs_world_t *world = ecs_init();
+    ECS_IMPORT(world, FlecsEngine);
+    ECS_IMPORT(world, biomeTerrain);
+    ECS_COMPONENT_DEFINE(world, Weather);
+    ecs_add_id(world, ecs_id(Weather), EcsSingleton);
+    ECS_COMPONENT_DEFINE(world, TerrainPower);
+
+    ecs_entity_t entity = ecs_new(world);
+    ecs_set(world, entity, Terrain, {
+        .width = 60,
+        .height = 1,
+        .scale = 1,
+        .octaves = 1,
+        .warp_octaves = 1,
+        .ridge_octaves = 1
+    });
+
+    FlecsTerrain *terrain = ecs_get_mut(world, entity, FlecsTerrain);
+    test_assert(terrain != NULL);
+    flecs_rgba_t *colors = ecs_vec_first_t(&terrain->colors, flecs_rgba_t);
+    for (int32_t i = 0; i < 60; i ++) {
+        colors[i] = (flecs_rgba_t){1, 2, 3, 4};
+    }
+
+    ecs_progress(world, 0);
+
+    int32_t changed = 0;
+    for (int32_t i = 0; i < 60; i ++) {
+        flecs_rgba_t color = colors[i];
+        if (color.r != 1 || color.g != 2 || color.b != 3 || color.a != 4) {
+            changed ++;
+        }
+    }
+    test_int(changed, 1);
+
+    Terrain *config = ecs_get_mut(world, entity, Terrain);
+    config->color_update_frames = 3;
+
+    ecs_progress(world, 0);
+
+    changed = 0;
+    for (int32_t i = 0; i < 60; i ++) {
+        flecs_rgba_t color = colors[i];
+        if (color.r != 1 || color.g != 2 || color.b != 3 || color.a != 4) {
+            changed ++;
+        }
+    }
+    test_int(changed, 21);
+
+    ecs_fini(world);
+}

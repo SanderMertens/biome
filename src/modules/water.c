@@ -8,7 +8,6 @@ typedef struct WaterMeshState {
     ecs_entity_t asset;
     ecs_entity_t instance;
     ecs_entity_t shader;
-    uint64_t hash;
     float frozen;
     bool visible;
 } WaterMeshState;
@@ -20,31 +19,6 @@ typedef struct WaterRenderState {
 } WaterRenderState;
 
 ECS_COMPONENT_DECLARE(WaterRenderState);
-
-static uint64_t biomeWaterHashBytes(
-    uint64_t hash,
-    const void *ptr,
-    ecs_size_t size)
-{
-    const uint8_t *bytes = ptr;
-    for (ecs_size_t i = 0; i < size; i ++) {
-        hash ^= bytes[i];
-        hash *= 1099511628211ull;
-    }
-    return hash;
-}
-
-static uint64_t biomeWaterHash(
-    const FlecsTerrain *terrain,
-    float water_level)
-{
-    uint64_t hash = 1469598103934665603ull;
-    const float *heights = ecs_vec_first_t(&terrain->heights, float);
-    hash = biomeWaterHashBytes(hash, heights,
-        ecs_vec_count(&terrain->heights) * ECS_SIZEOF(float));
-    return biomeWaterHashBytes(
-        hash, &water_level, ECS_SIZEOF(float));
-}
 
 static bool biomeWaterTerrainCellSubmerged(
     const float *height,
@@ -251,8 +225,8 @@ static void biomeWaterBuildMesh(
     ecs_world_t *world,
     ecs_entity_t terrain_entity,
     const FlecsTerrain *terrain,
-    const Weather *weather,
     float water_level,
+    float frozen,
     WaterMeshState *state,
     ecs_entity_t shader)
 {
@@ -262,7 +236,6 @@ static void biomeWaterBuildMesh(
     int32_t stride = width + 1;
     int32_t corner_count = stride * (depth + 1);
     const float *height = ecs_vec_first_t(&terrain->heights, float);
-    float frozen = biomeWaterFrozen(weather->temperature);
     int32_t wet_count = 0;
     int32_t edge_count = 0;
 
@@ -425,34 +398,45 @@ static void biomeWaterBuildMesh(
     biomeWaterEnsureInstance(world, terrain_entity, state, shader);
 }
 
-static void WaterUpdate(ecs_iter_t *it) {
+static void WaterUpdateMesh(ecs_iter_t *it) {
     ecs_world_t *world = it->world;
     const FlecsTerrain *terrain = ecs_field(it, FlecsTerrain, 0);
-    const Terrain *config = ecs_field(it, Terrain, 1);
-    const Weather *weather = ecs_field(it, Weather, 2);
-    WaterMeshState *state = ecs_field(it, WaterMeshState, 3);
-    const WaterRenderState *render = ecs_field(it, WaterRenderState, 4);
-    bool visible = biomeWeatherWaterIsCondensed(
-        weather->temperature, weather->pressure);
-    float frozen = biomeWaterFrozen(weather->temperature);
+    const Weather *weather = ecs_singleton_get(world, Weather);
+    const WaterRenderState *render = ecs_singleton_get(
+        world, WaterRenderState);
+    float frozen = weather ? biomeWaterFrozen(weather->temperature) : 0;
+
+    if (!render) {
+        return;
+    }
 
     for (int32_t i = 0; i < it->count; i ++) {
+        const Terrain *config = ecs_get(world, it->entities[i], Terrain);
+        WaterMeshState *state = ecs_get_mut(
+            world, it->entities[i], WaterMeshState);
         int32_t width = terrain[i].width;
         int32_t depth = terrain[i].depth;
-        if (width <= 0 || depth <= 0 ||
+        if (!config || !state || width <= 0 || depth <= 0 ||
             ecs_vec_count(&terrain[i].heights) !=
                 (width + 1) * (depth + 1))
         {
             continue;
         }
-        uint64_t hash = biomeWaterHash(
-            &terrain[i], config[i].water_level);
-        if (hash != state[i].hash) {
-            biomeWaterBuildMesh(
-                world, it->entities[i], &terrain[i], weather,
-                config[i].water_level, &state[i], render->shader);
-            state[i].hash = hash;
-        }
+        biomeWaterBuildMesh(
+            world, it->entities[i], &terrain[i], config->water_level,
+            frozen, state, render->shader);
+    }
+}
+
+static void WaterUpdate(ecs_iter_t *it) {
+    ecs_world_t *world = it->world;
+    const Weather *weather = ecs_field(it, Weather, 0);
+    WaterMeshState *state = ecs_field(it, WaterMeshState, 1);
+    bool visible = biomeWeatherWaterIsCondensed(
+        weather->temperature, weather->pressure);
+    float frozen = biomeWaterFrozen(weather->temperature);
+
+    for (int32_t i = 0; i < it->count; i ++) {
         biomeWaterUpdateFrozen(world, &state[i], frozen);
         biomeWaterSetVisible(world, &state[i], visible);
     }
@@ -514,12 +498,15 @@ void biomeWaterImport(ecs_world_t *world) {
         .shader = shader
     });
 
+    ecs_observer(world, {
+        .query.terms = {{ ecs_id(FlecsTerrain) }},
+        .events = { EcsOnSet },
+        .callback = WaterUpdateMesh
+    });
+
     ECS_SYSTEM(world, WaterUpdate, EcsPreStore,
-        [in] FlecsTerrain,
-        [in] Terrain,
         [in] Weather,
-        [inout] WaterMeshState,
-        [in] WaterRenderState);
+        [inout] WaterMeshState);
 
     ecs_set_interval(world, WaterUpdate, 0.1);
 }

@@ -36,6 +36,12 @@ void flecsEngine_terrainColorsModified(
     ecs_world_t *world,
     ecs_entity_t terrain);
 
+void flecsEngine_terrainColorsModifiedRange(
+    ecs_world_t *world,
+    ecs_entity_t terrain,
+    int32_t first,
+    int32_t count);
+
 /* Flatten a rectangular tile region by setting all of its corner samples. */
 void flecsEngine_terrain_setHeight(
     ecs_world_t *world,

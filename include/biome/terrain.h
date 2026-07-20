@@ -50,6 +50,7 @@ ECS_STRUCT(Terrain, {
     int16_t width;
     int16_t height;
     TerrainSampleKind sample_kind;
+    int16_t color_update_frames;
     float scale;
     int16_t octaves;
     int16_t warp_octaves;
