@@ -9,6 +9,7 @@
 #define FLECS_PARTICLES_DEFAULT_CAP 256
 
 ECS_COMPONENT_DECLARE(FlecsParticleEnvelopeMode);
+ECS_COMPONENT_DECLARE(FlecsParticleSortMode);
 ECS_COMPONENT_DECLARE(FlecsParticleEnvelope);
 ECS_COMPONENT_DECLARE(FlecsParticles);
 ECS_COMPONENT_DECLARE(FlecsParticleEmitter);
@@ -541,11 +542,15 @@ int32_t flecsEngine_particles_prepare(
     }
 
     int32_t total = 0;
+    int32_t sorted = 0;
     ecs_iter_t cit = ecs_query_iter(world, impl->emitter_query);
     while (ecs_query_next(&cit)) {
         const FlecsParticles *emitters = ecs_field(&cit, FlecsParticles, 0);
         for (int32_t e = 0; e < cit.count; e ++) {
             total += emitters[e].count;
+            if (emitters[e].sort_mode != FlecsParticleSortNone) {
+                sorted += emitters[e].count;
+            }
         }
     }
     if (!total) {
@@ -562,7 +567,8 @@ int32_t flecsEngine_particles_prepare(
     }
 
     const float *cam = view_impl->camera_pos;
-    int32_t n = 0;
+    int32_t sorted_count = 0;
+    int32_t unsorted_count = sorted;
     ecs_iter_t it = ecs_query_iter(world, impl->emitter_query);
     while (ecs_query_next(&it)) {
         const FlecsParticles *emitters = ecs_field(&it, FlecsParticles, 0);
@@ -570,7 +576,10 @@ int32_t flecsEngine_particles_prepare(
             const FlecsParticles *p = &emitters[e];
             for (int32_t i = 0; i < p->count; i ++) {
                 const flecs_particle_t *pt = &p->particles[i];
-                flecs_particle_instance_t *inst = &impl->instances[n];
+                int32_t index = p->sort_mode == FlecsParticleSortNone
+                    ? unsorted_count ++
+                    : sorted_count ++;
+                flecs_particle_instance_t *inst = &impl->instances[index];
                 float t = pt->max_age > 0 ? pt->age / pt->max_age : 1.0f;
                 inst->pos[0] = pt->pos[0];
                 inst->pos[1] = pt->pos[1];
@@ -592,18 +601,20 @@ int32_t flecsEngine_particles_prepare(
                     ((uint32_t)pt->color.b << 16) |
                     (a << 24);
 
-                float dx = pt->pos[0] - cam[0];
-                float dy = pt->pos[1] - cam[1];
-                float dz = pt->pos[2] - cam[2];
-                impl->depths[n] = dx * dx + dy * dy + dz * dz;
-                n ++;
+                if (p->sort_mode != FlecsParticleSortNone) {
+                    float dx = pt->pos[0] - cam[0];
+                    float dy = pt->pos[1] - cam[1];
+                    float dz = pt->pos[2] - cam[2];
+                    impl->depths[index] = dx * dx + dy * dy + dz * dz;
+                }
             }
         }
     }
 
-    flecsEngine_particles_sort(impl->instances, impl->depths, n);
+    flecsEngine_particles_sort(
+        impl->instances, impl->depths, sorted_count);
 
-    uint64_t bytes = (uint64_t)n * sizeof(flecs_particle_instance_t);
+    uint64_t bytes = (uint64_t)total * sizeof(flecs_particle_instance_t);
     if (!impl->ibuf || impl->ibuf_size < bytes) {
         FLECS_WGPU_RELEASE(impl->ibuf, wgpuBufferRelease);
         uint64_t size = 16384;
@@ -621,7 +632,7 @@ int32_t flecsEngine_particles_prepare(
     wgpuQueueWriteBuffer(engine->queue, impl->ibuf, 0, impl->instances,
         bytes);
 
-    return n;
+    return total;
 }
 
 static bool flecsEngine_particles_ensurePipeline(
@@ -838,6 +849,7 @@ void FlecsEngineParticlesImport(
     ecs_set_name_prefix(world, "Flecs");
 
     ECS_META_COMPONENT(world, FlecsParticleEnvelopeMode);
+    ECS_META_COMPONENT(world, FlecsParticleSortMode);
     ECS_META_COMPONENT(world, FlecsParticleEnvelope);
     ECS_COMPONENT_DEFINE(world, FlecsParticles);
     ECS_COMPONENT_DEFINE(world, FlecsParticleEmitter);
@@ -857,6 +869,8 @@ void FlecsEngineParticlesImport(
               .offset = offsetof(FlecsParticles, drag) },
             { .name = "emissive", .type = ecs_id(ecs_f32_t),
               .offset = offsetof(FlecsParticles, emissive) },
+            { .name = "sort_mode", .type = ecs_id(FlecsParticleSortMode),
+              .offset = offsetof(FlecsParticles, sort_mode) },
             { .name = "size_envelope", .type = ecs_id(FlecsParticleEnvelope),
               .offset = offsetof(FlecsParticles, size_envelope) },
             { .name = "alpha_envelope", .type = ecs_id(FlecsParticleEnvelope),

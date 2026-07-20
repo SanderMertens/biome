@@ -50,6 +50,11 @@ ECS_ENUM(FlecsParticleEnvelopeMode, {
     FlecsParticleEnvelopeEaseInOut,
 });
 
+ECS_ENUM(FlecsParticleSortMode, {
+    FlecsParticleSortBackToFront,
+    FlecsParticleSortNone,
+});
+
 ECS_STRUCT(FlecsParticleEnvelope, {
     FlecsParticleEnvelopeMode mode;
     float fade_in;
@@ -64,6 +69,7 @@ ECS_STRUCT(FlecsParticles, {
     float gravity;      /* downward acceleration on every particle */
     float drag;         /* fraction of velocity shed per second */
     float emissive;     /* self-illumination strength */
+    FlecsParticleSortMode sort_mode;
 
     FlecsParticleEnvelope size_envelope;
     FlecsParticleEnvelope alpha_envelope;
@@ -81,6 +87,7 @@ ECS_STRUCT(FlecsParticles, {
 });
 
 extern ECS_COMPONENT_DECLARE(FlecsParticleEnvelopeMode);
+extern ECS_COMPONENT_DECLARE(FlecsParticleSortMode);
 extern ECS_COMPONENT_DECLARE(FlecsParticleEnvelope);
 extern ECS_COMPONENT_DECLARE(FlecsParticles);
 

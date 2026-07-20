@@ -51,8 +51,8 @@ $ {
         sun: sky.sun
 
         seed_ground: {temperature: 10, moisture_amount: 0}
-        seed_water: {temperature: 20, water_amount: 1}
-        seed_air: {temperature: 0, vapor_amount: 100000}
+        seed_water: {temperature: 40, water_amount: 1}
+        seed_air: {temperature: 0, vapor_amount: 0}
         seed_variation: 1
         ocean_level: -1
     }
@@ -80,7 +80,7 @@ $ {
         infiltration: {
             enabled: true
             max_infiltration_rate: 100
-            ground_moisture_capacity: 100000
+            ground_moisture_capacity: 10000
         }
         evaporation: {
             enabled: true

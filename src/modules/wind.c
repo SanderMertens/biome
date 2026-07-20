@@ -230,6 +230,7 @@ void biomeWindImport(ecs_world_t *world) {
     ecs_entity_t pool = ecs_entity(world, { .name = "fx_wind" });
     ecs_set(world, pool, FlecsParticles, {
         .capacity = WindParticleCap,
+        .sort_mode = FlecsParticleSortNone,
         .emissive = WindEmissiveStrength
     });
 

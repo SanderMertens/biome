@@ -196,6 +196,7 @@ void biomePrecipitationImport(ecs_world_t *world) {
     ecs_entity_t rain_pool = ecs_entity(world, { .name = "fx_rain" });
     ecs_set(world, rain_pool, FlecsParticles, {
         .capacity = PrecipRainCapacity,
+        .sort_mode = FlecsParticleSortNone,
         .alpha_envelope = {
             .mode = FlecsParticleEnvelopeLinear,
             .fade_out = PrecipFade
@@ -205,6 +206,7 @@ void biomePrecipitationImport(ecs_world_t *world) {
     ecs_entity_t snow_pool = ecs_entity(world, { .name = "fx_snow" });
     ecs_set(world, snow_pool, FlecsParticles, {
         .capacity = PrecipSnowCapacity,
+        .sort_mode = FlecsParticleSortNone,
         .alpha_envelope = {
             .mode = FlecsParticleEnvelopeLinear,
             .fade_out = PrecipFade
