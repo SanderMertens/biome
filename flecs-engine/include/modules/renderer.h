@@ -33,6 +33,8 @@ typedef struct {
 
 extern ECS_COMPONENT_DECLARE(FlecsShader);
 
+extern ECS_TAG_DECLARE(FlecsCustomShader);
+
 ECS_STRUCT(FlecsRenderBatchSet, {
     ecs_vec_t batches;
 });
@@ -81,5 +83,23 @@ ecs_entity_t flecsEngine_createHdri(
     const char *file,
     uint32_t filterSampleCount,
     uint32_t lutSampleCount);
+
+ecs_entity_t flecsEngine_createShader(
+    ecs_world_t *world,
+    ecs_entity_t parent,
+    const char *name,
+    const FlecsShader *shader);
+
+ecs_entity_t flecsEngine_createMeshShaderBatch(
+    ecs_world_t *world,
+    ecs_entity_t parent,
+    const char *name,
+    ecs_entity_t shader,
+    bool needs_transmission);
+
+void flecsEngine_renderBatchSetAppend(
+    ecs_world_t *world,
+    ecs_entity_t batch_set,
+    ecs_entity_t batch);
 
 #endif

@@ -51,14 +51,13 @@ $ {
         sun: sky.sun
 
         seed_ground: {temperature: 20, moisture_amount: 1000}
-        seed_water: {temperature: 20, water_amount: 5000}
+        seed_water: {temperature: 20, water_amount: 50000}
         seed_air: {temperature: 20, vapor_amount: 1}
         seed_variation: 100
     }
 
     water.Config: {
         density: 997
-        surface_offset: 0.01
         flow_rate: 0.25
         min_flow: 0.1
     }

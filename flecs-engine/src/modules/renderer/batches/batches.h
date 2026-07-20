@@ -133,6 +133,13 @@ ecs_entity_t flecsEngine_createBatch_mesh_tint(
     ecs_entity_t parent,
     const char *name);
 
+ecs_entity_t flecsEngine_createMeshShaderBatch(
+    ecs_world_t *world,
+    ecs_entity_t parent,
+    const char *name,
+    ecs_entity_t shader,
+    bool needs_transmission);
+
 ecs_entity_t flecsEngine_createBatch_immediate(
     ecs_world_t *world,
     ecs_entity_t parent,

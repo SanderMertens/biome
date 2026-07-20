@@ -13,7 +13,8 @@
     "  shadow_info : vec4<f32>,\n" \
     "  ambient_light : vec4<f32>,\n" \
     "  cloud_shadow_params : vec4<f32>,\n" \
-    "  tint_params : vec4<f32>\n" \
+    "  tint_params : vec4<f32>,\n" \
+    "  time_params : vec4<f32>\n" \
     "}\n" \
     "@group(0) @binding(0) var<uniform> uniforms : Uniforms;\n"
 

@@ -1,15 +1,23 @@
 #define BIOME_WATER_IMPL
 
 #include "biome.h"
+#include "water_shader.h"
 
 typedef struct WaterMeshState {
     ecs_entity_t asset;
     ecs_entity_t instance;
+    ecs_entity_t shader;
     uint64_t hash;
     ecs_vec_t flow_surface;
 } WaterMeshState;
 
 ECS_COMPONENT_DECLARE(WaterMeshState);
+
+typedef struct WaterRenderState {
+    ecs_entity_t shader;
+} WaterRenderState;
+
+ECS_COMPONENT_DECLARE(WaterRenderState);
 
 static void WaterMeshState_fini(
     WaterMeshState *ptr)
@@ -124,7 +132,8 @@ static void biomeWaterEnsureAsset(
 static void biomeWaterEnsureInstance(
     ecs_world_t *world,
     ecs_entity_t terrain,
-    WaterMeshState *state)
+    WaterMeshState *state,
+    ecs_entity_t shader)
 {
     if (!state->instance) {
         state->instance = ecs_entity(world, {
@@ -145,6 +154,17 @@ static void biomeWaterEnsureInstance(
             .attenuation_distance = 5.0f,
             .attenuation_color = {20, 100, 190, 255}
         });
+        ecs_add_pair(
+            world, state->instance, FlecsCustomShader, shader);
+        state->shader = shader;
+    } else if (state->shader != shader) {
+        if (state->shader) {
+            ecs_remove_pair(
+                world, state->instance, FlecsCustomShader, state->shader);
+        }
+        ecs_add_pair(
+            world, state->instance, FlecsCustomShader, shader);
+        state->shader = shader;
     } else {
         ecs_modified(world, state->instance, FlecsPosition3);
     }
@@ -156,7 +176,8 @@ static void biomeWaterBuildMesh(
     const FlecsTerrain *terrain,
     const WeatherWaterTile *water,
     const WaterConfig *config,
-    WaterMeshState *state)
+    WaterMeshState *state,
+    ecs_entity_t shader)
 {
     int32_t width = terrain->width;
     int32_t depth = terrain->depth;
@@ -164,17 +185,17 @@ static void biomeWaterBuildMesh(
     int32_t corner_count = stride * (depth + 1);
     float density = config->density > 0 ? config->density : 997.0f;
     float tile_area = (float)(TerrainCellSize * TerrainCellSize);
-    float offset = config->surface_offset >= 0
-        ? config->surface_offset
-        : 0;
     float *surface = ecs_os_malloc_n(float, corner_count);
+    float *shore_depth = ecs_os_malloc_n(float, corner_count);
     const float *terrain_height = ecs_vec_first_t(
         &terrain->heights, float);
 
     for (int32_t z = 0; z <= depth; z ++) {
         for (int32_t x = 0; x <= width; x ++) {
             float surface_sum = 0;
+            float edge_depth = 1000000.0f;
             int32_t samples = 0;
+            int32_t adjacent = 0;
             for (int32_t dz = -1; dz <= 0; dz ++) {
                 int32_t cz = z + dz;
                 if (cz < 0 || cz >= depth) {
@@ -189,24 +210,30 @@ static void biomeWaterBuildMesh(
                     float water_depth = amount > 0
                         ? amount / (density * tile_area)
                         : 0;
-                    if (water_depth > offset) {
+                    if (water_depth < edge_depth) {
+                        edge_depth = water_depth;
+                    }
+                    adjacent ++;
+                    if (water_depth > 0) {
                         surface_sum += biomeWaterTerrainCellHeight(
                             terrain_height, stride, cx, cz) +
-                            water_depth - offset;
+                            water_depth;
                         samples ++;
                     }
                 }
             }
-            surface[z * stride + x] = samples
+            int32_t i = z * stride + x;
+            surface[i] = samples
                 ? surface_sum / (float)samples
-                : terrain_height[z * stride + x] - offset;
+                : terrain_height[z * stride + x];
+            shore_depth[i] = adjacent ? edge_depth : 0;
         }
     }
 
     int32_t wet_count = 0;
     for (int32_t i = 0; i < width * depth; i ++) {
         float amount = water[i].water_amount;
-        if (amount > density * tile_area * offset) {
+        if (amount > 0) {
             wet_count ++;
         }
     }
@@ -231,7 +258,6 @@ static void biomeWaterBuildMesh(
         &mesh->uvs, flecs_vec2_t);
     uint32_t *indices = ecs_vec_first_t(
         &mesh->indices, uint32_t);
-    float extent_x = (float)width * TerrainCellSize;
     float extent_z = (float)depth * TerrainCellSize;
 
     for (int32_t z = 0; z <= depth; z ++) {
@@ -245,17 +271,18 @@ static void biomeWaterBuildMesh(
             biomeWaterNormal(
                 surface, width, depth, x, z, &normals[i]);
             uvs[i] = (flecs_vec2_t){
-                (float)x * TerrainCellSize / extent_x,
+                shore_depth[i],
                 (float)z * TerrainCellSize / extent_z
             };
         }
     }
+    ecs_os_free(shore_depth);
 
     int32_t index = 0;
     for (int32_t z = 0; z < depth; z ++) {
         for (int32_t x = 0; x < width; x ++) {
             float amount = water[z * width + x].water_amount;
-            if (amount <= density * tile_area * offset) {
+            if (amount <= 0) {
                 continue;
             }
             uint32_t i00 = (uint32_t)(z * stride + x);
@@ -286,7 +313,7 @@ static void biomeWaterBuildMesh(
 
     ecs_os_free(surface);
     ecs_modified(world, state->asset, FlecsMesh3);
-    biomeWaterEnsureInstance(world, terrain_entity, state);
+    biomeWaterEnsureInstance(world, terrain_entity, state, shader);
 }
 
 static float biomeWaterFlowPotential(
@@ -463,6 +490,7 @@ static void WaterUpdate(ecs_iter_t *it) {
     const FlecsTerrain *terrain = ecs_field(it, FlecsTerrain, 0);
     const WaterConfig *config = ecs_field(it, WaterConfig, 1);
     WaterMeshState *state = ecs_field(it, WaterMeshState, 2);
+    const WaterRenderState *render = ecs_field(it, WaterRenderState, 3);
 
     for (int32_t i = 0; i < it->count; i ++) {
         ecs_entity_t entity = it->entities[i];
@@ -484,8 +512,38 @@ static void WaterUpdate(ecs_iter_t *it) {
             continue;
         }
         biomeWaterBuildMesh(
-            world, entity, &terrain[i], water, config, &state[i]);
+            world, entity, &terrain[i], water, config, &state[i],
+            render->shader);
         state[i].hash = hash;
+    }
+}
+
+void biomeWaterConfigureRenderer(
+    ecs_world_t *world)
+{
+    const WaterRenderState *render = ecs_singleton_get(
+        world, WaterRenderState);
+    if (!render || !render->shader) {
+        return;
+    }
+    ecs_iter_t it = ecs_each(world, FlecsRenderView);
+    while (ecs_each_next(&it)) {
+        for (int32_t i = 0; i < it.count; i ++) {
+            ecs_entity_t geometry = ecs_lookup_child(
+                world, it.entities[i], "geometry");
+            if (!geometry) {
+                continue;
+            }
+            ecs_entity_t batch = ecs_lookup_child(
+                world, geometry, "WaterShader");
+            if (!batch) {
+                batch = flecsEngine_createMeshShaderBatch(
+                    world, geometry, "WaterShader",
+                    render->shader, true);
+            }
+            flecsEngine_renderBatchSetAppend(
+                world, geometry, batch);
+        }
     }
 }
 
@@ -497,16 +555,28 @@ void biomeWaterImport(ecs_world_t *world) {
     ecs_set_name_prefix(world, "Water");
     ECS_META_COMPONENT(world, WaterConfig);
     ECS_COMPONENT_DEFINE(world, WaterMeshState);
+    ECS_COMPONENT_DEFINE(world, WaterRenderState);
 
     ecs_add_id(world, ecs_id(WaterConfig), EcsSingleton);
+    ecs_add_id(world, ecs_id(WaterRenderState), EcsSingleton);
     ecs_singleton_set(world, WaterConfig, {
         .density = 997.0f,
-        .surface_offset = 0.01f,
         .flow_rate = 0.25f,
         .min_flow = 0.1f
     });
     ecs_add_pair(
         world, ecs_id(Terrain), EcsWith, ecs_id(WaterMeshState));
+
+    ecs_entity_t shader = flecsEngine_createShader(
+        world, ecs_id(biomeWater), "WaterShader",
+        &(FlecsShader){
+            .source = biomeWaterShaderSource,
+            .vertex_entry = "vs_main",
+            .fragment_entry = "fs_main"
+        });
+    ecs_singleton_set(world, WaterRenderState, {
+        .shader = shader
+    });
 
     ecs_set_hooks(world, WaterMeshState, {
         .ctor = ecs_ctor(WaterMeshState),
@@ -524,7 +594,8 @@ void biomeWaterImport(ecs_world_t *world) {
     ECS_SYSTEM(world, WaterUpdate, EcsPreStore,
         [in] FlecsTerrain,
         [in] WaterConfig,
-        [inout] WaterMeshState);
+        [inout] WaterMeshState,
+        [in] WaterRenderState);
 
     ecs_set_interval(world, WaterFlow, 0.1);
     ecs_set_interval(world, WaterUpdate, 0.1);

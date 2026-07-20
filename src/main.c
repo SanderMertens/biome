@@ -99,6 +99,7 @@ int main(int argc, char *argv[]) {
     if (!ecs_script(world, { .filename = scene })) {
         ecs_err("failed to load scene %s", scene);
     }
+    biomeWaterConfigureRenderer(world);
 
     if (!options.frame_output_path) {
         ecs_singleton_set(world, EcsRest, {0});

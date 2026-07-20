@@ -21,6 +21,7 @@ extern ECS_COMPONENT_DECLARE(FlecsPbrMaterial);
 extern ECS_COMPONENT_DECLARE(FlecsEmissive);
 extern ECS_COMPONENT_DECLARE(FlecsMaterialId);
 ECS_COMPONENT_DECLARE(FlecsGpuUniforms);
+ECS_TAG_DECLARE(FlecsCustomShader);
 
 static void flecsEngine_releaseFrameTarget(
     FlecsEngineSurface *target)
@@ -472,6 +473,7 @@ void FlecsEngineRendererImport(
     ECS_COMPONENT_DEFINE(world, FlecsGpuVertexLitUv);
     ECS_COMPONENT_DEFINE(world, FlecsGpuTransform);
     ECS_COMPONENT_DEFINE(world, FlecsGpuUniforms);
+    ECS_TAG_DEFINE(world, FlecsCustomShader);
 
     ecs_struct(world, {
         .entity = ecs_id(FlecsGpuVertex),

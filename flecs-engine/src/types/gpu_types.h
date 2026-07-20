@@ -48,6 +48,7 @@ typedef struct {
      * corner), z = strength (0 disables), w = 1 / footprint size. */
     float cloud_shadow_params[4];
     float tint_params[4];
+    float time_params[4];
 } FlecsGpuUniforms;
 
 extern ECS_COMPONENT_DECLARE(FlecsGpuUniforms);

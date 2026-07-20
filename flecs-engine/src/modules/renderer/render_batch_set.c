@@ -22,6 +22,25 @@ ECS_DTOR(FlecsRenderBatchSet, ptr, {
     ecs_vec_fini_t(NULL, &ptr->batches, ecs_entity_t);
 })
 
+void flecsEngine_renderBatchSetAppend(
+    ecs_world_t *world,
+    ecs_entity_t batch_set,
+    ecs_entity_t batch)
+{
+    FlecsRenderBatchSet *set = ecs_ensure(
+        world, batch_set, FlecsRenderBatchSet);
+    int32_t count = ecs_vec_count(&set->batches);
+    const ecs_entity_t *batches = ecs_vec_first_t(
+        &set->batches, ecs_entity_t);
+    for (int32_t i = 0; i < count; i ++) {
+        if (batches[i] == batch) {
+            return;
+        }
+    }
+    *ecs_vec_append_t(NULL, &set->batches, ecs_entity_t) = batch;
+    ecs_modified(world, batch_set, FlecsRenderBatchSet);
+}
+
 bool flecsEngine_renderBatchSet_hasTransmission(
     ecs_world_t *world,
     FlecsEngineImpl *engine,

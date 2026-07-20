@@ -8,11 +8,13 @@
 
 ECS_STRUCT(WaterConfig, {
     float density;
-    float surface_offset;
     float flow_rate;
     float min_flow;
 });
 
 void biomeWaterImport(ecs_world_t *world);
+
+void biomeWaterConfigureRenderer(
+    ecs_world_t *world);
 
 #endif

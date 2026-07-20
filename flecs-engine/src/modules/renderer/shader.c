@@ -121,6 +121,20 @@ ecs_entity_t flecsEngine_shader_ensure(
     return shader_entity;
 }
 
+ecs_entity_t flecsEngine_createShader(
+    ecs_world_t *world,
+    ecs_entity_t parent,
+    const char *name,
+    const FlecsShader *shader)
+{
+    ecs_entity_t result = ecs_entity(world, {
+        .parent = parent,
+        .name = name
+    });
+    ecs_set_ptr(world, result, FlecsShader, shader);
+    return result;
+}
+
 WGPUShaderModule flecsEngine_shader_ensureModule(
     ecs_world_t *world,
     const char *name,

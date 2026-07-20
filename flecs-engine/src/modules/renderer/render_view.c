@@ -516,6 +516,10 @@ static void flecsEngine_renderView_writeFrameUniforms(
     view_impl->cloud_shadow_available = false;
 
     uniforms.tint_params[0] = 1.0f;
+    const ecs_world_info_t *world_info = ecs_get_world_info(world);
+    uniforms.time_params[0] = world_info
+        ? (float)world_info->world_time_total
+        : 0.0f;
 
     view_impl->camera_pos[0] = uniforms.camera_pos[0];
     view_impl->camera_pos[1] = uniforms.camera_pos[1];
