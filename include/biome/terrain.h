@@ -39,6 +39,7 @@ typedef ecs_vec_t TerrainScatterAssets;
 ECS_STRUCT(TerrainScatter,  {
     TerrainScatterAssets prefab;
     int32_t count;
+    float min_height;
     flecs_vec2_t position_variance; /* +/- x/z offset; 0 disables per axis */
     flecs_vec2_t rotation_variance; /* +/- x/y angle; 0 disables per axis */
     flecs_vec3_t scale_variance;    /* +/- prefab scale; 0 disables per axis */

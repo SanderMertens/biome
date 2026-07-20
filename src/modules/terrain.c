@@ -625,7 +625,12 @@ static void TerrainScatterOnSet(ecs_iter_t *it) {
         int32_t *available = ecs_os_malloc_n(int32_t, cell_count);
         int32_t available_count = 0;
         for (int32_t cell = 0; cell < cell_count; cell ++) {
-            if (!occupancy[cell].buildings) {
+            int32_t x = cell % t->width;
+            int32_t y = cell / t->width;
+            if (!occupancy[cell].buildings &&
+                flecsEngine_terrainCellHeight(t, x, y) >=
+                    scatter[i].min_height)
+            {
                 available[available_count ++] = cell;
             }
         }
