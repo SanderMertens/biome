@@ -509,7 +509,7 @@ static int32_t biome_tool_cursorMesh(
         return 0;
     }
 
-    int32_t vertex_count = t->width * t->depth * 6;
+    int32_t vertex_count = cell_count * 6;
     FlecsMesh3 *mesh = ecs_ensure(world, asset, FlecsMesh3);
     ecs_vec_set_count_t(
         NULL, &mesh->vertices, flecs_vec3_t, vertex_count);
@@ -534,6 +534,10 @@ static int32_t biome_tool_cursorMesh(
 
     for (int32_t z = 0; z < t->depth; z ++) {
         for (int32_t x = 0; x < t->width; x ++) {
+            if (cells[z * t->width + x] != value) {
+                continue;
+            }
+
             float x0 = (float)x * t->cell_size;
             float x1 = (float)(x + 1) * t->cell_size;
             float z0 = (float)z * t->cell_size;
@@ -542,14 +546,6 @@ static int32_t biome_tool_cursorMesh(
             float h10 = heights[z * stride + x + 1] + lift;
             float h01 = heights[(z + 1) * stride + x] + lift;
             float h11 = heights[(z + 1) * stride + x + 1] + lift;
-
-            if (cells[z * t->width + x] != value) {
-                for (int32_t i = 0; i < 6; i ++) {
-                    biome_tool_cursorVertex(
-                        vertices, normals, indices, v ++, x0, h00, z0);
-                }
-                continue;
-            }
 
             if (fabsf(h00 - h11) <= fabsf(h10 - h01)) {
                 biome_tool_cursorVertex(
@@ -581,6 +577,7 @@ static int32_t biome_tool_cursorMesh(
         }
     }
 
+    ecs_assert(v == vertex_count, ECS_INTERNAL_ERROR, NULL);
     flecsEngine_mesh3_updateVertices(world, asset);
     return cell_count;
 }

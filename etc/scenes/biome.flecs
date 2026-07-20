@@ -22,8 +22,8 @@ camera {
 
 $ {
     terrain.Terrain: {
-        width: 256 // tiles
-        height: 256
+        width: 512 // tiles
+        height: 512
         sample_kind: Linear
         color_update_frames: 60
         scale: 100
@@ -70,7 +70,7 @@ terrain.Scatter(
         environment.IronOreAssets.F
     ]
 
-    count: 150
+    count: 500
     min_height: 0
     position_variance: {1, 1}
     rotation_variance: {y: 2 * math.PI}
@@ -87,7 +87,7 @@ terrain.Scatter(
         environment.CopperOreAssets.F
     ]
 
-    count: 100
+    count: 400
     min_height: 0
     position_variance: {1, 1}
     rotation_variance: {y: 2 * math.PI}
@@ -104,7 +104,7 @@ terrain.Scatter(
         environment.GraphiteAssets.F
     ]
 
-    count: 200
+    count: 250
     min_height: 0
     position_variance: {1, 1}
     rotation_variance: {y: 2 * math.PI}
@@ -121,7 +121,7 @@ terrain.Scatter(
         environment.ChemicalsAssets.F
     ]
 
-    count: 200
+    count: 250
     min_height: 0
     position_variance: {1, 1}
     rotation_variance: {y: 2 * math.PI}
