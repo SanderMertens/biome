@@ -34,8 +34,11 @@ hud {
       ToolButton burner("BURNER", buildings.Burner, hotKey: "5")
       ToolButton depot("DEPOT", buildings.Depot, hotKey: "6")
       // ToolButton habitat("HABITAT", buildings.Habitat, hotKey: "8")
-      // ToolButton biome("BIOME", buildings.Biome, hotKey: "9")
     }
+
+    // if player.isBuildingPlaced(buildings.Burner) {
+      ToolButton biome("BIOME", buildings.Biome, hotKey: "7")
+    // }
 
     if player.isBuildingPlaced(buildings.Base) {
       ToolButton doze("DOZE", hotKey: "x")
@@ -46,6 +49,7 @@ hud {
     Anchor: {h: Left, v: Top, x: 24, y: 24}
     Layout: {direction: Column, padding: 0, spacing: 6}
 
+    PowerGauge()
     ResourceGauge("IRON", Iron)
     ResourceGauge("COPPER", Copper)
     ResourceGauge("CARBON", Carbon)

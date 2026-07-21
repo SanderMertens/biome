@@ -483,6 +483,10 @@ void biomeWaterImport(ecs_world_t *world) {
     ECS_COMPONENT_DEFINE(world, WaterMeshState);
     ECS_COMPONENT_DEFINE(world, WaterRenderState);
 
+    ecs_set_hooks(world, WaterMeshState, {
+        .ctor = flecs_default_ctor
+    });
+
     ecs_add_id(world, ecs_id(WaterRenderState), EcsSingleton);
     ecs_add_pair(
         world, ecs_id(Terrain), EcsWith, ecs_id(WaterMeshState));

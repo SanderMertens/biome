@@ -2,6 +2,7 @@ module cfg.widgets
 
 using flecs.engine.*
 using flecs.engine.material
+using biome.power
 
 export const FontSize: 18
 export const PanelColor = Rgba: {19, 23, 27, 255}
@@ -9,6 +10,8 @@ export const ButtonColor = Rgba: {49, 56, 63, 255}
 export const HoverColor = Rgba: {58, 66, 74, 255}
 export const HighlightColor = Rgba: {66, 185, 131, 255}
 export const DangerColor = Rgba: {220, 60, 50, 255}
+export const PowerColor = Rgba: {245, 200, 65, 255}
+export const PowerWarningColor = Rgba: {235, 130, 45, 255}
 
 struct Style {
   color = Rgba
@@ -99,10 +102,12 @@ template Gauge {
   prop value: 0.5
   prop max: 1.0
   prop size: FontSize
+  prop color: HighlightColor
+  prop border_color: ButtonColor
 
   OrderedChildren
   Rect: {width: width, height: height}
-  Border: {width: 1, color: ButtonColor, radius: 8}
+  Border: {width: 1, color: border_color, radius: 8}
   Rgba: {24, 28, 36, 235}
 
   const maxNorm = match max > 0 {
@@ -112,9 +117,9 @@ template Gauge {
 
   fill {
     Position: {x: 2, y: 2}
-    Border: {width: 1, color: HighlightColor, radius: 6}
+    Border: {width: 1, color: color, radius: 6}
     Rect: {width: (width - 4) * (value / maxNorm), height: height - 4}
-    Rgba: HighlightColor
+    Rgba: color
   }
 
   label {
@@ -122,6 +127,32 @@ template Gauge {
     Text: {text: "{value:.0}", size: size, align: Center}
     Rgba: {235, 238, 245, 255}
   }
+}
+
+template PowerGauge {
+  const production = PowerGrid[PowerGrid].total_production
+  const demand = PowerGrid[PowerGrid].total_demand
+
+  const satisfaction = match demand > 0 {
+    true: production / demand
+    false: 1
+  }
+
+  const color = match satisfaction < 0.5 {
+    true: DangerColor
+    false: match satisfaction < 1 {
+      true: PowerWarningColor
+      false: PowerColor
+    }
+  }
+  const gaugeMax = match demand > production {
+    true: demand
+    false: production
+  }
+
+  Layout: {direction: Column, padding: 0, spacing: 3}
+  Label (text: "POWER")
+  Gauge (width: 300, height: 27, value: production, max: gaugeMax, color: color, border_color: color)
 }
 
 template ToolButton {

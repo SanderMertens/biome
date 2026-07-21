@@ -14,6 +14,7 @@ player {
         Copper: 0
         Carbon: 0
         Chemicals: 0
+        Seeds: 0
     ]
 
     export const ResourceCapacityTotals = StorageMap: [
@@ -21,6 +22,7 @@ player {
         Copper: 0
         Carbon: 0
         Chemicals: 0
+        Seeds: 0
     ]
 
     export const ResourceReservedTotals = StorageMap: [
@@ -28,5 +30,6 @@ player {
         Copper: 0
         Carbon: 0
         Chemicals: 0
+        Seeds: 0
     ]
 }

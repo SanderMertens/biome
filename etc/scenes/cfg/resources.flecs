@@ -45,3 +45,17 @@ Recipe GreenHouseGassRecipe(
     output: GreenHouseGass
     craft_time: 240
 )
+
+Resource Seeds(
+    min_drone_amount: 1
+    max_drone_amount: 5
+)
+
+Recipe SeedsRecipe(
+    inputs: [
+        Carbon: 500
+        Chemicals: 250
+    ]
+    output: Seeds
+    craft_time: 240
+)

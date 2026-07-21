@@ -128,50 +128,6 @@ prefab ElectricityPole {
     }
 }
 
-template LightsTemplate {
-    PowerConsumer: {}
-
-    // const powered = this[PowerConsumer].powered
-
-    // {
-    //     Position3: {0, 1.5, 0}
-    //     Rotation3: {-1.5708, 0, 0}
-    //     Rgba: {240, 240, 255, 255}
-
-    //     if powered {
-    //         SpotLight: {
-    //             intensity: 4
-    //             range: 100
-    //             inner_angle: 32
-    //             outer_angle: 128
-    //         }
-    //     }
-    // }
-}
-
-prefab Lights {
-    LightsTemplate
-
-    Building: {
-        can_doze: true
-        footprint: {1, 1}
-        drag_stride: 1
-    }
-
-    Power: {
-        demand: 10
-    }
-
-    Recipe: {
-        inputs: [
-            Copper: 100
-        ]
-    }
-
-    Scale3: {3, 3, 3}
-    Gltf: {lightsGltf}
-}
-
 @tree Parent
 prefab Biome : PoweredBuilding {
     Building: {
@@ -186,8 +142,8 @@ prefab Biome : PoweredBuilding {
 
     Recipe: {
         inputs: [
-            Iron: 2000
-            Copper: 3000
+            Iron: 200
+            Copper: 300
         ]
     }
 

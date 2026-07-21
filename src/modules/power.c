@@ -479,6 +479,8 @@ static void biome_power_distribute(
     BiomePowerGrid *grid)
 {
     float total_production = 0;
+    float total_demand = 0;
+    float satisfied = 0;
 
     ecs_entity_t network_root = ecs_lookup(world, "scene.power");
     ecs_iter_t network_it = ecs_children(world, network_root);
@@ -503,31 +505,15 @@ static void biome_power_distribute(
                 bool powered = budget >= consumers[c].demand;
                 if (powered) {
                     budget -= consumers[c].demand;
+                    satisfied += consumers[c].demand;
                 }
+                total_demand += consumers[c].demand;
 
                 biome_power_setPowered(world, consumers[c].entity,
                     powered, network_it.entities[n]);
             }
 
             total_production += network->production;
-        }
-    }
-
-    float total_demand = 0, satisfied = 0;
-    ecs_iter_t it = ecs_query_iter(world, grid->buildings);
-    while (ecs_query_next(&it)) {
-        BiomePower *power = ecs_field(&it, BiomePower, 1);
-        for (int32_t i = 0; i < it.count; i ++) {
-            if (power[i].demand <= 0) {
-                continue;
-            }
-
-            total_demand += power[i].demand;
-            const BiomePowerConsumer *consumer = ecs_get(
-                world, it.entities[i], BiomePowerConsumer);
-            if (consumer && consumer->powered) {
-                satisfied += power[i].demand;
-            }
         }
     }
 
@@ -560,6 +546,8 @@ void BiomePowerUpdate(ecs_iter_t *it) {
     }
 
     biome_power_distribute(world, grid);
+
+    ecs_modified(world, ecs_id(BiomePowerGrid), BiomePowerGrid);
 }
 
 static void BiomePowerPlacement(ecs_iter_t *it) {
@@ -644,6 +632,9 @@ void biomePowerImport(ecs_world_t *world) {
 
     ECS_SYSTEM(world, BiomePowerUpdate, EcsPreUpdate,
         [inout] BiomePowerGrid);
+    ecs_system_update(world, ecs_id(BiomePowerUpdate), &(ecs_system_desc_t){
+        .immediate = true
+    });
 
     ECS_SYSTEM(world, UpdatePowerTint, EcsPostUpdate,
         [in] BiomePowerConsumer);
