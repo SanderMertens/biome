@@ -1,6 +1,6 @@
 using biome.buildings
 using biome.resources
-using resources
+using cfg.resources
 
 player {
     export const BuildingsPlaced = u64: 0

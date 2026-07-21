@@ -1,4 +1,4 @@
-module biome.widgets
+module cfg.widgets
 
 using flecs.engine.*
 using flecs.engine.material

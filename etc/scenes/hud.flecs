@@ -1,8 +1,11 @@
-include config/widgets
-using biome.widgets
-using biome.resources
+include cfg/widgets
+include cfg/buildings
+
+using cfg
+using cfg.widgets
+using cfg.resources
+
 using flecs.engine.*
-using resources
 
 hud {
   toolbar {
@@ -21,9 +24,15 @@ hud {
 
     if player.isBuildingPlaced(buildings.Solar) {
       ToolButton drill("DRILL", buildings.Drill, hotKey: "3")
-      ToolButton burner("BURNER", buildings.Burner, hotKey: "4")
-      ToolButton depot("DEPOT", buildings.Depot, hotKey: "5")
-      ToolButton drone_pad("DRONE", buildings.DronePad, hotKey: "6")
+    }
+
+    if player.isBuildingPlaced(buildings.Drill) {
+      ToolButton drone_pad("DRONE", buildings.DronePad, hotKey: "4")
+    }
+
+    if player.isBuildingPlaced(buildings.DronePad) {
+      ToolButton burner("BURNER", buildings.Burner, hotKey: "5")
+      ToolButton depot("DEPOT", buildings.Depot, hotKey: "6")
       // ToolButton habitat("HABITAT", buildings.Habitat, hotKey: "8")
       // ToolButton biome("BIOME", buildings.Biome, hotKey: "9")
     }

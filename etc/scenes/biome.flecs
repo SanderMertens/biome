@@ -1,15 +1,15 @@
-include config/sky
-include config/view
-include config/assets
-include config/resources
-include config/buildings
-include config/environment
+include cfg/sky
+include cfg/view
+include cfg/resources
+include cfg/buildings
+include cfg/environment
 include player
 include hud
 
 using biome
 using flecs.engine.*
 using flecs.script
+using cfg
 
 camera {
     Position3: {0, 86.877, 156.68}
@@ -22,8 +22,8 @@ camera {
 
 $ {
     terrain.Terrain: {
-        width: 512 // tiles
-        height: 512
+        width: 256 // tiles
+        height: 256
         sample_kind: Linear
         color_update_frames: 60
         scale: 100
@@ -60,70 +60,74 @@ $ {
     }
 }
 
-terrain.Scatter(
-    prefab: [
-        environment.IronOreAssets.A
-        environment.IronOreAssets.B
-        environment.IronOreAssets.C
-        environment.IronOreAssets.D
-        environment.IronOreAssets.E
-        environment.IronOreAssets.F
-    ]
+scene.drones {}
 
-    count: 500
-    min_height: 0
-    position_variance: {1, 1}
-    rotation_variance: {y: 2 * math.PI}
-    cluster: 0.2
-)
+scene.terrain {
+    terrain.Scatter(
+        prefab: [
+            environment.IronOreAssets.A
+            environment.IronOreAssets.B
+            environment.IronOreAssets.C
+            environment.IronOreAssets.D
+            environment.IronOreAssets.E
+            environment.IronOreAssets.F
+        ]
 
-terrain.Scatter(
-    prefab: [
-        environment.CopperOreAssets.A
-        environment.CopperOreAssets.B
-        environment.CopperOreAssets.C
-        environment.CopperOreAssets.D
-        environment.CopperOreAssets.E
-        environment.CopperOreAssets.F
-    ]
+        count: 500
+        min_height: 0
+        position_variance: {1, 1}
+        rotation_variance: {y: 2 * math.PI}
+        cluster: 0.2
+    )
 
-    count: 400
-    min_height: 0
-    position_variance: {1, 1}
-    rotation_variance: {y: 2 * math.PI}
-    cluster: 0
-)
+    terrain.Scatter(
+        prefab: [
+            environment.CopperOreAssets.A
+            environment.CopperOreAssets.B
+            environment.CopperOreAssets.C
+            environment.CopperOreAssets.D
+            environment.CopperOreAssets.E
+            environment.CopperOreAssets.F
+        ]
 
-terrain.Scatter(
-    prefab: [
-        environment.GraphiteAssets.A
-        environment.GraphiteAssets.B
-        environment.GraphiteAssets.C
-        environment.GraphiteAssets.D
-        environment.GraphiteAssets.E
-        environment.GraphiteAssets.F
-    ]
+        count: 400
+        min_height: 0
+        position_variance: {1, 1}
+        rotation_variance: {y: 2 * math.PI}
+        cluster: 0
+    )
 
-    count: 250
-    min_height: 0
-    position_variance: {1, 1}
-    rotation_variance: {y: 2 * math.PI}
-    cluster: 0.2
-)
+    terrain.Scatter(
+        prefab: [
+            environment.GraphiteAssets.A
+            environment.GraphiteAssets.B
+            environment.GraphiteAssets.C
+            environment.GraphiteAssets.D
+            environment.GraphiteAssets.E
+            environment.GraphiteAssets.F
+        ]
 
-terrain.Scatter(
-    prefab: [
-        environment.ChemicalsAssets.A
-        environment.ChemicalsAssets.B
-        environment.ChemicalsAssets.C
-        environment.ChemicalsAssets.D
-        environment.ChemicalsAssets.E
-        environment.ChemicalsAssets.F
-    ]
+        count: 250
+        min_height: 0
+        position_variance: {1, 1}
+        rotation_variance: {y: 2 * math.PI}
+        cluster: 0.2
+    )
 
-    count: 250
-    min_height: 0
-    position_variance: {1, 1}
-    rotation_variance: {y: 2 * math.PI}
-    cluster: 0.1
-)
+    terrain.Scatter(
+        prefab: [
+            environment.ChemicalsAssets.A
+            environment.ChemicalsAssets.B
+            environment.ChemicalsAssets.C
+            environment.ChemicalsAssets.D
+            environment.ChemicalsAssets.E
+            environment.ChemicalsAssets.F
+        ]
+
+        count: 250
+        min_height: 0
+        position_variance: {1, 1}
+        rotation_variance: {y: 2 * math.PI}
+        cluster: 0.1
+    )
+}

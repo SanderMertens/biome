@@ -3,11 +3,13 @@ include resources
 using flecs.script
 using flecs.engine.*
 using biome.*
-using resources
+using cfg.resources
 
 const droneGltf: "etc/assets/kaykit/space/Assets/gltf/lander_base.gltf"
 
-units {
+scene.drones {}
+
+Module cfg.units {
     prefab Drone {
         Behaviors: [
             script {
