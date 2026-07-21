@@ -16,14 +16,6 @@ static void biome_logistics_acceptJob(
 {
     (void)argc;
     (void)argv;
-    const BiomeLogisticsCarrier *carrier = ecs_get(
-        ctx->world, ctx->entity, BiomeLogisticsCarrier);
-    const BiomePowerConsumer *power = carrier
-        ? ecs_get(ctx->world, carrier->home, BiomePowerConsumer)
-        : NULL;
-    biome_logistics_setNetwork(
-        ctx->world, ctx->entity,
-        power ? power->network : 0);
     ecs_set(ctx->world, ctx->entity, BiomeLogisticsWaiter, {future});
 }
 

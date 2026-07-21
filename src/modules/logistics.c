@@ -3,39 +3,6 @@
 #include "biome.h"
 #include "../tasks/logistics.h"
 
-ECS_TAG_DECLARE(BiomeLogisticsNetwork);
-
-void biome_logistics_setNetwork(
-    ecs_world_t *world,
-    ecs_entity_t entity,
-    ecs_entity_t network)
-{
-    if (!ecs_id(BiomeLogisticsNetwork)) {
-        return;
-    }
-    ecs_entity_t current = ecs_get_target(
-        world, entity, ecs_id(BiomeLogisticsNetwork), 0);
-    if (current == network) {
-        return;
-    }
-    if (!network) {
-        ecs_remove_pair(
-            world, entity, ecs_id(BiomeLogisticsNetwork), EcsWildcard);
-        return;
-    }
-    ecs_add_pair(
-        world, entity, ecs_id(BiomeLogisticsNetwork), network);
-}
-
-static ecs_entity_t biome_logistics_entityNetwork(
-    const ecs_world_t *world,
-    ecs_entity_t entity)
-{
-    const BiomePowerConsumer *power = ecs_get(
-        world, entity, BiomePowerConsumer);
-    return power ? power->network : 0;
-}
-
 int32_t biome_logistics_mapValue(
     const BiomeResourceStorageMap *map,
     ecs_entity_t resource)
@@ -84,19 +51,6 @@ static bool biome_logistics_entityPowered(
     const BiomePowerConsumer *power = ecs_get(
         world, storage, BiomePowerConsumer);
     return !power || power->powered;
-}
-
-static bool biome_logistics_sameNetwork(
-    const ecs_world_t *world,
-    ecs_entity_t first,
-    ecs_entity_t second)
-{
-    const BiomePowerConsumer *first_power = ecs_get(
-        world, first, BiomePowerConsumer);
-    const BiomePowerConsumer *second_power = ecs_get(
-        world, second, BiomePowerConsumer);
-    return first_power && second_power && first_power->network &&
-        first_power->network == second_power->network;
 }
 
 static bool biome_logistics_playerFits(
@@ -337,28 +291,6 @@ static bool biome_logistics_acceptRequestWithAttrs(
     return true;
 }
 
-static bool biome_logistics_acceptRequestForCarrier(
-    ecs_world_t *world,
-    const BiomeLogisticsPlayerAttrs *attrs,
-    ecs_entity_t request_entity,
-    const BiomeLogisticsCarrier *carrier,
-    ecs_vec_t *accepted,
-    BiomeLogisticsJob *job)
-{
-    BiomeLogisticsRequest request;
-    if (!carrier || !carrier->home ||
-        !biome_logistics_getRequest(world, request_entity, &request) ||
-        !biome_logistics_sameNetwork(
-            world, carrier->home, request.source))
-    {
-        ecs_vec_clear(accepted);
-        return false;
-    }
-
-    return biome_logistics_acceptRequestWithAttrs(
-        world, attrs, request_entity, carrier->storage, accepted, job);
-}
-
 static bool biome_logistics_acceptRequest(
     ecs_world_t *world,
     ecs_entity_t request_entity,
@@ -454,12 +386,10 @@ static void biome_logistics_finishRequests(
     }
 }
 
-static void biome_logistics_dispatchGroup(
-    ecs_world_t *world,
-    const ecs_query_t *waiter_query,
-    ecs_query_t *job_query,
-    uint64_t group_id)
+static void biome_logistics_dispatch(
+    ecs_iter_t *waiter_it)
 {
+    ecs_world_t *world = waiter_it->world;
     ecs_vec_t accepted;
     ecs_vec_init_t(NULL, &accepted, ecs_entity_t, 0);
 
@@ -468,30 +398,20 @@ static void biome_logistics_dispatchGroup(
 
     ecs_vec_t requests;
     ecs_vec_init_t(NULL, &requests, ecs_entity_t, 0);
-
-    ecs_iter_t job_it = ecs_query_iter(world, job_query);
-    ecs_iter_set_group(&job_it, group_id);
-    while (ecs_query_next(&job_it)) {
-        for (int32_t i = 0; i < job_it.count; i ++) {
-            *ecs_vec_append_t(NULL, &requests, ecs_entity_t) =
-                job_it.entities[i];
-        }
-    }
+    biome_logistics_collectPendingRequests(world, &requests);
 
     int32_t request_index = 0;
     int32_t request_count = ecs_vec_count(&requests);
     ecs_entity_t *request_entities = ecs_vec_first_t(
         &requests, ecs_entity_t);
 
-    ecs_iter_t waiter_it = ecs_query_iter(world, waiter_query);
-    ecs_iter_set_group(&waiter_it, group_id);
-    while (ecs_query_next(&waiter_it)) {
+    while (ecs_query_next(waiter_it)) {
         BiomeLogisticsWaiter *waiters = ecs_field(
-            &waiter_it, BiomeLogisticsWaiter, 0);
+            waiter_it, BiomeLogisticsWaiter, 0);
         const BiomeLogisticsCarrier *carriers = ecs_field(
-            &waiter_it, BiomeLogisticsCarrier, 1);
+            waiter_it, BiomeLogisticsCarrier, 1);
 
-        for (int32_t i = 0; i < waiter_it.count; i ++)
+        for (int32_t i = 0; i < waiter_it->count; i ++)
         {
             const BiomeLogisticsCarrier *carrier = &carriers[i];
             if (!carrier || !carrier->storage ||
@@ -524,7 +444,7 @@ static void biome_logistics_dispatchGroup(
             };
             ecs_script_future_resolve(waiters[i].future, &value);
             ecs_remove(
-                world, waiter_it.entities[i], BiomeLogisticsWaiter);
+                world, waiter_it->entities[i], BiomeLogisticsWaiter);
 
             ecs_defer_suspend(world);
             biome_logistics_finishRequests(world, &accepted);
@@ -537,34 +457,7 @@ static void biome_logistics_dispatchGroup(
 }
 
 static void BiomeLogisticsDispatch(ecs_iter_t *it) {
-    if (!it->ctx) {
-        while (ecs_query_next(it)) { }
-        return;
-    }
-    ecs_query_t *job_query = it->ctx;
-    const ecs_query_t *waiter_query = it->query;
-    const ecs_map_t *groups = ecs_query_get_groups(waiter_query);
-
-    ecs_vec_t group_ids;
-    ecs_vec_init_t(NULL, &group_ids, uint64_t, 0);
-    ecs_map_iter_t group_it = ecs_map_iter(groups);
-    while (ecs_map_next(&group_it)) {
-        *ecs_vec_append_t(NULL, &group_ids, uint64_t) =
-            ecs_map_key(&group_it);
-    }
-
-    int32_t group_count = ecs_vec_count(&group_ids);
-    uint64_t *ids = ecs_vec_first_t(&group_ids, uint64_t);
-    for (int32_t i = 0; i < group_count; i ++) {
-        biome_logistics_dispatchGroup(
-            it->world, waiter_query, job_query, ids[i]);
-    }
-
-    ecs_vec_fini_t(NULL, &group_ids, uint64_t);
-}
-
-static void biome_logistics_queryFree(void *ptr) {
-    ecs_query_fini((ecs_query_t*)ptr);
+    biome_logistics_dispatch(it);
 }
 
 void biome_logistics_postRequest(
@@ -604,9 +497,6 @@ void biome_logistics_postRequest(
             world, job, BiomeLogisticsRequest, request_kind->constant, {
                 kind, source, resource, request_amount, priority
             });
-        biome_logistics_setNetwork(
-            world, job, biome_logistics_entityNetwork(world, source));
-
         BiomeResourceStorage *storage = ecs_get_mut(
             world, source, BiomeResourceStorage);
         if (storage) {
@@ -746,44 +636,6 @@ static void BiomeLogisticsCarrierOnSet(ecs_iter_t *it) {
     for (int32_t i = 0; i < it->count; i ++) {
         carriers[i].storage = biome_logistics_findClosestStorage(
             it->world, carriers[i].home);
-        biome_logistics_setNetwork(
-            it->world, it->entities[i],
-            biome_logistics_entityNetwork(it->world, carriers[i].home));
-    }
-}
-
-static void BiomeLogisticsPowerConsumerOnSet(ecs_iter_t *it) {
-    const BiomePowerConsumer *power = ecs_field(
-        it, BiomePowerConsumer, 0);
-    for (int32_t i = 0; i < it->count; i ++) {
-        ecs_entity_t source = it->entities[i];
-        const BiomeResourceStorage *storage = ecs_get(
-            it->world, source, BiomeResourceStorage);
-        if (storage) {
-            int32_t request_count = ecs_vec_count(
-                &storage->outstanding_requests);
-            const ecs_entity_t *requests = ecs_vec_first_t(
-                &storage->outstanding_requests, ecs_entity_t);
-            for (int32_t r = 0; r < request_count; r ++) {
-                if (ecs_is_alive(it->world, requests[r])) {
-                    biome_logistics_setNetwork(
-                        it->world, requests[r], power[i].network);
-                }
-            }
-        }
-
-        ecs_iter_t carrier_it = ecs_each(
-            it->world, BiomeLogisticsCarrier);
-        while (ecs_each_next(&carrier_it)) {
-            const BiomeLogisticsCarrier *carriers = ecs_field(
-                &carrier_it, BiomeLogisticsCarrier, 0);
-            for (int32_t c = 0; c < carrier_it.count; c ++) {
-                if (carriers[c].home == source) {
-                    biome_logistics_setNetwork(
-                        it->world, carrier_it.entities[c], power[i].network);
-                }
-            }
-        }
     }
 }
 
@@ -797,9 +649,6 @@ void biomeLogisticsImport(ecs_world_t *world) {
 
     ecs_set_name_prefix(world, "BiomeLogistics");
 
-    ECS_TAG_DEFINE(world, BiomeLogisticsNetwork);
-    ecs_add_id(world, ecs_id(BiomeLogisticsNetwork), EcsExclusive);
-
     ECS_META_COMPONENT(world, biome_logisticsRequestKind_t);
     ECS_META_COMPONENT(world, BiomeLogisticsRequest);
     ECS_META_COMPONENT(world, BiomeLogisticsCarrier);
@@ -809,40 +658,18 @@ void biomeLogisticsImport(ecs_world_t *world) {
         .on_set = BiomeLogisticsCarrierOnSet
     });
 
-    ecs_observer(world, {
-        .query.terms = {{ .id = ecs_id(BiomePowerConsumer) }},
-        .events = { EcsOnSet },
-        .callback = BiomeLogisticsPowerConsumerOnSet
-    });
-
     ecs_entity_t module = ecs_id(biomeLogistics);
     biomeLogisticsTasksImport(world, module);
-
-    ecs_query_t *job_query = ecs_query(world, {
-        .terms = {
-            { .id = ecs_pair(
-                ecs_id(BiomeLogisticsRequest), EcsWildcard) },
-            { .id = ecs_pair(
-                ecs_id(BiomeLogisticsNetwork), EcsWildcard) }
-        },
-        .cache_kind = EcsQueryCacheAuto,
-        .group_by = ecs_id(BiomeLogisticsNetwork)
-    });
 
     ecs_system(world, {
         .entity = ecs_entity(world, { .name = "Dispatch" }),
         .query.terms = {
             { .id = ecs_id(BiomeLogisticsWaiter) },
-            { .id = ecs_id(BiomeLogisticsCarrier), .inout = EcsIn },
-            { .id = ecs_pair(
-                ecs_id(BiomeLogisticsNetwork), EcsWildcard) }
+            { .id = ecs_id(BiomeLogisticsCarrier), .inout = EcsIn }
         },
         .query.cache_kind = EcsQueryCacheAuto,
-        .query.group_by = ecs_id(BiomeLogisticsNetwork),
         .phase = EcsOnUpdate,
         .run = BiomeLogisticsDispatch,
-        .ctx = job_query,
-        .ctx_free = biome_logistics_queryFree,
         .immediate = true
     });
 

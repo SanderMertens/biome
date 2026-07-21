@@ -73,11 +73,11 @@ scene.terrain {
             environment.IronOreAssets.F
         ]
 
-        count: 500
+        count: 250
         min_height: 0
         position_variance: {1, 1}
         rotation_variance: {y: 2 * math.PI}
-        cluster: 0.2
+        cluster: 0
     )
 
     terrain.Scatter(
@@ -90,7 +90,7 @@ scene.terrain {
             environment.CopperOreAssets.F
         ]
 
-        count: 400
+        count: 100
         min_height: 0
         position_variance: {1, 1}
         rotation_variance: {y: 2 * math.PI}
@@ -107,11 +107,11 @@ scene.terrain {
             environment.GraphiteAssets.F
         ]
 
-        count: 250
+        count: 150
         min_height: 0
         position_variance: {1, 1}
         rotation_variance: {y: 2 * math.PI}
-        cluster: 0.2
+        cluster: 0.1
     )
 
     terrain.Scatter(
@@ -124,7 +124,7 @@ scene.terrain {
             environment.ChemicalsAssets.F
         ]
 
-        count: 250
+        count: 150
         min_height: 0
         position_variance: {1, 1}
         rotation_variance: {y: 2 * math.PI}

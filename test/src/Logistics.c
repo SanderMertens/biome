@@ -631,9 +631,14 @@ void Logistics_dispatch_finishes_iterator(void) {
     ecs_entity_t waiter_b = ecs_new(world);
     ecs_set(world, waiter_a, BiomeLogisticsWaiter, {0});
     ecs_set(world, waiter_b, BiomeLogisticsWaiter, {0});
+    ecs_set(world, waiter_a, BiomeLogisticsCarrier, {0});
+    ecs_set(world, waiter_b, BiomeLogisticsCarrier, {0});
 
     ecs_query_t *query = ecs_query(world, {
-        .terms = {{ .id = ecs_id(BiomeLogisticsWaiter) }}
+        .terms = {
+            { .id = ecs_id(BiomeLogisticsWaiter) },
+            { .id = ecs_id(BiomeLogisticsCarrier) }
+        }
     });
     ecs_iter_t it = ecs_query_iter(world, query);
     BiomeLogisticsDispatch(&it);
@@ -647,23 +652,21 @@ void Logistics_dispatch_finishes_iterator(void) {
     ecs_fini(world);
 }
 
-void Logistics_same_power_network_only(void) {
+void Logistics_different_power_network(void) {
     ecs_world_t *world = Logistics_world();
 
     ecs_entity_t resource = ecs_new(world);
-    ecs_entity_t home = ecs_new(world);
     ecs_entity_t other_home = ecs_new(world);
-    ecs_entity_t network = ecs_new(world);
     ecs_entity_t other_network = ecs_new(world);
+    ecs_entity_t source_network = ecs_new(world);
     ecs_entity_t source = Logistics_storage(
         world, BiomeResourceStorageKindSource, 100);
     ecs_entity_t storage = Logistics_playerStorage(
         world, resource, 100);
 
-    ecs_set(world, home, BiomePowerConsumer, {true, network});
     ecs_set(world, other_home, BiomePowerConsumer,
         {true, other_network});
-    ecs_set(world, source, BiomePowerConsumer, {true, network});
+    ecs_set(world, source, BiomePowerConsumer, {true, source_network});
     Logistics_setResource(world, source, resource, 20);
     biome_logistics_postRequest(
         world, BiomeRequestPickup, source, resource, 20, 0);
@@ -676,110 +679,16 @@ void Logistics_same_power_network_only(void) {
     BiomeLogisticsJob job;
     ecs_entity_t request = Logistics_request(world, source, 0);
 
-    test_assert(!biome_logistics_acceptRequestForCarrier(
-        world, &attrs, request, &carrier, &accepted, &job));
-    test_int(ecs_vec_count(&accepted), 0);
-
-    carrier.home = home;
-    test_assert(biome_logistics_acceptRequestForCarrier(
-        world, &attrs, request, &carrier, &accepted, &job));
+    test_assert(biome_logistics_acceptRequestWithAttrs(
+        world, &attrs, request, carrier.storage, &accepted, &job));
     test_int(ecs_vec_count(&accepted), 1);
     test_uint(job.src, source);
     test_uint(job.dst, storage);
-
-    ecs_set(world, source, BiomePowerConsumer, {false, 0});
-    test_assert(!biome_logistics_acceptRequestForCarrier(
-        world, &attrs, request, &carrier, &accepted, &job));
-    test_int(ecs_vec_count(&accepted), 0);
 
     ecs_vec_fini_t(NULL, &accepted, ecs_entity_t);
     Logistics_deleteRequests(world, source);
     Logistics_storageFini(world, source);
     Logistics_storageFini(world, storage);
-    ecs_fini(world);
-}
-
-void Logistics_network_grouped_queries(void) {
-    ecs_world_t *world = Logistics_world();
-    ECS_COMPONENT_DEFINE(world, BiomeLogisticsWaiter);
-    ECS_TAG_DEFINE(world, BiomeLogisticsNetwork);
-    ecs_add_id(world, ecs_id(BiomeLogisticsNetwork), EcsExclusive);
-
-    ecs_entity_t resource = ecs_new(world);
-    ecs_entity_t network_a = ecs_new(world);
-    ecs_entity_t network_b = ecs_new(world);
-    ecs_entity_t source_a = Logistics_storage(
-        world, BiomeResourceStorageKindSource, 100);
-    ecs_entity_t source_b = Logistics_storage(
-        world, BiomeResourceStorageKindSource, 100);
-    ecs_set(world, source_a, BiomePowerConsumer, {true, network_a});
-    ecs_set(world, source_b, BiomePowerConsumer, {true, network_b});
-    biome_logistics_postRequest(
-        world, BiomeRequestPickup, source_a, resource, 10, 0);
-    biome_logistics_postRequest(
-        world, BiomeRequestPickup, source_b, resource, 10, 0);
-
-    ecs_entity_t waiter_a = ecs_new(world);
-    ecs_entity_t waiter_b = ecs_new(world);
-    ecs_set(world, waiter_a, BiomeLogisticsCarrier, {0});
-    ecs_set(world, waiter_b, BiomeLogisticsCarrier, {0});
-    ecs_set(world, waiter_a, BiomeLogisticsWaiter, {0});
-    ecs_set(world, waiter_b, BiomeLogisticsWaiter, {0});
-    biome_logistics_setNetwork(world, waiter_a, network_a);
-    biome_logistics_setNetwork(world, waiter_b, network_b);
-
-    ecs_query_t *waiters = ecs_query(world, {
-        .terms = {
-            { .id = ecs_id(BiomeLogisticsWaiter) },
-            { .id = ecs_id(BiomeLogisticsCarrier) },
-            { .id = ecs_pair(
-                ecs_id(BiomeLogisticsNetwork), EcsWildcard) }
-        },
-        .cache_kind = EcsQueryCacheAuto,
-        .group_by = ecs_id(BiomeLogisticsNetwork)
-    });
-    ecs_query_t *jobs = ecs_query(world, {
-        .terms = {
-            { .id = ecs_pair(
-                ecs_id(BiomeLogisticsRequest), EcsWildcard) },
-            { .id = ecs_pair(
-                ecs_id(BiomeLogisticsNetwork), EcsWildcard) }
-        },
-        .cache_kind = EcsQueryCacheAuto,
-        .group_by = ecs_id(BiomeLogisticsNetwork)
-    });
-
-    int32_t group_count = 0;
-    ecs_map_iter_t group_it = ecs_map_iter(
-        ecs_query_get_groups(waiters));
-    while (ecs_map_next(&group_it)) {
-        uint64_t group_id = ecs_map_key(&group_it);
-        int32_t waiter_count = 0;
-        ecs_iter_t waiter_it = ecs_query_iter(world, waiters);
-        ecs_iter_set_group(&waiter_it, group_id);
-        while (ecs_query_next(&waiter_it)) {
-            waiter_count += waiter_it.count;
-        }
-
-        int32_t job_count = 0;
-        ecs_iter_t job_it = ecs_query_iter(world, jobs);
-        ecs_iter_set_group(&job_it, group_id);
-        while (ecs_query_next(&job_it)) {
-            job_count += job_it.count;
-        }
-
-        test_int(waiter_count, 1);
-        test_int(job_count, 1);
-        group_count ++;
-    }
-    test_int(group_count, 2);
-
-    ecs_query_fini(jobs);
-    ecs_query_fini(waiters);
-    Logistics_deleteRequests(world, source_a);
-    Logistics_deleteRequests(world, source_b);
-    Logistics_storageFini(world, source_a);
-    Logistics_storageFini(world, source_b);
     ecs_fini(world);
 }
 

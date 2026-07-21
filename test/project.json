@@ -34,8 +34,7 @@
                     "combine_dropoff_requests",
                     "combine_matching_resources_only",
                     "dispatch_finishes_iterator",
-                    "same_power_network_only",
-                    "network_grouped_queries",
+                    "different_power_network",
                     "player_storage_transfer",
                     "player_storage_capacity",
                     "closest_storage"
