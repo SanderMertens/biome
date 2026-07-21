@@ -10,7 +10,7 @@ export const ButtonColor = Rgba: {49, 56, 63, 255}
 export const HoverColor = Rgba: {58, 66, 74, 255}
 export const HighlightColor = Rgba: {66, 185, 131, 255}
 export const DangerColor = Rgba: {220, 60, 50, 255}
-export const PowerColor = Rgba: {245, 200, 65, 255}
+export const PowerColor = Rgba: {195, 155, 40, 255}
 export const PowerWarningColor = Rgba: {235, 130, 45, 255}
 
 struct Style {
@@ -101,13 +101,14 @@ template Gauge {
   prop height: 18
   prop value: 0.5
   prop max: 1.0
+  prop text: ""
   prop size: FontSize
   prop color: HighlightColor
   prop border_color: ButtonColor
 
   OrderedChildren
   Rect: {width: width, height: height}
-  Border: {width: 1, color: border_color, radius: 8}
+  Border: {width: 1, color: border_color, radius: 7}
   Rgba: {24, 28, 36, 235}
 
   const maxNorm = match max > 0 {
@@ -115,44 +116,23 @@ template Gauge {
     false: 1
   }
 
+  const valueNorm = match value < max {
+    true: value
+    false: max
+  }
+
   fill {
     Position: {x: 2, y: 2}
     Border: {width: 1, color: color, radius: 6}
-    Rect: {width: (width - 4) * (value / maxNorm), height: height - 4}
+    Rect: {width: (width - 4) * (valueNorm / maxNorm), height: height - 4}
     Rgba: color
   }
 
   label {
     Position: {x: 0, y: (height - size) / 2}
-    Text: {text: "{value:.0}", size: size, align: Center}
+    Text: {text: text, size: size, align: Center}
     Rgba: {235, 238, 245, 255}
   }
-}
-
-template PowerGauge {
-  const production = PowerGrid[PowerGrid].total_production
-  const demand = PowerGrid[PowerGrid].total_demand
-
-  const satisfaction = match demand > 0 {
-    true: production / demand
-    false: 1
-  }
-
-  const color = match satisfaction < 0.5 {
-    true: DangerColor
-    false: match satisfaction < 1 {
-      true: PowerWarningColor
-      false: PowerColor
-    }
-  }
-  const gaugeMax = match demand > production {
-    true: demand
-    false: production
-  }
-
-  Layout: {direction: Column, padding: 0, spacing: 3}
-  Label (text: "POWER")
-  Gauge (width: 300, height: 27, value: production, max: gaugeMax, color: color, border_color: color)
 }
 
 template ToolButton {
@@ -174,8 +154,52 @@ template ToolButton {
 template ResourceGauge {
   prop text = "Resource"
   prop resource = entity: 0
+  prop color = HighlightColor
 
   Layout: {direction: Column, padding: 0, spacing: 3}
   Label (text: text)
-  Gauge (width: 300, height: 27, value: player.ResourceTotals[resource], max: player.ResourceCapacityTotals[resource])
+  Gauge (
+    width: 300
+    height: 27
+    value: player.ResourceTotals[resource]
+    max: player.ResourceCapacityTotals[resource]
+    text: "{player.ResourceTotals[resource]}"
+    color: color
+  )
+}
+
+template PowerGauge {
+  const production = PowerGrid[PowerGrid].total_production
+  const demand = PowerGrid[PowerGrid].total_demand
+
+  const satisfaction = match demand > 0 {
+    true: production / demand
+    false: 1
+  }
+
+  const color = match satisfaction < 0.5 {
+    true: DangerColor
+    false: match satisfaction < 1 {
+      true: PowerWarningColor
+      false: PowerColor
+    }
+  }
+
+  Layout: {direction: Column, padding: 0, spacing: 3}
+  Label (text: "POWER")
+
+  const value = match demand > 0 {
+    true: (100 * production) / demand
+    false: 0
+  }
+  
+  Gauge (
+    width: 300
+    height: 27
+    value: value
+    max: 100
+    text: "{value:.0}%"
+    color: color
+    border_color: color
+  )
 }

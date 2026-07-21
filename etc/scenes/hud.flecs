@@ -50,9 +50,9 @@ hud {
     Layout: {direction: Column, padding: 0, spacing: 6}
 
     PowerGauge()
-    ResourceGauge("IRON", Iron)
-    ResourceGauge("COPPER", Copper)
-    ResourceGauge("CARBON", Carbon)
-    ResourceGauge("CHEMICALS", Chemicals)
+    ResourceGauge("IRON", Iron, color: {95, 150, 195, 255})
+    ResourceGauge("COPPER", Copper, color: {195, 128, 58, 255})
+    ResourceGauge("CARBON", Carbon, color: {62, 66, 70, 255})
+    ResourceGauge("CHEMICALS", Chemicals, color: {195, 65, 125, 255})
   }
 }
