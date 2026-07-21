@@ -510,6 +510,7 @@ static int32_t biome_tool_cursorMesh(
     }
 
     int32_t vertex_count = cell_count * 6;
+    bool mesh_ready = ecs_has(world, asset, FlecsMesh3);
     FlecsMesh3 *mesh = ecs_ensure(world, asset, FlecsMesh3);
     ecs_vec_set_count_t(
         NULL, &mesh->vertices, flecs_vec3_t, vertex_count);
@@ -578,7 +579,14 @@ static int32_t biome_tool_cursorMesh(
     }
 
     ecs_assert(v == vertex_count, ECS_INTERNAL_ERROR, NULL);
+    bool was_deferred = ecs_is_deferred(world);
+    if (was_deferred && mesh_ready) {
+        ecs_defer_suspend(world);
+    }
     flecsEngine_mesh3_updateVertices(world, asset);
+    if (was_deferred && mesh_ready) {
+        ecs_defer_resume(world);
+    }
     return cell_count;
 }
 
@@ -913,13 +921,13 @@ void BiomeToolPreview(ecs_iter_t *it) {
 
 void BiomeToolBind(ecs_iter_t *it) {
     BiomeTool *tool = ecs_field(it, BiomeTool, 0);
-    tool->place_effect = ecs_lookup(it->world, "effects.build_burst");
+    tool->place_effect = ecs_lookup(it->world, "cfg.effects.build_burst");
     if (!tool->place_effect) {
-        ecs_warn("tool: effect 'effects.build_burst' not found");
+        ecs_warn("tool: effect 'cfg.effects.build_burst' not found");
     }
-    tool->doze_effect = ecs_lookup(it->world, "effects.doze_burst");
+    tool->doze_effect = ecs_lookup(it->world, "cfg.effects.doze_burst");
     if (!tool->doze_effect) {
-        ecs_warn("tool: effect 'effects.doze_burst' not found");
+        ecs_warn("tool: effect 'cfg.effects.doze_burst' not found");
     }
 }
 

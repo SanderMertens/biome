@@ -25,6 +25,7 @@ void Logistics_combine_dropoff_requests(void);
 void Logistics_combine_matching_resources_only(void);
 void Logistics_dispatch_finishes_iterator(void);
 void Logistics_same_power_network_only(void);
+void Logistics_network_grouped_queries(void);
 void Logistics_player_storage_transfer(void);
 void Logistics_player_storage_capacity(void);
 void Logistics_closest_storage(void);
@@ -32,6 +33,7 @@ void Logistics_closest_storage(void);
 // Testsuite 'Factory'
 void Factory_request_drone_amount(void);
 void Factory_request_drone_amount_edge_cases(void);
+void Factory_combine_outstanding_requests(void);
 void Factory_vent_greenhouse_gas(void);
 
 // Testsuite 'BuildingRule'
@@ -96,6 +98,10 @@ bake_test_case Logistics_testcases[] = {
         Logistics_same_power_network_only
     },
     {
+        "network_grouped_queries",
+        Logistics_network_grouped_queries
+    },
+    {
         "player_storage_transfer",
         Logistics_player_storage_transfer
     },
@@ -117,6 +123,10 @@ bake_test_case Factory_testcases[] = {
     {
         "request_drone_amount_edge_cases",
         Factory_request_drone_amount_edge_cases
+    },
+    {
+        "combine_outstanding_requests",
+        Factory_combine_outstanding_requests
     },
     {
         "vent_greenhouse_gas",
@@ -157,14 +167,14 @@ static bake_test_suite suites[] = {
         "Logistics",
         NULL,
         NULL,
-        11,
+        12,
         Logistics_testcases
     },
     {
         "Factory",
         NULL,
         NULL,
-        3,
+        4,
         Factory_testcases
     },
     {

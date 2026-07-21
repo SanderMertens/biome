@@ -50,7 +50,7 @@ static void biome_ui_bindToolButton(
 void BiomeUiBind(ecs_iter_t *it) {
     ecs_world_t *world = it->world;
     ecs_entity_t tool_button = ecs_lookup(
-        world, "biome.widgets.ToolButton");
+        world, "cfg.widgets.ToolButton");
     if (!tool_button) {
         return;
     }
@@ -62,7 +62,7 @@ void BiomeUiBind(ecs_iter_t *it) {
     }
 
     ecs_entity_t button_type = ecs_lookup(
-        world, "biome.widgets.Button");
+        world, "cfg.widgets.Button");
     ecs_entity_t button_mut = button_type
         ? ecs_lookup_child(world, button_type, "mut")
         : 0;

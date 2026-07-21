@@ -35,6 +35,7 @@
                     "combine_matching_resources_only",
                     "dispatch_finishes_iterator",
                     "same_power_network_only",
+                    "network_grouped_queries",
                     "player_storage_transfer",
                     "player_storage_capacity",
                     "closest_storage"
@@ -45,6 +46,7 @@
                 "testcases": [
                     "request_drone_amount",
                     "request_drone_amount_edge_cases",
+                    "combine_outstanding_requests",
                     "vent_greenhouse_gas"
                 ]
             },

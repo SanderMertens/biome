@@ -155,6 +155,74 @@ void Factory_request_drone_amount_edge_cases(void) {
     ecs_fini(world);
 }
 
+void Factory_combine_outstanding_requests(void) {
+    ecs_world_t *world = ecs_init();
+
+    Logistics_setupWorld(world);
+    ECS_COMPONENT_DEFINE(world, BiomeRecipe);
+
+    ecs_entity_t resource = ecs_new(world);
+    ecs_set(world, resource, BiomeResource, {
+        .max_drone_amount = 200
+    });
+
+    BiomeRecipe recipe = {0};
+    *Factory_mapEnsure(&recipe.inputs, resource) = 10;
+
+    ecs_entity_t factory = ecs_new(world);
+    ecs_set(world, factory, BiomeResourceStorageDesc, {
+        BiomeResourceStorageKindSink, 500
+    });
+    ecs_set(world, factory, BiomeResourceStorage, {0});
+    BiomeResourceStorage *storage = ecs_get_mut(
+        world, factory, BiomeResourceStorage);
+    *Factory_mapEnsure(&storage->resources, resource) = 500;
+    const BiomeResourceStorageDesc *desc = ecs_get(
+        world, factory, BiomeResourceStorageDesc);
+
+    for (int32_t i = 0; i < 20; i ++) {
+        *Factory_mapEnsure(&storage->resources, resource) -= 10;
+        biome_factory_requestInputs(
+            world, factory, &recipe, desc, storage);
+    }
+
+    test_int(ecs_vec_count(&storage->outstanding_requests), 1);
+    ecs_entity_t first = ecs_vec_first_t(
+        &storage->outstanding_requests, ecs_entity_t)[0];
+    test_int(Factory_request(world, first)->amount, 200);
+
+    *Factory_mapEnsure(&storage->resources, resource) -= 10;
+    biome_factory_requestInputs(
+        world, factory, &recipe, desc, storage);
+
+    test_int(ecs_vec_count(&storage->outstanding_requests), 2);
+    ecs_entity_t accepted = ecs_vec_first_t(
+        &storage->outstanding_requests, ecs_entity_t)[1];
+    test_int(Factory_request(world, accepted)->amount, 10);
+    ecs_vec_remove_ordered_t(
+        &storage->outstanding_requests, ecs_entity_t, 1);
+
+    *Factory_mapEnsure(&storage->resources, resource) -= 10;
+    biome_factory_requestInputs(
+        world, factory, &recipe, desc, storage);
+
+    test_int(Factory_request(world, accepted)->amount, 10);
+    test_int(ecs_vec_count(&storage->outstanding_requests), 2);
+    ecs_entity_t second = ecs_vec_first_t(
+        &storage->outstanding_requests, ecs_entity_t)[1];
+    test_int(Factory_request(world, second)->amount, 10);
+
+    ecs_delete(world, first);
+    ecs_delete(world, accepted);
+    ecs_delete(world, second);
+    ecs_map_fini(&recipe.inputs);
+    ecs_map_fini(&storage->resources);
+    ecs_map_fini(&storage->reserved);
+    ecs_vec_fini_t(
+        NULL, &storage->outstanding_requests, ecs_entity_t);
+    ecs_fini(world);
+}
+
 void Factory_vent_greenhouse_gas(void) {
     ecs_world_t *world = ecs_init();
 

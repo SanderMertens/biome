@@ -5,6 +5,7 @@
 #include <stdlib.h>
 
 ECS_COMPONENT_DECLARE(BiomePowerGrid);
+ECS_COMPONENT_DECLARE(BiomePowerNetworkConsumers);
 
 #define BiomePowerUnreached (UINT32_MAX)
 
@@ -53,42 +54,6 @@ static void UpdatePowerTint(ecs_iter_t *it) {
             ecs_set(it->world, it->entities[i], FlecsTint,
                 {0, 0, 0, 230});
         }
-    }
-}
-
-static void biome_power_clearNetworks(BiomePowerGrid *grid) {
-    int32_t i, count = ecs_vec_count(&grid->networks);
-    biome_power_network_t *networks = ecs_vec_first_t(
-        &grid->networks, biome_power_network_t);
-    for (i = 0; i < count; i ++) {
-        ecs_vec_fini_t(NULL, &networks[i].consumers, biome_power_consumer_t);
-    }
-    ecs_vec_clear(&grid->networks);
-}
-
-static void BiomePowerGrid_ctor(
-    void *ptr,
-    int32_t count,
-    const ecs_type_info_t *ti)
-{
-    (void)ti;
-    BiomePowerGrid *grid = ptr;
-    for (int32_t i = 0; i < count; i ++) {
-        ecs_os_zeromem(&grid[i]);
-        ecs_vec_init_t(NULL, &grid[i].networks, biome_power_network_t, 0);
-    }
-}
-
-static void BiomePowerGrid_dtor(
-    void *ptr,
-    int32_t count,
-    const ecs_type_info_t *ti)
-{
-    (void)ti;
-    BiomePowerGrid *grid = ptr;
-    for (int32_t i = 0; i < count; i ++) {
-        biome_power_clearNetworks(&grid[i]);
-        ecs_vec_fini_t(NULL, &grid[i].networks, biome_power_network_t);
     }
 }
 
@@ -151,21 +116,59 @@ static void biome_power_stamp(
     TerrainPower *pow,
     int32_t idx,
     uint32_t gen,
-    uint32_t network)
+    ecs_entity_t network)
 {
     pow[idx].generation = gen;
     pow[idx].network = network;
     pow[idx].distance = BiomePowerUnreached;
 }
 
-static uint32_t biome_power_networkNew(BiomePowerGrid *grid) {
-    uint32_t id = (uint32_t)ecs_vec_count(&grid->networks);
-    biome_power_network_t *net = ecs_vec_append_t(
-        NULL, &grid->networks, biome_power_network_t);
-    net->production = 0;
-    net->producer_count = 0;
-    ecs_vec_init_t(NULL, &net->consumers, biome_power_consumer_t, 0);
-    return id;
+static ecs_entity_t biome_power_networkRoot(ecs_world_t *world) {
+    ecs_entity_t result = ecs_lookup(world, "scene.power");
+    ecs_assert(result != 0, ECS_INTERNAL_ERROR, NULL);
+    return result;
+}
+
+static void biome_power_clearNetworks(
+    ecs_world_t *world,
+    ecs_entity_t parent)
+{
+    ecs_vec_t entities;
+    ecs_vec_init_t(NULL, &entities, ecs_entity_t, 0);
+    ecs_iter_t it = ecs_children(world, parent);
+    while (ecs_children_next(&it)) {
+        for (int32_t i = 0; i < it.count; i ++) {
+            if (ecs_has(world, it.entities[i], BiomePowerNetwork)) {
+                *ecs_vec_append_t(NULL, &entities, ecs_entity_t) =
+                    it.entities[i];
+            }
+        }
+    }
+    int32_t count = ecs_vec_count(&entities);
+    ecs_entity_t *values = ecs_vec_first_t(&entities, ecs_entity_t);
+    for (int32_t i = 0; i < count; i ++) {
+        ecs_delete(world, values[i]);
+    }
+    ecs_vec_fini_t(NULL, &entities, ecs_entity_t);
+}
+
+static ecs_entity_t biome_power_networkNew(
+    ecs_world_t *world,
+    ecs_entity_t parent,
+    int32_t index)
+{
+    char name[16];
+    ecs_os_snprintf(name, sizeof(name), "%d", index + 1);
+    ecs_entity_t entity = ecs_entity(world, {
+        .parent = parent,
+        .name = name
+    });
+    BiomePowerNetwork *network = ecs_ensure(
+        world, entity, BiomePowerNetwork);
+    network->production = 0;
+    network->producer_count = 0;
+    ecs_modified(world, entity, BiomePowerNetwork);
+    return entity;
 }
 
 static void biome_power_flood(
@@ -174,7 +177,7 @@ static void biome_power_flood(
     int32_t width,
     int32_t depth,
     uint32_t gen,
-    uint32_t network,
+    ecs_entity_t network,
     biome_power_masks_t masks,
     int32_t x0,
     int32_t y0,
@@ -268,20 +271,25 @@ static void biome_power_setPowered(
     ecs_world_t *world,
     ecs_entity_t e,
     bool powered,
-    uint32_t network)
+    ecs_entity_t network)
 {
-    BiomePowerConsumer *c = ecs_get_mut(world, e, BiomePowerConsumer);
-    if (c) {
-        c->powered = powered;
-        c->network = network;
-    } else {
-        ecs_set(world, e, BiomePowerConsumer, { powered, network });
+    BiomePowerConsumer *c = ecs_get_mut(
+        world, e, BiomePowerConsumer);
+    if (c && c->powered == powered && c->network == network) {
+        return;
     }
+    if (!c) {
+        ecs_set(world, e, BiomePowerConsumer, { powered, network });
+        return;
+    }
+    c->powered = powered;
+    c->network = network;
+    ecs_modified(world, e, BiomePowerConsumer);
 }
 
 static int biome_power_consumerCmp(const void *a, const void *b) {
-    const biome_power_consumer_t *ca = a;
-    const biome_power_consumer_t *cb = b;
+    const BiomePowerNetworkConsumer *ca = a;
+    const BiomePowerNetworkConsumer *cb = b;
     if (ca->distance != cb->distance) {
         return ca->distance < cb->distance ? -1 : 1;
     }
@@ -309,13 +317,20 @@ static bool biome_power_rebuild(
     uint32_t gen = grid->generation;
     int32_t width = t->width, depth = t->depth;
 
-    biome_power_clearNetworks(grid);
+    bool was_deferred = ecs_is_deferred(world);
+    if (was_deferred) {
+        ecs_defer_suspend(world);
+    }
+
+    ecs_entity_t network_root = biome_power_networkRoot(world);
+    biome_power_clearNetworks(world, network_root);
     biome_power_masks_t masks = biome_power_masks(world, grid);
 
     ecs_vec_t queue, seeds;
     ecs_vec_init_t(NULL, &queue, int32_t, 0);
     ecs_vec_init_t(NULL, &seeds, int32_t, 0);
 
+    int32_t network_count = 0;
     ecs_iter_t it = ecs_query_iter(world, grid->buildings);
     while (ecs_query_next(&it)) {
         FlecsTerrainPosition *tp = ecs_field(&it, FlecsTerrainPosition, 0);
@@ -339,20 +354,22 @@ static bool biome_power_rebuild(
 
             int32_t idx = tp[i].y * width + tp[i].x;
             if (pow[idx].generation != gen) {
-                uint32_t network = biome_power_networkNew(grid);
+                ecs_entity_t network = biome_power_networkNew(
+                    world, network_root, network_count ++);
                 biome_power_flood(occ, pow, width, depth, gen, network,
                     masks, tp[i].x, tp[i].y, fw, fh, &queue, &seeds);
             }
 
-            biome_power_network_t *networks = ecs_vec_first_t(
-                &grid->networks, biome_power_network_t);
-            biome_power_network_t *net = &networks[pow[idx].network];
+            BiomePowerNetwork *network = ecs_get_mut(
+                world, pow[idx].network, BiomePowerNetwork);
             const BiomePowerProducer *producer = ecs_get(
                 world, e, BiomePowerProducer);
             if (producer) {
-                net->production += producer->production;
+                network->production += producer->production;
             }
-            net->producer_count ++;
+            network->producer_count ++;
+            ecs_modified(
+                world, pow[idx].network, BiomePowerNetwork);
         }
     }
 
@@ -378,7 +395,7 @@ static bool biome_power_rebuild(
             }
 
             uint32_t best = BiomePowerUnreached;
-            uint32_t best_network = 0;
+            ecs_entity_t best_network = 0;
 
             for (int32_t y = tp[i].y; y < tp[i].y + fh; y ++) {
                 for (int32_t x = tp[i].x; x < tp[i].x + fw; x ++) {
@@ -413,33 +430,46 @@ static bool biome_power_rebuild(
             }
 
             if (best != BiomePowerUnreached) {
-                biome_power_network_t *networks = ecs_vec_first_t(
-                    &grid->networks, biome_power_network_t);
-                biome_power_consumer_t *c = ecs_vec_append_t(NULL,
-                    &networks[best_network].consumers, biome_power_consumer_t);
+                BiomePowerNetwork *network = ecs_get_mut(
+                    world, best_network, BiomePowerNetwork);
+                BiomePowerNetworkConsumer *c = ecs_vec_append_t(NULL,
+                    &network->consumers, BiomePowerNetworkConsumer);
                 c->entity = e;
                 c->distance = best;
                 c->demand = power->demand;
+                ecs_modified(world, best_network, BiomePowerNetwork);
             } else {
                 biome_power_setPowered(world, e, false, 0);
             }
         }
     }
 
-    int32_t n, network_count = ecs_vec_count(&grid->networks);
-    biome_power_network_t *networks = ecs_vec_first_t(
-        &grid->networks, biome_power_network_t);
-    for (n = 0; n < network_count; n ++) {
-        int32_t consumer_count = ecs_vec_count(&networks[n].consumers);
-        if (consumer_count > 1) {
-            qsort(ecs_vec_first_t(&networks[n].consumers,
-                biome_power_consumer_t), (size_t)consumer_count,
-                sizeof(biome_power_consumer_t), biome_power_consumerCmp);
+    ecs_iter_t network_it = ecs_children(world, network_root);
+    while (ecs_children_next(&network_it)) {
+        for (int32_t i = 0; i < network_it.count; i ++) {
+            BiomePowerNetwork *network = ecs_get_mut(
+                world, network_it.entities[i], BiomePowerNetwork);
+            if (!network) {
+                continue;
+            }
+            int32_t consumer_count = ecs_vec_count(&network->consumers);
+            if (consumer_count > 1) {
+                qsort(ecs_vec_first_t(&network->consumers,
+                    BiomePowerNetworkConsumer), (size_t)consumer_count,
+                    sizeof(BiomePowerNetworkConsumer),
+                    biome_power_consumerCmp);
+                ecs_modified(
+                    world, network_it.entities[i], BiomePowerNetwork);
+            }
         }
     }
 
     ecs_vec_fini_t(NULL, &queue, int32_t);
     ecs_vec_fini_t(NULL, &seeds, int32_t);
+
+    if (was_deferred) {
+        ecs_defer_resume(world);
+    }
 
     return true;
 }
@@ -450,33 +480,37 @@ static void biome_power_distribute(
 {
     float total_production = 0;
 
-    int32_t n, network_count = ecs_vec_count(&grid->networks);
-    biome_power_network_t *networks = ecs_vec_first_t(
-        &grid->networks, biome_power_network_t);
-
-    for (n = 0; n < network_count; n ++) {
-        biome_power_network_t *net = &networks[n];
-        float budget = net->production;
-
-        int32_t c, consumer_count = ecs_vec_count(&net->consumers);
-        biome_power_consumer_t *consumers = ecs_vec_first_t(
-            &net->consumers, biome_power_consumer_t);
-
-        for (c = 0; c < consumer_count; c ++) {
-            if (!ecs_is_alive(world, consumers[c].entity)) {
+    ecs_entity_t network_root = ecs_lookup(world, "scene.power");
+    ecs_iter_t network_it = ecs_children(world, network_root);
+    while (ecs_children_next(&network_it)) {
+        for (int32_t n = 0; n < network_it.count; n ++) {
+            const BiomePowerNetwork *network = ecs_get(
+                world, network_it.entities[n], BiomePowerNetwork);
+            if (!network) {
                 continue;
             }
+            float budget = network->production;
 
-            bool powered = budget >= consumers[c].demand;
-            if (powered) {
-                budget -= consumers[c].demand;
+            int32_t consumer_count = ecs_vec_count(&network->consumers);
+            const BiomePowerNetworkConsumer *consumers = ecs_vec_first_t(
+                &network->consumers, BiomePowerNetworkConsumer);
+
+            for (int32_t c = 0; c < consumer_count; c ++) {
+                if (!ecs_is_alive(world, consumers[c].entity)) {
+                    continue;
+                }
+
+                bool powered = budget >= consumers[c].demand;
+                if (powered) {
+                    budget -= consumers[c].demand;
+                }
+
+                biome_power_setPowered(world, consumers[c].entity,
+                    powered, network_it.entities[n]);
             }
 
-            biome_power_setPowered(
-                world, consumers[c].entity, powered, (uint32_t)n + 1);
+            total_production += network->production;
         }
-
-        total_production += net->production;
     }
 
     float total_demand = 0, satisfied = 0;
@@ -543,13 +577,17 @@ void biomePowerImport(ecs_world_t *world) {
     ECS_META_COMPONENT(world, BiomePowerProducer);
     ECS_META_COMPONENT(world, BiomePowerConsumer);
     ECS_META_COMPONENT(world, TerrainPower);
+    ECS_META_COMPONENT(world, BiomePowerNetworkConsumer);
+    ecs_id(BiomePowerNetworkConsumers) = ecs_vector(world, {
+        .entity = ecs_entity(world, {
+            .name = "PowerNetworkConsumers",
+            .symbol = "BiomePowerNetworkConsumers"
+        }),
+        .type = ecs_id(BiomePowerNetworkConsumer)
+    });
+    ECS_META_COMPONENT(world, BiomePowerNetwork);
 
     ECS_COMPONENT_DEFINE(world, BiomePowerGrid);
-
-    ecs_set_hooks(world, BiomePowerGrid, {
-        .ctor = BiomePowerGrid_ctor,
-        .dtor = BiomePowerGrid_dtor
-    });
 
     ecs_struct(world, {
         .entity = ecs_id(BiomePowerGrid),
@@ -572,6 +610,10 @@ void biomePowerImport(ecs_world_t *world) {
     });
 
     ecs_add_id(world, ecs_id(BiomePowerGrid), EcsSingleton);
+    ecs_entity(world, {
+        .name = "::scene.power",
+        .root_sep = "::"
+    });
 
     BiomePowerGrid *grid = ecs_singleton_ensure(world, BiomePowerGrid);
     grid->dirty = true;

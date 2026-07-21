@@ -16,7 +16,7 @@ ECS_STRUCT(BiomePower, {
 /* Dynamic power configuration power consumers */
 ECS_STRUCT(BiomePowerConsumer, {
     bool powered;
-    uint32_t network;
+    ecs_entity_t network;
 });
 
 /* Dynamic power configuration power providers */
@@ -26,21 +26,24 @@ ECS_STRUCT(BiomePowerProducer, {
 
 ECS_STRUCT(TerrainPower, {
     uint32_t generation;
-    uint32_t network;
+    ecs_entity_t network;
     uint32_t distance;
 });
 
-typedef struct biome_power_consumer_t {
+ECS_STRUCT(BiomePowerNetworkConsumer, {
     ecs_entity_t entity;
     uint32_t distance;
     float demand;
-} biome_power_consumer_t;
+});
 
-typedef struct biome_power_network_t {
+extern ECS_COMPONENT_DECLARE(BiomePowerNetworkConsumers);
+typedef ecs_vec_t BiomePowerNetworkConsumers;
+
+ECS_STRUCT(BiomePowerNetwork, {
     float production;
     int32_t producer_count;
-    ecs_vec_t consumers;
-} biome_power_network_t;
+    BiomePowerNetworkConsumers consumers;
+});
 
 typedef struct BiomePowerGrid {
     bool dirty;
@@ -48,7 +51,6 @@ typedef struct BiomePowerGrid {
     float total_production;
     float total_demand;
     float satisfied_demand;
-    ecs_vec_t networks;
     ecs_query_t *buildings;
     ecs_query_t *prefabs;
 } BiomePowerGrid;

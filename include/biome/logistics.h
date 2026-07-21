@@ -6,6 +6,8 @@
 #define ECS_META_IMPL EXTERN
 #endif
 
+extern ECS_TAG_DECLARE(BiomeLogisticsNetwork);
+
 ECS_ENUM(biome_logisticsRequestKind_t, {
     BiomeRequestPickup,
     BiomeRequestDropOff
@@ -39,6 +41,11 @@ void biome_logistics_postRequest(
     ecs_entity_t resource,
     int32_t amount,
     int32_t priority);
+
+void biome_logistics_setNetwork(
+    ecs_world_t *world,
+    ecs_entity_t entity,
+    ecs_entity_t network);
 
 void biomeLogisticsImport(ecs_world_t *world);
 

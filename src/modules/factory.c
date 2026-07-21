@@ -32,6 +32,46 @@ static int32_t *biome_factory_mapEnsure(
     return (int32_t*)ecs_map_ensure(map, (ecs_map_key_t)resource);
 }
 
+static bool biome_factory_combineRequest(
+    ecs_world_t *world,
+    ecs_entity_t factory,
+    ecs_entity_t resource,
+    int32_t amount,
+    int32_t max_amount,
+    const BiomeResourceStorage *storage)
+{
+    int32_t count = ecs_vec_count(&storage->outstanding_requests);
+    const ecs_entity_t *requests = ecs_vec_first_t(
+        &storage->outstanding_requests, ecs_entity_t);
+    for (int32_t i = 0; i < count; i ++) {
+        ecs_entity_t request_entity = requests[i];
+        if (!ecs_is_alive(world, request_entity)) {
+            continue;
+        }
+
+        ecs_entity_t request_kind = ecs_get_target(
+            world, request_entity, ecs_id(BiomeLogisticsRequest), 0);
+        ecs_id_t request_id = ecs_pair(
+            ecs_id(BiomeLogisticsRequest), request_kind);
+        const BiomeLogisticsRequest *request = request_kind
+            ? ecs_get_id(world, request_entity, request_id)
+            : NULL;
+        if (!request || request->kind != BiomeRequestDropOff ||
+            request->source != factory || request->resource != resource ||
+            amount > max_amount - request->amount)
+        {
+            continue;
+        }
+
+        BiomeLogisticsRequest *request_mut = ecs_get_mut_id(
+            world, request_entity, request_id);
+        request_mut->amount += amount;
+        ecs_modified_id(world, request_entity, request_id);
+        return true;
+    }
+    return false;
+}
+
 static bool biome_factory_consumeInputs(
     const BiomeRecipe *recipe,
     BiomeResourceStorage *storage)
@@ -101,8 +141,13 @@ static void biome_factory_requestInputs(
         int32_t *value = biome_factory_mapEnsure(
             &storage->reserved, resource);
         *value += amount;
-        biome_logistics_postRequest(world, BiomeRequestDropOff,
-            factory, resource, amount, 0);
+        if (!biome_factory_combineRequest(
+            world, factory, resource, amount,
+            resource_config->max_drone_amount, storage))
+        {
+            biome_logistics_postRequest(world, BiomeRequestDropOff,
+                factory, resource, amount, 0);
+        }
         modified = true;
     }
 
