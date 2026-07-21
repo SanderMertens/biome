@@ -18,6 +18,7 @@ struct Style {
   hover = Rgba
   pressed = Rgba
   active = Rgba
+  disabled = Rgba
   font_size = u8
 }
 

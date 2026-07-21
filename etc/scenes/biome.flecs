@@ -53,10 +53,10 @@ $ {
     weather.Weather: {
         pressure: 101325
         gravity: 9.80665
-        greenhouse_gas: 0.1
+        greenhouse_gas: 0.0
         radiative_cooling: 0.01
         stellar_heating: 0.002
-        temperature: 10
+        temperature: -20
     }
 }
 

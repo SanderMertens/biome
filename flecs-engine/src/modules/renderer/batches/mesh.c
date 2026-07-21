@@ -287,6 +287,26 @@ static void* flecsEngine_transparent_mesh_getCullBuf(
     return &tctx->buffers;
 }
 
+int32_t flecsEngine_transparentMeshCollectGroups(
+    const FlecsRenderBatch *batch,
+    flecsEngine_batch_group_t **groups)
+{
+    const ecs_map_t *groups_map = ecs_query_get_groups(batch->query);
+    ecs_assert(groups_map != NULL, ECS_INTERNAL_ERROR, NULL);
+
+    int32_t count = 0;
+    ecs_map_iter_t it = ecs_map_iter(groups_map);
+    while (ecs_map_next(&it)) {
+        uint64_t group_id = ecs_map_key(&it);
+        if (!group_id) continue;
+        flecsEngine_batch_group_t *ctx =
+            ecs_query_get_group_ctx(batch->query, group_id);
+        if (!ctx || (!ctx->view.count && !ctx->static_view.count)) continue;
+        groups[count ++] = ctx;
+    }
+    return count;
+}
+
 static void flecsEngine_transparent_mesh_render(
     const ecs_world_t *world,
     const FlecsEngineImpl *engine,
@@ -305,16 +325,7 @@ static void flecsEngine_transparent_mesh_render(
     flecsEngine_batch_group_t **groups =
         ecs_os_malloc_n(flecsEngine_batch_group_t*, cap ? cap : 1);
 
-    int32_t n = 0;
-    ecs_map_iter_t git = ecs_map_iter(groups_map);
-    while (ecs_map_next(&git)) {
-        uint64_t group_id = ecs_map_key(&git);
-        if (!group_id) continue;
-        flecsEngine_batch_group_t *ctx =
-            ecs_query_get_group_ctx(batch->query, group_id);
-        if (!ctx || !ctx->view.count) continue;
-        groups[n ++] = ctx;
-    }
+    int32_t n = flecsEngine_transparentMeshCollectGroups(batch, groups);
 
     const FlecsRenderBatchImpl *self_impl =
         ecs_get(world, tctx->self_entity, FlecsRenderBatchImpl);

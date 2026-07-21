@@ -33,8 +33,7 @@ Resource Chemicals(
 )
 
 Resource GreenHouseGass(
-    greenhouse_gas: 0.01
-    toxic_gass: 7
+    greenhouse_gas: 0.2
 )
 
 Recipe GreenHouseGassRecipe(

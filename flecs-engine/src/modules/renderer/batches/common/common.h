@@ -379,6 +379,10 @@ void flecsEngine_batch_renderTransparentSorted(
     flecsEngine_batch_group_t **groups,
     int32_t group_count);
 
+int32_t flecsEngine_transparentMeshCollectGroups(
+    const FlecsRenderBatch *batch,
+    flecsEngine_batch_group_t **groups);
+
 /* -- Meshes -- */
 
 flecsEngine_batch_t* flecsEngine_mesh_createCtx(

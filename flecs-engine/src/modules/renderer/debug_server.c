@@ -494,7 +494,8 @@ static void page_views_batch(
                 flecsEngine_batch_group_t *ctx =
                     ecs_query_get_group_ctx(batch->query, group_id);
                 if (ctx) {
-                    total_instances += ctx->view.count;
+                    total_instances +=
+                        ctx->view.count + ctx->static_view.count;
                 }
             }
         }
@@ -543,7 +544,7 @@ static void page_views_batch(
                 "<td class='num'>%d</td>"
                 "<td class='num'>%d</td>"
                 "<td>%s</td></tr>",
-                ctx->view.count,
+                ctx->view.count + ctx->static_view.count,
                 ctx->mesh.vertex_count,
                 ctx->mesh.index_count,
                 mesh_label ? mesh_label : "(unnamed)");
