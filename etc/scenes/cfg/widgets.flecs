@@ -35,6 +35,7 @@ DefaultStyle {
 ToolButtonStyle : DefaultStyle {
   Style: {
     active: {66, 185, 131, 128}
+    disabled: {125, 50, 50, 128}
   }
 }
 

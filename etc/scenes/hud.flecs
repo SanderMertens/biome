@@ -52,7 +52,8 @@ hud {
     PowerGauge()
     ResourceGauge("IRON", Iron, color: {95, 150, 195, 255})
     ResourceGauge("COPPER", Copper, color: {195, 128, 58, 255})
-    ResourceGauge("CARBON", Carbon, color: {70, 75, 80, 255})
+    ResourceGauge("CARBON", Carbon, color: {80, 85, 90, 255})
     ResourceGauge("CHEMICALS", Chemicals, color: {195, 65, 125, 255})
+    ResourceGauge("SEEDS", Seeds, color: {100, 150, 50, 255})
   }
 }
