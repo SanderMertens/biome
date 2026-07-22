@@ -56,7 +56,11 @@
                     "capture_requires_gas",
                     "dies_without_needs",
                     "fertility_decay",
-                    "spreads_to_neighbors"
+                    "spreads_to_neighbors",
+                    "spread_after_ticks",
+                    "spread_dominance",
+                    "max_neighbors_stress",
+                    "max_neighbors_blocks_spread"
                 ]
             },
             {

@@ -125,14 +125,107 @@ static bool biome_plant_cellAvailable(
 
     const TerrainItemRecord *record = biome_terrainItemIndex_get(
         world, x, y);
-    if (record && ecs_vec_count(&record->entities)) {
-        return false;
+    if (record) {
+        int32_t count = ecs_vec_count(&record->entities);
+        const ecs_entity_t *entities = ecs_vec_first_t(
+            &record->entities, ecs_entity_t);
+        for (int32_t i = 0; i < count; i ++) {
+            if (!ecs_is_alive(world, entities[i])) {
+                continue;
+            }
+            const BiomePlant *other = ecs_get(
+                world, entities[i], BiomePlant);
+            if (!other || other->dominance >= plant->dominance) {
+                return false;
+            }
+        }
     }
 
     return true;
 }
 
-static void biome_plant_spread(
+static bool biome_plant_cellHasSpecies(
+    ecs_world_t *world,
+    ecs_entity_t prefab,
+    int32_t x,
+    int32_t y)
+{
+    const TerrainItemRecord *record = biome_terrainItemIndex_get(
+        world, x, y);
+    if (!record) {
+        return false;
+    }
+    int32_t count = ecs_vec_count(&record->entities);
+    const ecs_entity_t *entities = ecs_vec_first_t(
+        &record->entities, ecs_entity_t);
+    for (int32_t i = 0; i < count; i ++) {
+        if (ecs_is_alive(world, entities[i]) &&
+            ecs_has_pair(world, entities[i], EcsIsA, prefab))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+static int32_t biome_plant_countSameNeighbors(
+    ecs_world_t *world,
+    ecs_entity_t prefab,
+    int32_t x,
+    int32_t y)
+{
+    int32_t result = 0;
+    for (int32_t dy = -1; dy <= 1; dy ++) {
+        for (int32_t dx = -1; dx <= 1; dx ++) {
+            if (!dx && !dy) {
+                continue;
+            }
+            if (biome_plant_cellHasSpecies(
+                world, prefab, x + dx, y + dy))
+            {
+                result ++;
+            }
+        }
+    }
+    return result;
+}
+
+static bool biome_plant_spreadAllowed(
+    ecs_world_t *world,
+    ecs_entity_t prefab,
+    const BiomePlant *plant,
+    int32_t x,
+    int32_t y)
+{
+    if (biome_plant_countSameNeighbors(world, prefab, x, y) >
+        plant->max_neighbors)
+    {
+        return false;
+    }
+
+    for (int32_t dy = -1; dy <= 1; dy ++) {
+        for (int32_t dx = -1; dx <= 1; dx ++) {
+            if (!dx && !dy) {
+                continue;
+            }
+            if (!biome_plant_cellHasSpecies(
+                world, prefab, x + dx, y + dy))
+            {
+                continue;
+            }
+            if (biome_plant_countSameNeighbors(
+                world, prefab, x + dx, y + dy) >=
+                plant->max_neighbors)
+            {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+static bool biome_plant_spread(
     ecs_world_t *world,
     ecs_entity_t entity,
     const BiomePlant *plant,
@@ -144,44 +237,80 @@ static void biome_plant_spread(
 {
     ecs_entity_t prefab = ecs_get_target(world, entity, EcsIsA, 0);
     if (!prefab) {
-        return;
+        return false;
     }
 
     const Terrain *cfg = ecs_get(world, tp->terrain, Terrain);
     const TerrainOccupancy *occupancy = flecsEngine_terrain_getLayer(
         world, tp->terrain, TerrainOccupancyIndex, TerrainOccupancy);
 
+    int32_t x = 0, y = 0;
+    float best_score = -1;
     for (int32_t dy = -1; dy <= 1; dy ++) {
         for (int32_t dx = -1; dx <= 1; dx ++) {
             if (!dx && !dy) {
                 continue;
             }
-            int32_t x = tp->x + dx;
-            int32_t y = tp->y + dy;
+            int32_t cx = tp->x + dx;
+            int32_t cy = tp->y + dy;
             if (!biome_plant_cellAvailable(world, t, cfg, soil,
-                ground, occupancy, plant, x, y))
+                ground, occupancy, plant, cx, cy))
             {
                 continue;
             }
 
             ecs_map_key_t pos = (ecs_map_key_t)
-                biome_terrainItemIndex_pos(x, y);
+                biome_terrainItemIndex_pos(cx, cy);
             if (ecs_map_get(&ctx->claimed, pos)) {
                 continue;
             }
-            ecs_map_ensure(&ctx->claimed, pos);
 
-            ecs_entity_t instance = ecs_new_w_pair(
-                world, EcsIsA, prefab);
-            ecs_add_pair(world, instance, EcsChildOf, tp->terrain);
-            ecs_set(world, instance, FlecsTerrainPosition, {
-                .terrain = tp->terrain,
-                .x = x,
-                .y = y,
-                .yaw = biomeHash2(x, y) * 6.2831853f
-            });
+            if (!biome_plant_spreadAllowed(
+                world, prefab, plant, cx, cy))
+            {
+                continue;
+            }
+
+            int32_t cell = cy * t->width + cx;
+            float score = soil[cell].fertility + ground[cell].moisture;
+            if (score > best_score) {
+                best_score = score;
+                x = cx;
+                y = cy;
+            }
         }
     }
+
+    if (best_score < 0) {
+        return false;
+    }
+
+    ecs_map_ensure(&ctx->claimed,
+        (ecs_map_key_t)biome_terrainItemIndex_pos(x, y));
+
+    const TerrainItemRecord *record = biome_terrainItemIndex_get(
+        world, x, y);
+    if (record) {
+        int32_t rcount = ecs_vec_count(&record->entities);
+        const ecs_entity_t *entities = ecs_vec_first_t(
+            &record->entities, ecs_entity_t);
+        for (int32_t i = 0; i < rcount; i ++) {
+            if (ecs_is_alive(world, entities[i])) {
+                ecs_delete(world, entities[i]);
+            }
+        }
+    }
+
+    ecs_entity_t instance = ecs_new_w_pair(world, EcsIsA, prefab);
+    ecs_add_pair(world, instance, EcsChildOf, tp->terrain);
+    ecs_set(world, instance, FlecsTerrainPosition, {
+        .terrain = tp->terrain,
+        .x = x,
+        .y = y,
+        .yaw = biomeHash2(x, y) * 6.2831853f
+    });
+
+    return true;
 }
 
 static void BiomePlantUpdate(ecs_iter_t *it) {
@@ -239,6 +368,15 @@ static void BiomePlantUpdate(ecs_iter_t *it) {
         {
             needs_met = false;
         }
+        if (needs_met) {
+            ecs_entity_t prefab = ecs_get_target(
+                world, entity, EcsIsA, 0);
+            if (prefab && biome_plant_countSameNeighbors(
+                world, prefab, tp->x, tp->y) > plant->max_neighbors)
+            {
+                needs_met = false;
+            }
+        }
 
         if (!needs_met) {
             states[i].stress ++;
@@ -249,8 +387,15 @@ static void BiomePlantUpdate(ecs_iter_t *it) {
         }
 
         states[i].stress = 0;
-        biome_plant_spread(
-            world, entity, plant, tp, t, soil, ground, ctx);
+        states[i].age ++;
+        if (states[i].age < plant->spread) {
+            continue;
+        }
+        if (biome_plant_spread(
+            world, entity, plant, tp, t, soil, ground, ctx))
+        {
+            states[i].age = 0;
+        }
     }
 }
 

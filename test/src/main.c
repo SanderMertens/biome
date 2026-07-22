@@ -41,6 +41,10 @@ void Plant_capture_requires_gas(void);
 void Plant_dies_without_needs(void);
 void Plant_fertility_decay(void);
 void Plant_spreads_to_neighbors(void);
+void Plant_spread_after_ticks(void);
+void Plant_spread_dominance(void);
+void Plant_max_neighbors_stress(void);
+void Plant_max_neighbors_blocks_spread(void);
 
 // Testsuite 'BuildingRule'
 void BuildingRule_self_referencing_drag(void);
@@ -156,6 +160,22 @@ bake_test_case Plant_testcases[] = {
     {
         "spreads_to_neighbors",
         Plant_spreads_to_neighbors
+    },
+    {
+        "spread_after_ticks",
+        Plant_spread_after_ticks
+    },
+    {
+        "spread_dominance",
+        Plant_spread_dominance
+    },
+    {
+        "max_neighbors_stress",
+        Plant_max_neighbors_stress
+    },
+    {
+        "max_neighbors_blocks_spread",
+        Plant_max_neighbors_blocks_spread
     }
 };
 
@@ -206,7 +226,7 @@ static bake_test_suite suites[] = {
         "Plant",
         NULL,
         NULL,
-        5,
+        9,
         Plant_testcases
     },
     {

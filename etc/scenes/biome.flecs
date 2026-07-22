@@ -49,14 +49,14 @@ $ {
         ocean_depth: 32
         water_level: -2
         ground_moisture: 0
-        water_moisture_range_tiles: 6
+        water_moisture_range_tiles: 7
         fertility_decay: 0.000005
     }
 
     weather.Weather: {
         pressure: 101325
         gravity: 9.80665
-        greenhouse_gas: 100000.0
+        greenhouse_gas: 100000000.0
         radiative_cooling: 0.01
         stellar_heating: 0.002
         temperature: 20
@@ -93,7 +93,7 @@ scene.terrain {
             environment.CopperOreAssets.F
         ]
 
-        count: 100
+        count: 150
         min_height: 0
         position_variance: {1, 1}
         rotation_variance: {y: 2 * math.PI}
@@ -110,7 +110,7 @@ scene.terrain {
             environment.GraphiteAssets.F
         ]
 
-        count: 150
+        count: 250
         min_height: 0
         position_variance: {1, 1}
         rotation_variance: {y: 2 * math.PI}

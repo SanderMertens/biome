@@ -224,6 +224,201 @@ void Plant_fertility_decay(void) {
     ecs_fini(world);
 }
 
+static int32_t Plant_countItems(ecs_world_t *world) {
+    int32_t count = 0;
+    for (int32_t y = 0; y < 3; y ++) {
+        for (int32_t x = 0; x < 3; x ++) {
+            const TerrainItemRecord *record = biome_terrainItemIndex_get(
+                world, x, y);
+            if (record) {
+                count += ecs_vec_count(&record->entities);
+            }
+        }
+    }
+    return count;
+}
+
+void Plant_spread_after_ticks(void) {
+    ecs_world_t *world = Plant_world();
+    ecs_entity_t terrain = Plant_terrain(world);
+
+    ecs_entity_t prefab = ecs_entity(world, {
+        .name = "TestPlant",
+        .add = ecs_ids(EcsPrefab)
+    });
+    ecs_set(world, prefab, BiomePlant, {
+        .min_temperature = -50,
+        .max_temperature = 50,
+        .min_moisture = 0,
+        .min_fertility = 0,
+        .resilience = 100,
+        .spread = 3,
+        .max_neighbors = 8
+    });
+
+    ecs_entity_t instance = ecs_new_w_pair(world, EcsIsA, prefab);
+    ecs_set(world, instance, FlecsTerrainPosition, {
+        .terrain = terrain, .x = 1, .y = 1
+    });
+
+    ecs_progress(world, 0);
+    test_int(Plant_countItems(world), 1);
+
+    ecs_progress(world, 0);
+    test_int(Plant_countItems(world), 1);
+
+    ecs_progress(world, 0);
+    test_int(Plant_countItems(world), 2);
+
+    ecs_progress(world, 0);
+    test_int(Plant_countItems(world), 2);
+
+    ecs_progress(world, 0);
+    test_int(Plant_countItems(world), 2);
+
+    ecs_progress(world, 0);
+    test_int(Plant_countItems(world), 4);
+
+    ecs_fini(world);
+}
+
+static int32_t Plant_countInstances(
+    ecs_world_t *world,
+    ecs_entity_t prefab)
+{
+    ecs_iter_t it = ecs_each_pair(world, EcsIsA, prefab);
+    int32_t count = 0;
+    while (ecs_each_next(&it)) {
+        count += it.count;
+    }
+    return count;
+}
+
+void Plant_spread_dominance(void) {
+    ecs_world_t *world = Plant_world();
+    ecs_entity_t terrain = Plant_terrain(world);
+
+    ecs_entity_t low = ecs_entity(world, {
+        .name = "LowPlant",
+        .add = ecs_ids(EcsPrefab)
+    });
+    ecs_set(world, low, BiomePlant, {
+        .min_temperature = -50,
+        .max_temperature = 50,
+        .resilience = 100,
+        .spread = 1000,
+        .dominance = 1,
+        .max_neighbors = 8
+    });
+
+    ecs_entity_t high = ecs_entity(world, {
+        .name = "HighPlant",
+        .add = ecs_ids(EcsPrefab)
+    });
+    ecs_set(world, high, BiomePlant, {
+        .min_temperature = -50,
+        .max_temperature = 50,
+        .resilience = 100,
+        .dominance = 2,
+        .max_neighbors = 8
+    });
+
+    for (int32_t y = 0; y < 3; y ++) {
+        for (int32_t x = 0; x < 3; x ++) {
+            ecs_entity_t p = ecs_new_w_pair(world, EcsIsA,
+                (x == 1 && y == 1) ? high : low);
+            ecs_set(world, p, FlecsTerrainPosition, {
+                .terrain = terrain, .x = x, .y = y
+            });
+        }
+    }
+
+    ecs_progress(world, 0);
+
+    test_int(Plant_countItems(world), 9);
+    test_int(Plant_countInstances(world, high), 2);
+    test_int(Plant_countInstances(world, low), 7);
+
+    ecs_fini(world);
+}
+
+void Plant_max_neighbors_stress(void) {
+    ecs_world_t *world = Plant_world();
+    ecs_entity_t terrain = Plant_terrain(world);
+
+    ecs_entity_t prefab = ecs_entity(world, {
+        .name = "TestPlant",
+        .add = ecs_ids(EcsPrefab)
+    });
+    ecs_set(world, prefab, BiomePlant, {
+        .min_temperature = -50,
+        .max_temperature = 50,
+        .resilience = 2,
+        .spread = 1000,
+        .max_neighbors = 0
+    });
+
+    ecs_entity_t a = ecs_new_w_pair(world, EcsIsA, prefab);
+    ecs_set(world, a, FlecsTerrainPosition, {
+        .terrain = terrain, .x = 0, .y = 0
+    });
+    ecs_entity_t b = ecs_new_w_pair(world, EcsIsA, prefab);
+    ecs_set(world, b, FlecsTerrainPosition, {
+        .terrain = terrain, .x = 0, .y = 1
+    });
+    ecs_entity_t c = ecs_new_w_pair(world, EcsIsA, prefab);
+    ecs_set(world, c, FlecsTerrainPosition, {
+        .terrain = terrain, .x = 2, .y = 2
+    });
+
+    ecs_progress(world, 0);
+    ecs_progress(world, 0);
+    test_assert(ecs_is_alive(world, a));
+    test_assert(ecs_is_alive(world, b));
+    test_assert(ecs_is_alive(world, c));
+
+    ecs_progress(world, 0);
+    test_assert(!ecs_is_alive(world, a));
+    test_assert(!ecs_is_alive(world, b));
+    test_assert(ecs_is_alive(world, c));
+
+    ecs_fini(world);
+}
+
+void Plant_max_neighbors_blocks_spread(void) {
+    ecs_world_t *world = Plant_world();
+    ecs_entity_t terrain = Plant_terrain(world);
+
+    ecs_entity_t prefab = ecs_entity(world, {
+        .name = "TestPlant",
+        .add = ecs_ids(EcsPrefab)
+    });
+    ecs_set(world, prefab, BiomePlant, {
+        .min_temperature = -50,
+        .max_temperature = 50,
+        .resilience = 100,
+        .spread = 1,
+        .max_neighbors = 1
+    });
+
+    ecs_entity_t instance = ecs_new_w_pair(world, EcsIsA, prefab);
+    ecs_set(world, instance, FlecsTerrainPosition, {
+        .terrain = terrain, .x = 1, .y = 1
+    });
+
+    ecs_progress(world, 0);
+    test_int(Plant_countItems(world), 2);
+
+    for (int32_t i = 0; i < 10; i ++) {
+        ecs_progress(world, 0);
+        test_int(Plant_countItems(world), 2);
+    }
+
+    test_assert(ecs_is_alive(world, instance));
+
+    ecs_fini(world);
+}
+
 void Plant_spreads_to_neighbors(void) {
     ecs_world_t *world = Plant_world();
     ecs_entity_t terrain = Plant_terrain(world);
@@ -237,7 +432,8 @@ void Plant_spreads_to_neighbors(void) {
         .max_temperature = 50,
         .min_moisture = 0,
         .min_fertility = 0,
-        .resilience = 100
+        .resilience = 100,
+        .max_neighbors = 8
     });
 
     ecs_entity_t instance = ecs_new_w_pair(world, EcsIsA, prefab);
@@ -246,32 +442,19 @@ void Plant_spreads_to_neighbors(void) {
     });
 
     ecs_progress(world, 0);
+    test_int(Plant_countItems(world), 2);
 
-    int32_t count = 0;
-    for (int32_t y = 0; y < 3; y ++) {
-        for (int32_t x = 0; x < 3; x ++) {
-            const TerrainItemRecord *record = biome_terrainItemIndex_get(
-                world, x, y);
-            if (record) {
-                count += ecs_vec_count(&record->entities);
-            }
+    int32_t i;
+    for (i = 0; i < 100; i ++) {
+        if (Plant_countItems(world) == 9) {
+            break;
         }
+        ecs_progress(world, 0);
     }
-    test_int(count, 9);
+    test_int(Plant_countItems(world), 9);
 
     ecs_progress(world, 0);
-
-    count = 0;
-    for (int32_t y = 0; y < 3; y ++) {
-        for (int32_t x = 0; x < 3; x ++) {
-            const TerrainItemRecord *record = biome_terrainItemIndex_get(
-                world, x, y);
-            if (record) {
-                count += ecs_vec_count(&record->entities);
-            }
-        }
-    }
-    test_int(count, 9);
+    test_int(Plant_countItems(world), 9);
 
     ecs_fini(world);
 }

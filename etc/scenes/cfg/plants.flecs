@@ -13,8 +13,8 @@ const treeGltf = "etc/assets/kenney/nature-kit/Models/GLTF format/tree_default.g
 
 Recipe MossRecipe(
     inputs: [GreenHouseGass: 1]
-    outputs: [Nutrients: 10]
-    craft_time: 5000
+    outputs: [Nutrients: 5]
+    craft_time: 1000
 )
 
 Recipe GrassRecipe(
@@ -34,8 +34,11 @@ prefab Moss {
         min_temperature: -5
         max_temperature: 40
         min_moisture: 0.15
-        min_fertility: 0
-        resilience: 1800
+        min_fertility: 0.05
+        resilience: 2000
+        spread: 500
+        dominance: 1
+        max_neighbors: 8
     }
 
     StorageDesc: {
@@ -66,6 +69,9 @@ prefab Grass {
         min_moisture: 0.1
         min_fertility: 0.25
         resilience: 1200
+        spread: 600
+        dominance: 2
+        max_neighbors: 6
     }
 
     StorageDesc: {
@@ -93,9 +99,12 @@ prefab Trees {
     Plant: {
         min_temperature: 0
         max_temperature: 40
-        min_moisture: 0.05
+        min_moisture: 0.01
         min_fertility: 0.45
         resilience: 900
+        spread: 900
+        dominance: 3
+        max_neighbors: 2
     }
 
     StorageDesc: {
