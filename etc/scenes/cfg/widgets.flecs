@@ -39,6 +39,13 @@ ToolButtonStyle : DefaultStyle {
   }
 }
 
+VegetationButtonStyle : ToolButtonStyle {
+  Style: {
+    color: {39, 55, 44, 255}
+    hover: {49, 68, 54, 255}
+  }
+}
+
 template Label {
   prop text: "Label"
   prop size: FontSize

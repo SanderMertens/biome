@@ -42,6 +42,20 @@ hud {
     }
   }
 
+  // if player.isBuildingPlaced(buildings.Biome) {
+    vegetation {
+      Anchor: {h: Right, v: Bottom, x: -21, y: -21}
+      Layout: {direction: Row, padding: 4, spacing: 4}
+      Border: {width: 2, color: PanelColor.rgba, radius: 10}
+      Rect: {width: 0, height: 0}
+      Rgba: PanelColor
+
+      Button moss("MOSS", width: 80, height: 60, style: VegetationButtonStyle)
+      Button grass("GRASS", width: 80, height: 60, style: VegetationButtonStyle)
+      Button trees("TREES", width: 80, height: 60, style: VegetationButtonStyle)
+    }
+  // }
+
   resources {
     Anchor: {h: Left, v: Top, x: 12, y: 12}
     Layout: {direction: Column, padding: 0, spacing: 6}
