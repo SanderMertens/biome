@@ -126,7 +126,8 @@ void biomeResourcesImport(ecs_world_t *world) {
         }),
         .constants = {
             {"Source", BiomeResourceStorageKindSource},
-            {"Sink", BiomeResourceStorageKindSink}
+            {"Sink", BiomeResourceStorageKindSink},
+            {"Factory", BiomeResourceStorageKindFactory}
         }
     });
 

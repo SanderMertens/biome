@@ -156,6 +156,72 @@ static void biome_factory_requestInputs(
     }
 }
 
+static void biome_factory_postPickupRequests(
+    ecs_world_t *world,
+    ecs_entity_t factory,
+    ecs_entity_t resource_entity,
+    BiomeResourceStorage *storage)
+{
+    const BiomeResource *resource = ecs_get(
+        world, resource_entity, BiomeResource);
+    if (!resource || resource->min_drone_amount <= 0) {
+        return;
+    }
+
+    int32_t stored = biome_factory_mapValue(
+        &storage->resources, resource_entity);
+    int32_t reserved = biome_factory_mapValue(
+        &storage->reserved, resource_entity);
+    while (stored - reserved >= resource->min_drone_amount) {
+        int32_t *value = biome_factory_mapEnsure(
+            &storage->reserved, resource_entity);
+        *value += resource->min_drone_amount;
+        reserved += resource->min_drone_amount;
+        biome_logistics_postRequest(world, BiomeRequestPickup,
+            factory, resource_entity, resource->min_drone_amount, 0);
+    }
+}
+
+static bool biome_factory_outputRoom(
+    const BiomeFactory *factory,
+    const BiomeRecipe *recipe,
+    const BiomeResourceStorageDesc *desc,
+    const BiomeResourceStorage *storage)
+{
+    if (factory->output_mode != BiomeFactoryOutputStore ||
+        !recipe->output)
+    {
+        return true;
+    }
+    return biome_factory_mapValue(
+        &storage->resources, recipe->output) < desc->capacity;
+}
+
+static void biome_factory_store(
+    ecs_world_t *world,
+    ecs_entity_t entity,
+    const BiomeFactory *factory,
+    const BiomeRecipe *recipe,
+    const BiomeResourceStorageDesc *desc,
+    BiomeResourceStorage *storage)
+{
+    if (factory->output_mode != BiomeFactoryOutputStore ||
+        !recipe->output)
+    {
+        return;
+    }
+
+    int32_t *stored = biome_factory_mapEnsure(
+        &storage->resources, recipe->output);
+    if (*stored >= desc->capacity) {
+        return;
+    }
+    *stored += 1;
+    biome_factory_postPickupRequests(
+        world, entity, recipe->output, storage);
+    ecs_modified_id(world, entity, ecs_id(BiomeResourceStorage));
+}
+
 static void biome_factory_vent(
     ecs_world_t *world,
     const BiomeFactory *factory,
@@ -193,9 +259,12 @@ static void BiomeFactoryUpdate(ecs_iter_t *it) {
             it->world, entity, BiomeFactory);
         const BiomeResourceStorageDesc *desc = ecs_get(
             it->world, entity, BiomeResourceStorageDesc);
-        if (!factory || !desc || !factory->recipe ||
-            factory->output_mode != BiomeFactoryOutputVent ||
-            desc->kind != BiomeResourceStorageKindSink)
+        if (!factory || !desc || !factory->recipe) {
+            continue;
+        }
+        if (desc->kind != BiomeResourceStorageKindFactory &&
+            (factory->output_mode != BiomeFactoryOutputVent ||
+                desc->kind != BiomeResourceStorageKindSink))
         {
             continue;
         }
@@ -209,6 +278,11 @@ static void BiomeFactoryUpdate(ecs_iter_t *it) {
         BiomeFactoryProgress *p = &progress[i];
         BiomeResourceStorage *storage = &storages[i];
         if (p->remaining <= 0) {
+            if (!biome_factory_outputRoom(
+                factory, recipe, desc, storage))
+            {
+                continue;
+            }
             if (!biome_factory_consumeInputs(recipe, storage)) {
                 biome_factory_requestInputs(
                     it->world, entity, recipe, desc, storage);
@@ -237,7 +311,11 @@ static void BiomeFactoryUpdate(ecs_iter_t *it) {
         }
 
         biome_factory_vent(it->world, factory, recipe);
-        if (biome_factory_consumeInputs(recipe, storage)) {
+        biome_factory_store(
+            it->world, entity, factory, recipe, desc, storage);
+        if (biome_factory_outputRoom(factory, recipe, desc, storage) &&
+            biome_factory_consumeInputs(recipe, storage))
+        {
             p->remaining = recipe->craft_time;
             if (p->remaining < 1) {
                 p->remaining = 1;

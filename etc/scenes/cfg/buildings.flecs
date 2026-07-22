@@ -48,12 +48,12 @@ prefab Base : PoweredBuilding {
     }
 
     PlayerStorage: {
-        capacity: 1000
+        capacity: 5000
         resources: [
-            Iron:   500
-            Copper: 500
-            Carbon: 0
-            Chemicals: 0
+            Iron:   5000
+            Copper: 5000
+            Carbon: 5000
+            Chemicals: 5000
             Seeds: 0
         ]
     }
@@ -250,19 +250,19 @@ prefab Burner : effects.SmokeEmitter {
 }
 
 @tree Parent
-prefab Biome : PoweredBuilding {
+prefab Biome : PoweredBuilding, effects.BiomeEmitter {
     Building: {
         can_doze: true
         footprint: {3, 3}
     }
 
     Power: {
-        demand: 500
+        demand: 10
         conductor: true
     }
 
     StorageDesc: {
-        kind: Sink
+        kind: Factory
         capacity: 200
     }
 

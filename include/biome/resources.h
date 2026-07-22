@@ -13,6 +13,7 @@ extern ECS_COMPONENT_DECLARE(BiomeResourceStorageMap);
 typedef enum {
     BiomeResourceStorageKindSource,
     BiomeResourceStorageKindSink,
+    BiomeResourceStorageKindFactory,
 } biome_resource_storageKind_t;
 
 /* Resource parameters */
