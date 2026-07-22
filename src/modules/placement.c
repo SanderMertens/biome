@@ -162,7 +162,7 @@ ecs_entity_t biomePlaceBuilding(
 {
     const FlecsTerrain *t = ecs_get(world, terrain, FlecsTerrain);
     const BiomeBuilding *config = ecs_get(world, prefab, BiomeBuilding);
-    if (!t || !config || width < 1 || height < 1 ||
+    if (!t || width < 1 || height < 1 ||
         x < 0 || y < 0 || x + width > t->width || y + height > t->depth)
     {
         return 0;
@@ -186,8 +186,10 @@ ecs_entity_t biomePlaceBuilding(
         .terrain = terrain, .x = x, .y = y,
         .span_x = width, .span_y = height });
 
-    biome_placement_spawn(
-        world, building, parent, terrain, x, y, width, height, config);
+    if (config) {
+        biome_placement_spawn(
+            world, building, parent, terrain, x, y, width, height, config);
+    }
 
     const FlecsParticleBurst *place_burst = effect
         ? ecs_get(world, effect, FlecsParticleBurst)

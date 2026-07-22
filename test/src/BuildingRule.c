@@ -5,14 +5,6 @@ ECS_COMPONENT_DECLARE(BiomeBuildingBit);
 ECS_COMPONENT_DECLARE(BiomeBuildingOccupancyChanged);
 ECS_COMPONENT_DECLARE(TerrainOccupancy);
 
-uint64_t biome_terrainItemIndex_pos(
-    int32_t x,
-    int32_t y)
-{
-    return (uint64_t)(uint32_t)x |
-        ((uint64_t)(uint32_t)y << 32);
-}
-
 void BuildingRule_self_referencing_drag(void) {
     ecs_world_t *world = ecs_init();
 

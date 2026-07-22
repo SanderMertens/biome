@@ -12,6 +12,7 @@
 #include "biome/miner.h"
 #include "biome/logistics.h"
 #include "biome/factory.h"
+#include "biome/plant.h"
 #include "biome/power.h"
 #include "biome/buildings.h"
 #include "biome/building_rule.h"

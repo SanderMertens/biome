@@ -24,6 +24,9 @@ ECS_STRUCT(BiomeResource, {
     int32_t max_drone_amount;  /* Maximum number of resources a drone can carry for resource. Drones will combine outstanding requests up to this amount. */
     float greenhouse_gas;
     float toxic_gass;
+    float o2;
+    float fertility;
+    float moisture;
 });
 
 /* Resource storage specification. */
@@ -50,6 +53,7 @@ ECS_STRUCT(BiomeResourceStorage, {
 ECS_STRUCT(BiomeRecipe, {
     BiomeResourceStorageMap inputs;
     ecs_entity_t output;
+    BiomeResourceStorageMap outputs;
     float craft_time;
 });
 

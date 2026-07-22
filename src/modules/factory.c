@@ -9,6 +9,7 @@ typedef struct BiomeFactoryProgress {
 
 ECS_COMPONENT_DECLARE(BiomeFactoryProgress);
 ECS_COMPONENT_DECLARE(biome_factory_outputMode_t);
+ECS_COMPONENT_DECLARE(biome_factory_inputMode_t);
 
 static int32_t biome_factory_mapValue(
     const BiomeResourceStorageMap *map,
@@ -101,6 +102,50 @@ static bool biome_factory_consumeInputs(
     }
 
     return true;
+}
+
+static bool biome_factory_captureInputs(
+    ecs_world_t *world,
+    const BiomeRecipe *recipe)
+{
+    if (!ecs_map_is_init(&recipe->inputs)) {
+        return true;
+    }
+
+    float required = 0;
+    ecs_map_iter_t it = ecs_map_iter(&recipe->inputs);
+    while (ecs_map_next(&it)) {
+        int32_t amount = (int32_t)ecs_map_value(&it);
+        if (amount <= 0) {
+            continue;
+        }
+        const BiomeResource *resource = ecs_get(
+            world, ecs_map_key(&it), BiomeResource);
+        if (!resource) {
+            return false;
+        }
+        required += resource->greenhouse_gas * (float)amount;
+    }
+
+    Weather *weather = ecs_singleton_get_mut(world, Weather);
+    if (!weather || weather->greenhouse_gas < required) {
+        return false;
+    }
+    weather->greenhouse_gas -= required;
+    ecs_singleton_modified(world, Weather);
+    return true;
+}
+
+static bool biome_factory_takeInputs(
+    ecs_world_t *world,
+    const BiomeFactory *factory,
+    const BiomeRecipe *recipe,
+    BiomeResourceStorage *storage)
+{
+    if (factory->input_mode == BiomeFactoryInputCapture) {
+        return biome_factory_captureInputs(world, recipe);
+    }
+    return biome_factory_consumeInputs(recipe, storage);
 }
 
 static void biome_factory_requestInputs(
@@ -222,20 +267,16 @@ static void biome_factory_store(
     ecs_modified_id(world, entity, ecs_id(BiomeResourceStorage));
 }
 
-static void biome_factory_vent(
+static void biome_factory_ventWeather(
     ecs_world_t *world,
-    const BiomeFactory *factory,
-    const BiomeRecipe *recipe)
+    ecs_entity_t resource_entity,
+    int32_t amount)
 {
-    if (factory->output_mode != BiomeFactoryOutputVent ||
-        !recipe->output)
-    {
-        return;
-    }
-
     const BiomeResource *resource = ecs_get(
-        world, recipe->output, BiomeResource);
-    if (!resource) {
+        world, resource_entity, BiomeResource);
+    if (!resource ||
+        (resource->greenhouse_gas == 0 && resource->o2 == 0))
+    {
         return;
     }
 
@@ -243,8 +284,107 @@ static void biome_factory_vent(
     if (!weather) {
         return;
     }
-    weather->greenhouse_gas += resource->greenhouse_gas;
+    weather->greenhouse_gas += resource->greenhouse_gas * (float)amount;
+    weather->o2 += resource->o2 * (float)amount;
     ecs_singleton_modified(world, Weather);
+}
+
+static void biome_factory_ventTiles(
+    ecs_world_t *world,
+    ecs_entity_t entity,
+    ecs_entity_t resource_entity,
+    int32_t amount)
+{
+    const BiomeResource *resource = ecs_get(
+        world, resource_entity, BiomeResource);
+    if (!resource ||
+        (resource->fertility == 0 && resource->moisture == 0))
+    {
+        return;
+    }
+
+    const FlecsTerrainPosition *tp = ecs_get(
+        world, entity, FlecsTerrainPosition);
+    if (!tp || !tp->terrain || !ecs_is_alive(world, tp->terrain)) {
+        return;
+    }
+
+    const FlecsTerrain *t = ecs_get(world, tp->terrain, FlecsTerrain);
+    if (!t || ecs_vec_count(&t->layerTypes) <= TerrainGroundIndex) {
+        return;
+    }
+
+    TerrainSoil *soil = flecsEngine_terrain_getLayer(
+        world, tp->terrain, TerrainSoilIndex, TerrainSoil);
+    TerrainGround *ground = flecsEngine_terrain_getLayer(
+        world, tp->terrain, TerrainGroundIndex, TerrainGround);
+    if (!soil || !ground) {
+        return;
+    }
+
+    float fertility = resource->fertility * (float)amount;
+    float moisture = resource->moisture * (float)amount;
+    for (int32_t dy = -1; dy <= 1; dy ++) {
+        for (int32_t dx = -1; dx <= 1; dx ++) {
+            int32_t x = tp->x + dx;
+            int32_t y = tp->y + dy;
+            if (x < 0 || x >= t->width || y < 0 || y >= t->depth) {
+                continue;
+            }
+            float scale = (dx || dy) ? 0.25f : 1.0f;
+            int32_t cell = y * t->width + x;
+            soil[cell].fertility += fertility * scale;
+            if (soil[cell].fertility > 1.0f) {
+                soil[cell].fertility = 1.0f;
+            }
+            ground[cell].moisture += moisture * scale;
+            if (ground[cell].moisture > 1.0f) {
+                ground[cell].moisture = 1.0f;
+            }
+        }
+    }
+}
+
+static void biome_factory_vent(
+    ecs_world_t *world,
+    const BiomeFactory *factory,
+    const BiomeRecipe *recipe)
+{
+    if (factory->output_mode != BiomeFactoryOutputVent) {
+        return;
+    }
+
+    if (ecs_map_is_init(&recipe->outputs)) {
+        ecs_map_iter_t it = ecs_map_iter(&recipe->outputs);
+        while (ecs_map_next(&it)) {
+            biome_factory_ventWeather(
+                world, ecs_map_key(&it), (int32_t)ecs_map_value(&it));
+        }
+    } else if (recipe->output) {
+        biome_factory_ventWeather(world, recipe->output, 1);
+    }
+}
+
+static void biome_factory_ventGround(
+    ecs_world_t *world,
+    ecs_entity_t entity,
+    const BiomeFactory *factory,
+    const BiomeRecipe *recipe)
+{
+    if (factory->output_mode != BiomeFactoryOutputVent) {
+        return;
+    }
+
+    if (ecs_map_is_init(&recipe->outputs)) {
+        ecs_map_iter_t it = ecs_map_iter(&recipe->outputs);
+        while (ecs_map_next(&it)) {
+            biome_factory_ventTiles(
+                world, entity, ecs_map_key(&it),
+                (int32_t)ecs_map_value(&it));
+        }
+    } else if (recipe->output) {
+        biome_factory_ventTiles(world, entity, recipe->output, 1);
+    }
 }
 
 static void BiomeFactoryUpdate(ecs_iter_t *it) {
@@ -283,9 +423,13 @@ static void BiomeFactoryUpdate(ecs_iter_t *it) {
             {
                 continue;
             }
-            if (!biome_factory_consumeInputs(recipe, storage)) {
-                biome_factory_requestInputs(
-                    it->world, entity, recipe, desc, storage);
+            if (!biome_factory_takeInputs(
+                it->world, factory, recipe, storage))
+            {
+                if (factory->input_mode == BiomeFactoryInputSink) {
+                    biome_factory_requestInputs(
+                        it->world, entity, recipe, desc, storage);
+                }
                 continue;
             }
             p->remaining = recipe->craft_time;
@@ -295,8 +439,10 @@ static void BiomeFactoryUpdate(ecs_iter_t *it) {
             p->total = p->remaining;
             ecs_modified_id(
                 it->world, entity, ecs_id(BiomeResourceStorage));
-            biome_factory_requestInputs(
-                it->world, entity, recipe, desc, storage);
+            if (factory->input_mode == BiomeFactoryInputSink) {
+                biome_factory_requestInputs(
+                    it->world, entity, recipe, desc, storage);
+            }
         }
 
         const BiomePowerConsumer *power = ecs_get(
@@ -311,10 +457,12 @@ static void BiomeFactoryUpdate(ecs_iter_t *it) {
         }
 
         biome_factory_vent(it->world, factory, recipe);
+        biome_factory_ventGround(it->world, entity, factory, recipe);
         biome_factory_store(
             it->world, entity, factory, recipe, desc, storage);
         if (biome_factory_outputRoom(factory, recipe, desc, storage) &&
-            biome_factory_consumeInputs(recipe, storage))
+            biome_factory_takeInputs(
+                it->world, factory, recipe, storage))
         {
             p->remaining = recipe->craft_time;
             if (p->remaining < 1) {
@@ -324,8 +472,10 @@ static void BiomeFactoryUpdate(ecs_iter_t *it) {
             ecs_modified_id(
                 it->world, entity, ecs_id(BiomeResourceStorage));
         }
-        biome_factory_requestInputs(
-            it->world, entity, recipe, desc, storage);
+        if (factory->input_mode == BiomeFactoryInputSink) {
+            biome_factory_requestInputs(
+                it->world, entity, recipe, desc, storage);
+        }
     }
 }
 
@@ -341,6 +491,15 @@ static void BiomeFactoryUpdateEmitter(ecs_iter_t *it) {
         emitters[i].enabled =
             power[i].powered && progress[i].remaining > 0;
     }
+}
+
+bool biome_factory_isActive(
+    const ecs_world_t *world,
+    ecs_entity_t entity)
+{
+    const BiomeFactoryProgress *progress = ecs_get(
+        world, entity, BiomeFactoryProgress);
+    return progress && progress->remaining > 0;
 }
 
 int32_t biome_factory_canAfford(
@@ -468,6 +627,16 @@ void biomeFactoryImport(ecs_world_t *world) {
         .constants = {
             {"Vent", BiomeFactoryOutputVent},
             {"Store", BiomeFactoryOutputStore}
+        }
+    });
+    ecs_id(biome_factory_inputMode_t) = ecs_enum(world, {
+        .entity = ecs_entity(world, {
+            .name = "InputMode",
+            .symbol = "biome_factory_inputMode_t"
+        }),
+        .constants = {
+            {"Sink", BiomeFactoryInputSink},
+            {"Capture", BiomeFactoryInputCapture}
         }
     });
     ECS_META_COMPONENT(world, BiomeFactory);

@@ -1,5 +1,6 @@
 include cfg/widgets
 include cfg/buildings
+include cfg/plants
 
 using cfg
 using cfg.widgets
@@ -50,9 +51,9 @@ hud {
       Rect: {width: 0, height: 0}
       Rgba: PanelColor
 
-      Button moss("MOSS", width: 80, height: 60, style: VegetationButtonStyle)
-      Button grass("GRASS", width: 80, height: 60, style: VegetationButtonStyle)
-      Button trees("TREES", width: 80, height: 60, style: VegetationButtonStyle)
+      ToolButton moss("MOSS", plants.Moss, style: VegetationButtonStyle)
+      ToolButton grass("GRASS", plants.Grass, style: VegetationButtonStyle)
+      ToolButton trees("TREES", plants.Trees, style: VegetationButtonStyle)
     }
   // }
 

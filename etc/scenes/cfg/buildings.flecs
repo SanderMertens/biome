@@ -48,13 +48,13 @@ prefab Base : PoweredBuilding {
     }
 
     PlayerStorage: {
-        capacity: 5000
+        capacity: 2000
         resources: [
-            Iron:   5000
-            Copper: 5000
-            Carbon: 5000
-            Chemicals: 5000
-            Seeds: 0
+            Iron:   500
+            Copper: 500
+            Carbon: 0
+            Chemicals: 0
+            Seeds: 1000
         ]
     }
 

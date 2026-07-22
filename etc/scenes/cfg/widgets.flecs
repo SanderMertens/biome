@@ -152,8 +152,9 @@ template ToolButton {
   prop text = "Button"
   prop building = entity: 0
   prop hotKey = ""
+  prop style = ToolButtonStyle
 
-  Button: {text: text, width: 80, height: 60, style: ToolButtonStyle}
+  Button: {text: text, width: 80, height: 60, style: style}
   Hotkey: {key: hotKey}
 
   hotkey {

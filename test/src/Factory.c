@@ -7,12 +7,15 @@ ECS_COMPONENT_DECLARE(Weather);
 void Logistics_setupWorld(ecs_world_t *world);
 
 void biomeWeatherImport(ecs_world_t *world) {
+    ECS_MODULE(world, biomeWeather);
     ECS_COMPONENT_DEFINE(world, Weather);
     ecs_add_id(world, ecs_id(Weather), EcsSingleton);
+    ecs_set_scope(world, 0);
 }
 
 void biomePowerImport(ecs_world_t *world) {
-    (void)world;
+    ECS_MODULE(world, biomePower);
+    ecs_set_scope(world, 0);
 }
 
 static int32_t *Factory_mapEnsure(

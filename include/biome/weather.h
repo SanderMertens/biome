@@ -10,6 +10,7 @@ ECS_STRUCT(Weather, {
     float pressure;
     float gravity;
     float greenhouse_gas;
+    float o2;
     float radiative_cooling;
     float stellar_heating;
     float temperature;

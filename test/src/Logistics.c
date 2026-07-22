@@ -19,11 +19,13 @@ static ecs_map_t Logistics_player_reserved;
 static ecs_entity_t Logistics_player_storage;
 
 void biomeBehaviorImport(ecs_world_t *world) {
-    (void)world;
+    ECS_MODULE(world, biomeBehavior);
+    ecs_set_scope(world, 0);
 }
 
 void biomeBuildingsImport(ecs_world_t *world) {
-    (void)world;
+    ECS_MODULE(world, biomeBuildings);
+    ecs_set_scope(world, 0);
 }
 
 static ecs_map_t *Logistics_playerMap(

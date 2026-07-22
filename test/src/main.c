@@ -35,6 +35,12 @@ void Factory_request_drone_amount_edge_cases(void);
 void Factory_combine_outstanding_requests(void);
 void Factory_vent_greenhouse_gas(void);
 
+// Testsuite 'Plant'
+void Plant_capture_and_vent(void);
+void Plant_capture_requires_gas(void);
+void Plant_dies_without_needs(void);
+void Plant_spreads_to_neighbors(void);
+
 // Testsuite 'BuildingRule'
 void BuildingRule_self_referencing_drag(void);
 
@@ -129,6 +135,25 @@ bake_test_case Factory_testcases[] = {
     }
 };
 
+bake_test_case Plant_testcases[] = {
+    {
+        "capture_and_vent",
+        Plant_capture_and_vent
+    },
+    {
+        "capture_requires_gas",
+        Plant_capture_requires_gas
+    },
+    {
+        "dies_without_needs",
+        Plant_dies_without_needs
+    },
+    {
+        "spreads_to_neighbors",
+        Plant_spreads_to_neighbors
+    }
+};
+
 bake_test_case BuildingRule_testcases[] = {
     {
         "self_referencing_drag",
@@ -173,6 +198,13 @@ static bake_test_suite suites[] = {
         Factory_testcases
     },
     {
+        "Plant",
+        NULL,
+        NULL,
+        4,
+        Plant_testcases
+    },
+    {
         "BuildingRule",
         NULL,
         NULL,
@@ -189,5 +221,5 @@ static bake_test_suite suites[] = {
 };
 
 int main(int argc, char *argv[]) {
-    return bake_test_run("biome_test", argc, argv, suites, 6);
+    return bake_test_run("biome_test", argc, argv, suites, 7);
 }

@@ -50,6 +50,15 @@
                 ]
             },
             {
+                "id": "Plant",
+                "testcases": [
+                    "capture_and_vent",
+                    "capture_requires_gas",
+                    "dies_without_needs",
+                    "spreads_to_neighbors"
+                ]
+            },
+            {
                 "id": "BuildingRule",
                 "testcases": [
                     "self_referencing_drag"

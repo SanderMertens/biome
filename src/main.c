@@ -74,6 +74,7 @@ int main(int argc, char *argv[]) {
     ECS_IMPORT(world, biomeGhost);
     ECS_IMPORT(world, biomeTerrainItemIndex);
     ECS_IMPORT(world, biomeMiner);
+    ECS_IMPORT(world, biomePlant);
     ECS_IMPORT(world, biomeTool);
     ECS_IMPORT(world, biomeUi);
 

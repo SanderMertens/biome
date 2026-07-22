@@ -45,6 +45,14 @@ Recipe GreenHouseGassRecipe(
     craft_time: 240
 )
 
+Resource O2(
+    o2: 0.5
+)
+
+Resource Nutrients(
+    fertility: 0.02
+)
+
 Resource Seeds(
     min_drone_amount: 1
     max_drone_amount: 5
