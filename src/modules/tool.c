@@ -1050,6 +1050,62 @@ void BiomeToolUpdate(ecs_iter_t *it) {
     tool->dragging = false;
 }
 
+void BiomeToolUpdateButtons(ecs_iter_t *it) {
+    ecs_world_t *world = it->world;
+    ecs_entity_t tool_button = ecs_lookup(
+        world, "cfg.widgets.ToolButton");
+    if (!tool_button) {
+        return;
+    }
+
+    ecs_member_t *building_member = ecs_struct_get_member(
+        world, tool_button, "building");
+    if (!building_member) {
+        return;
+    }
+
+    ecs_entity_t button_type = ecs_lookup(
+        world, "cfg.widgets.Button");
+    ecs_entity_t button_mut = button_type
+        ? ecs_lookup_child(world, button_type, "mut")
+        : 0;
+    ecs_member_t *disabled_member = button_mut
+        ? ecs_struct_get_member(world, button_mut, "disabled")
+        : NULL;
+    if (!disabled_member) {
+        return;
+    }
+
+    ecs_iter_t buttons = ecs_each_id(world, tool_button);
+    while (ecs_each_next(&buttons)) {
+        for (int32_t i = 0; i < buttons.count; i ++) {
+            ecs_entity_t button = buttons.entities[i];
+            const void *data = ecs_get_id(world, button, tool_button);
+            const void *mut_data = ecs_get_id(world, button, button_mut);
+            if (!data || !mut_data) {
+                continue;
+            }
+
+            ecs_entity_t building = *(const ecs_entity_t*)ECS_OFFSET(
+                data, building_member->offset);
+            if (!building || !ecs_is_alive(world, building)) {
+                continue;
+            }
+
+            const bool *disabled = ECS_OFFSET(
+                mut_data, disabled_member->offset);
+            bool value = biome_factory_canAfford(world, building) < 1;
+            if (*disabled != value) {
+                mut_data = ecs_get_mut_id(world, button, button_mut);
+                bool *disabled_mut = ECS_OFFSET(
+                    mut_data, disabled_member->offset);
+                *disabled_mut = value;
+                ecs_modified_id(world, button, button_mut);
+            }
+        }
+    }
+}
+
 void biomeToolImport(ecs_world_t *world) {
     ECS_MODULE(world, biomeTool);
 
@@ -1075,6 +1131,8 @@ void biomeToolImport(ecs_world_t *world) {
     ECS_SYSTEM(world, BiomeToolBind, EcsOnStart, [inout] BiomeTool);
 
     ECS_SYSTEM(world, BiomeToolUpdate, EcsOnUpdate, [inout] BiomeTool);
+
+    ECS_SYSTEM(world, BiomeToolUpdateButtons, EcsOnUpdate, 0);
 
     ECS_SYSTEM(world, BiomeToolPreview, EcsPreStore,
         [inout] BiomeTool,

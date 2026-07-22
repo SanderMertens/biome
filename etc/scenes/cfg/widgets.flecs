@@ -54,6 +54,7 @@ template Button {
   prop style: DefaultStyle
 
   mut active: false
+  mut disabled: false
 
   OrderedChildren
   WidgetState
@@ -70,6 +71,9 @@ template Button {
   }
   if active {
     Rgba: style[Style].active
+  }
+  if disabled {
+    Rgba: style[Style].disabled
   }
 
   Transition: [
