@@ -129,37 +129,6 @@ prefab ElectricityPole {
     }
 }
 
-@tree Parent
-prefab Biome : PoweredBuilding {
-    Building: {
-        can_doze: true
-        footprint: {3, 3}
-    }
-
-    Power: {
-        demand: 500
-        conductor: true
-    }
-
-    Recipe: {
-        inputs: [
-            Iron: 200
-            Copper: 300
-        ]
-    }
-
-    {
-        Position3: {}
-        Gltf: {domeGltf}
-    }
-    {
-        Position3: {}
-        Gltf: {farmGltf}
-    }
-
-    Scale3: {6, 6, 6}
-}
-
 prefab Depot : PoweredBuilding {
     Building: {
         can_doze: true
@@ -278,6 +247,47 @@ prefab Burner : effects.SmokeEmitter {
     Gltf: {burnerGltf}
     Tint: {0, 0, 0, 128}
     Scale3: {4, 4, 4}
+}
+
+@tree Parent
+prefab Biome : PoweredBuilding {
+    Building: {
+        can_doze: true
+        footprint: {3, 3}
+    }
+
+    Power: {
+        demand: 500
+        conductor: true
+    }
+
+    StorageDesc: {
+        kind: Sink
+        capacity: 200
+    }
+
+    Factory: {
+        recipe: SeedsRecipe
+        output_mode: Store
+    }
+
+    Recipe: {
+        inputs: [
+            Iron: 200
+            Copper: 300
+        ]
+    }
+
+    {
+        Position3: {}
+        Gltf: {domeGltf}
+    }
+    {
+        Position3: {}
+        Gltf: {farmGltf}
+    }
+
+    Scale3: {6, 6, 6}
 }
 
 fn createDrone(parent: entity) -> entity {

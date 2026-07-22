@@ -350,6 +350,7 @@ static flecs_rgba_t biomeGroundColor(
     static const float sand[3] = {178, 142, 104};
     static const float wet_soil[3] = {58, 43, 31};
     static const float grass[3] = {70, 110, 45};
+    static const float dry_ice[3] = {130, 130, 130};
     static const float ice[3] = {235, 240, 245};
 
     float sediment = biomeClampf(s->sedimentFactor, 0, 1.0f);
@@ -361,8 +362,16 @@ static flecs_rgba_t biomeGroundColor(
     moisture = moisture * moisture * (3.0f - 2.0f * moisture);
     float wetness = moisture * sediment;
     biomeMixColor(rgb, wet_soil, wetness);
-    float frozen = biomeClampf(-temperature / 10.0f, 0, 1.0f);
-    biomeMixColor(rgb, ice, wetness * frozen);
+    float dry_frozen = biomeClampf((-temperature - 5.0f) / 10.0f, 0, 1.0f);
+    float wet_frozen = biomeClampf(-temperature / 10.0f, 0, 1.0f);
+    float dry_rgb[3] = {rgb[0], rgb[1], rgb[2]};
+    float wet_rgb[3] = {rgb[0], rgb[1], rgb[2]};
+    biomeMixColor(dry_rgb, dry_ice, dry_frozen);
+    biomeMixColor(wet_rgb, ice, wet_frozen);
+    biomeMixColor(dry_rgb, wet_rgb, wetness);
+    rgb[0] = dry_rgb[0];
+    rgb[1] = dry_rgb[1];
+    rgb[2] = dry_rgb[2];
     float roughness = 250.0f - 100.0f * wetness;
 
     return (flecs_rgba_t){

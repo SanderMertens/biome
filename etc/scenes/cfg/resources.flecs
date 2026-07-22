@@ -33,7 +33,7 @@ Resource Chemicals(
 )
 
 Resource GreenHouseGass(
-    greenhouse_gas: 0.2
+    greenhouse_gas: 0.5
 )
 
 Recipe GreenHouseGassRecipe(
@@ -52,9 +52,9 @@ Resource Seeds(
 
 Recipe SeedsRecipe(
     inputs: [
-        Carbon: 500
-        Chemicals: 250
+        Carbon: 5
+        Chemicals: 5
     ]
     output: Seeds
-    craft_time: 240
+    craft_time: 100
 )

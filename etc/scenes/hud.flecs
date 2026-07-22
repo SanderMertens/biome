@@ -32,12 +32,9 @@ hud {
 
     if player.isBuildingPlaced(buildings.DronePad) {
       ToolButton burner("BURNER", buildings.Burner, hotKey: "5")
-      ToolButton depot("DEPOT", buildings.Depot, hotKey: "6")
+      ToolButton biome("BIOME", buildings.Biome, hotKey: "6")
+      ToolButton depot("DEPOT", buildings.Depot, hotKey: "7")
       // ToolButton habitat("HABITAT", buildings.Habitat, hotKey: "8")
-    }
-
-    if player.isBuildingPlaced(buildings.Burner) {
-      ToolButton biome("BIOME", buildings.Biome, hotKey: "7")
     }
 
     if player.isBuildingPlaced(buildings.Base) {
