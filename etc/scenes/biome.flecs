@@ -5,6 +5,7 @@ include cfg/buildings
 include cfg/environment
 include player
 include hud
+include agent_scratchpad
 
 using biome
 using flecs.engine.*

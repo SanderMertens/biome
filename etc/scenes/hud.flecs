@@ -36,9 +36,9 @@ hud {
       // ToolButton habitat("HABITAT", buildings.Habitat, hotKey: "8")
     }
 
-    // if player.isBuildingPlaced(buildings.Burner) {
+    if player.isBuildingPlaced(buildings.Burner) {
       ToolButton biome("BIOME", buildings.Biome, hotKey: "7")
-    // }
+    }
 
     if player.isBuildingPlaced(buildings.Base) {
       ToolButton doze("DOZE", hotKey: "x")
@@ -46,7 +46,7 @@ hud {
   }
 
   resources {
-    Anchor: {h: Left, v: Top, x: 24, y: 24}
+    Anchor: {h: Left, v: Top, x: 12, y: 12}
     Layout: {direction: Column, padding: 0, spacing: 6}
 
     PowerGauge()

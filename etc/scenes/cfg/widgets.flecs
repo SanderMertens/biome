@@ -124,7 +124,7 @@ template Gauge {
 
   fill {
     Position: {x: 2, y: 2}
-    Border: {width: 1, color: color, radius: 6}
+    Border: {width: 2, color: color, radius: 6}
     Rect: {width: (width - 4) * (valueNorm / maxNorm), height: height - 4}
     Rgba: color
   }
@@ -157,11 +157,18 @@ template ResourceGauge {
   prop resource = entity: 0
   prop color = HighlightColor
 
-  Layout: {direction: Column, padding: 0, spacing: 3}
-  Label (text: text)
+  Layout: {direction: Row, padding: 0, spacing: 6}
+
+  label {
+    Position: {x: 0, y: (30 - FontSize) / 2}
+    Layout: {width: 80, height: 30}
+    Text: {text: text, size: FontSize, align: Right}
+    Rgba: {235, 238, 245, 255}
+  }
+
   Gauge (
-    width: 300
-    height: 27
+    width: 150
+    height: 30
     value: player.ResourceTotals[resource]
     max: player.ResourceCapacityTotals[resource]
     text: "{player.ResourceTotals[resource]}"
@@ -186,8 +193,14 @@ template PowerGauge {
     }
   }
 
-  Layout: {direction: Column, padding: 0, spacing: 3}
-  Label (text: "POWER")
+  Layout: {direction: Row, padding: 0, spacing: 6}
+
+  label {
+    Position: {x: 0, y: (30 - FontSize) / 2}
+    Layout: {width: 80, height: 30}
+    Text: {text: "POWER", size: FontSize, align: Right}
+    Rgba: {235, 238, 245, 255}
+  }
 
   const value = match demand > 0 {
     true: (100 * production) / demand
@@ -195,12 +208,11 @@ template PowerGauge {
   }
   
   Gauge (
-    width: 300
-    height: 27
+    width: 150
+    height: 30
     value: value
     max: 100
     text: "{value:.0}%"
     color: color
-    border_color: color
   )
 }
