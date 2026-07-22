@@ -40,6 +40,33 @@ static float biomeWeatherTemperatureChange(
     return (heating - cooling) * delta_time;
 }
 
+static float biomeWeatherEquilibriumTemperature(
+    const Weather *weather,
+    float greenhouse_gas)
+{
+    if (weather->radiative_cooling <= 0) {
+        return weather->temperature;
+    }
+
+    float gravity = weather->gravity > 0
+        ? weather->gravity
+        : BiomeWeatherStandardGravity;
+    float pressure = weather->pressure > 0 ? weather->pressure : 0;
+    float column = pressure / gravity;
+    float standard_column =
+        BiomeWeatherStandardPressure / BiomeWeatherStandardGravity;
+    float optical_depth = greenhouse_gas > 0
+        ? greenhouse_gas * column / standard_column
+        : 0;
+    float heating = weather->stellar_heating > 0
+        ? weather->stellar_heating
+        : 0;
+    float relative_temperature = powf(
+        heating * (1.0f + optical_depth) / weather->radiative_cooling,
+        0.25f);
+    return 288.15f * relative_temperature - 273.15f;
+}
+
 static float biomeWeatherWaterVaporPressure(float temperature) {
     if (temperature <= -273.15f) {
         return 0;

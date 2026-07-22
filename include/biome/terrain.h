@@ -47,11 +47,22 @@ ECS_STRUCT(TerrainScatter,  {
     float cluster_scale;            /* approximate cluster size in cells */
 });
 
+ECS_STRUCT(TerrainColors, {
+    flecs_rgba_t initial;
+    flecs_rgba_t rock;
+    flecs_rgba_t sand;
+    flecs_rgba_t wet_soil;
+    flecs_rgba_t vegetation;
+    flecs_rgba_t dry_ice;
+    flecs_rgba_t ice;
+});
+
 ECS_STRUCT(Terrain, {
     int16_t width;
     int16_t height;
     TerrainSampleKind sample_kind;
     int16_t color_update_frames;
+    TerrainColors colors;
     float scale;
     int16_t octaves;
     int16_t warp_octaves;

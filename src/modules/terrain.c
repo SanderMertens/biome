@@ -8,6 +8,21 @@ typedef struct TerrainColorUpdateContext {
     int32_t frame;
 } TerrainColorUpdateContext;
 
+static const TerrainColors biomeDefaultTerrainColors = {
+    .initial = {120, 96, 74, 230},
+    .rock = {125, 125, 125, 255},
+    .sand = {178, 142, 104, 255},
+    .wet_soil = {58, 43, 31, 255},
+    .vegetation = {50, 70, 15, 255},
+    .dry_ice = {130, 130, 130, 255},
+    .ice = {235, 240, 245, 255}
+};
+
+static ECS_CTOR(Terrain, ptr, {
+    ecs_os_zeromem(ptr);
+    ptr->colors = biomeDefaultTerrainColors;
+})
+
 static void biomeTerrainColorUpdateContextFree(void *ptr) {
     ecs_os_free(ptr);
 }
@@ -233,7 +248,7 @@ void TerrainOnSet(ecs_iter_t *it) {
     ecs_vec_set_count_t(NULL, &t->colors, flecs_rgba_t, cells);
     flecs_rgba_t *colors = ecs_vec_first_t(&t->colors, flecs_rgba_t);
     for (int32_t i = 0; i < cells; i ++) {
-        colors[i] = (flecs_rgba_t){ 120, 96, 74, 230 };
+        colors[i] = cfg->colors.initial;
     }
 
     ecs_vec_set_count_t(NULL, &t->layerTypes, ecs_entity_t, 5);
@@ -335,40 +350,40 @@ static float biomeClampf(float v, float lo, float hi) {
     return v;
 }
 
-static void biomeMixColor(float rgb[3], const float target[3], float f) {
+static void biomeMixColor(float rgb[3], flecs_rgba_t target, float f) {
+    rgb[0] += ((float)target.r - rgb[0]) * f;
+    rgb[1] += ((float)target.g - rgb[1]) * f;
+    rgb[2] += ((float)target.b - rgb[2]) * f;
+}
+
+static void biomeMixRgb(float rgb[3], const float target[3], float f) {
     rgb[0] += (target[0] - rgb[0]) * f;
     rgb[1] += (target[1] - rgb[1]) * f;
     rgb[2] += (target[2] - rgb[2]) * f;
 }
 
 static flecs_rgba_t biomeGroundColor(
+    const TerrainColors *c,
     const TerrainGround *g,
     const TerrainSoil *s,
     float temperature)
 {
-    static const float rock[3] = {125, 125, 125};
-    static const float sand[3] = {178, 142, 104};
-    static const float wet_soil[3] = {58, 43, 31};
-    static const float vegetation[3] = {72, 98, 50};
-    static const float dry_ice[3] = {130, 130, 130};
-    static const float ice[3] = {235, 240, 245};
-
     float sediment = biomeClampf(s->sedimentFactor, 0, 1.0f);
-    float rgb[3] = {rock[0], rock[1], rock[2]};
-    biomeMixColor(rgb, sand, sediment);
+    float rgb[3] = {(float)c->rock.r, (float)c->rock.g, (float)c->rock.b};
+    biomeMixColor(rgb, c->sand, sediment);
 
     float moisture = biomeClampf(g->moisture, 0, 1.0f);
     moisture = moisture * moisture * (3.0f - 2.0f * moisture);
     float wetness = moisture * sediment;
-    biomeMixColor(rgb, wet_soil, wetness);
-    biomeMixColor(rgb, vegetation, biomeClampf(s->fertility, 0, 1.0f));
+    biomeMixColor(rgb, c->wet_soil, wetness);
+    biomeMixColor(rgb, c->vegetation, biomeClampf(s->fertility, 0, 1.0f));
     float dry_frozen = biomeClampf((-temperature - 5.0f) / 10.0f, 0, 1.0f);
     float wet_frozen = biomeClampf(-temperature / 10.0f, 0, 1.0f);
     float dry_rgb[3] = {rgb[0], rgb[1], rgb[2]};
     float wet_rgb[3] = {rgb[0], rgb[1], rgb[2]};
-    biomeMixColor(dry_rgb, dry_ice, dry_frozen);
-    biomeMixColor(wet_rgb, ice, wet_frozen);
-    biomeMixColor(dry_rgb, wet_rgb, wetness);
+    biomeMixColor(dry_rgb, c->dry_ice, dry_frozen);
+    biomeMixColor(wet_rgb, c->ice, wet_frozen);
+    biomeMixRgb(dry_rgb, wet_rgb, wetness);
     rgb[0] = dry_rgb[0];
     rgb[1] = dry_rgb[1];
     rgb[2] = dry_rgb[2];
@@ -465,6 +480,9 @@ void ApplyTerrainColors(ecs_iter_t *it) {
     TerrainSampleKind sample_kind = cfg
         ? cfg->sample_kind
         : TerrainSampleKindNearest;
+    const TerrainColors *terrain_colors = cfg
+        ? &cfg->colors
+        : &biomeDefaultTerrainColors;
     int32_t update_frames = cfg && cfg->color_update_frames > 0
         ? cfg->color_update_frames
         : 60;
@@ -481,7 +499,7 @@ void ApplyTerrainColors(ecs_iter_t *it) {
             TerrainGround sample = biomeSampleGroundLinear(
                 ground, ground_w, ground_d, ground_scale, x, z);
             colors[i] = biomeGroundColor(
-                &sample, &soil[i], temperature);
+                terrain_colors, &sample, &soil[i], temperature);
         } else {
             int32_t ground_x = x / ground_scale;
             int32_t ground_z = z / ground_scale;
@@ -490,7 +508,7 @@ void ApplyTerrainColors(ecs_iter_t *it) {
             const TerrainGround *sample = &ground[
                 ground_z * ground_w + ground_x];
             colors[i] = biomeGroundColor(
-                sample, &soil[i], temperature);
+                terrain_colors, sample, &soil[i], temperature);
         }
     }
 
@@ -760,6 +778,7 @@ void biomeTerrainImport(ecs_world_t *world) {
 
     ecs_set_name_prefix(world, "Terrain");
     ECS_META_COMPONENT(world, TerrainSampleKind);
+    ECS_META_COMPONENT(world, TerrainColors);
 
     ecs_set_name_prefix(world, NULL);
     ECS_META_COMPONENT(world, Terrain);
@@ -779,7 +798,7 @@ void biomeTerrainImport(ecs_world_t *world) {
     ECS_META_COMPONENT(world, TerrainScatter);
 
     ecs_set_hooks(world, Terrain, {
-        .ctor = flecs_default_ctor,
+        .ctor = ecs_ctor(Terrain),
         .on_set = TerrainOnSet
     });
 

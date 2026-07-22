@@ -28,6 +28,15 @@ $ {
         height: 256
         sample_kind: Linear
         color_update_frames: 240
+        colors: {
+            initial: {120, 96, 74, 230}
+            rock: {125, 125, 125, 255}
+            sand: {178, 142, 104, 255}
+            wet_soil: {58, 43, 31, 255}
+            vegetation: {50, 70, 15, 255}
+            dry_ice: {130, 130, 130, 255}
+            ice: {235, 240, 245, 255}
+        }
         scale: 100
         octaves: 5
         warp_octaves: 3
@@ -56,7 +65,7 @@ $ {
     weather.Weather: {
         pressure: 101325
         gravity: 9.80665
-        greenhouse_gas: 100000000.0
+        greenhouse_gas: 4.4
         radiative_cooling: 0.01
         stellar_heating: 0.002
         temperature: 20

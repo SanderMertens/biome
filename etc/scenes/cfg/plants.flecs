@@ -36,7 +36,7 @@ prefab Moss {
         min_moisture: 0.15
         min_fertility: 0.05
         resilience: 2000
-        spread: 500
+        spread: 200
         dominance: 1
         max_neighbors: 8
     }
@@ -104,7 +104,7 @@ prefab Trees {
         resilience: 900
         spread: 900
         dominance: 3
-        max_neighbors: 2
+        max_neighbors: 4
     }
 
     StorageDesc: {
