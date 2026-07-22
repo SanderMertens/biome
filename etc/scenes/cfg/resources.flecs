@@ -33,7 +33,7 @@ Resource Chemicals(
 )
 
 Resource GreenHouseGass(
-    greenhouse_gas: 0.5
+    greenhouse_gas: 5
 )
 
 Recipe GreenHouseGassRecipe(

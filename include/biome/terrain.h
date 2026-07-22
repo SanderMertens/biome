@@ -75,6 +75,7 @@ ECS_STRUCT(Terrain, {
     float water_level;
     float ground_moisture;
     float water_moisture_range_tiles;
+    float fertility_decay;
 });
 
 float biomeHash2(int32_t x, int32_t z);

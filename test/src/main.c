@@ -39,6 +39,7 @@ void Factory_vent_greenhouse_gas(void);
 void Plant_capture_and_vent(void);
 void Plant_capture_requires_gas(void);
 void Plant_dies_without_needs(void);
+void Plant_fertility_decay(void);
 void Plant_spreads_to_neighbors(void);
 
 // Testsuite 'BuildingRule'
@@ -149,6 +150,10 @@ bake_test_case Plant_testcases[] = {
         Plant_dies_without_needs
     },
     {
+        "fertility_decay",
+        Plant_fertility_decay
+    },
+    {
         "spreads_to_neighbors",
         Plant_spreads_to_neighbors
     }
@@ -201,7 +206,7 @@ static bake_test_suite suites[] = {
         "Plant",
         NULL,
         NULL,
-        4,
+        5,
         Plant_testcases
     },
     {

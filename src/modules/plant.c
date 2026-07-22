@@ -2,6 +2,8 @@
 
 #include "biome.h"
 
+#define BiomePlantDecayChunk (1024)
+
 typedef struct BiomePlantSpreadContext {
     ecs_map_t claimed;
     int64_t frame;
@@ -11,6 +13,84 @@ static void biomePlantSpreadContextFree(void *ptr) {
     BiomePlantSpreadContext *ctx = ptr;
     ecs_map_fini(&ctx->claimed);
     ecs_os_free(ctx);
+}
+
+typedef struct BiomePlantDecayContext {
+    int32_t frame;
+} BiomePlantDecayContext;
+
+static void biomePlantDecayContextFree(void *ptr) {
+    ecs_os_free(ptr);
+}
+
+static bool biome_plant_tileHasPlant(
+    const ecs_world_t *world,
+    int32_t x,
+    int32_t y)
+{
+    const TerrainItemRecord *record = biome_terrainItemIndex_get(
+        world, x, y);
+    if (!record) {
+        return false;
+    }
+
+    int32_t count = ecs_vec_count(&record->entities);
+    const ecs_entity_t *entities = ecs_vec_first_t(
+        &record->entities, ecs_entity_t);
+    for (int32_t i = 0; i < count; i ++) {
+        if (ecs_is_alive(world, entities[i]) &&
+            ecs_has(world, entities[i], BiomePlant))
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static void BiomePlantDecayFertility(ecs_iter_t *it) {
+    ecs_world_t *world = it->world;
+    const FlecsTerrain *terrains = ecs_field(it, FlecsTerrain, 0);
+    const Terrain *cfgs = ecs_field(it, Terrain, 1);
+
+    for (int32_t i = 0; i < it->count; i ++) {
+        const FlecsTerrain *t = &terrains[i];
+        const Terrain *cfg = &cfgs[i];
+        int32_t cells = t->width * t->depth;
+        if (cfg->fertility_decay <= 0 || cells <= 0) {
+            continue;
+        }
+
+        TerrainSoil *soil = flecsEngine_terrain_getLayer(
+            world, it->entities[i], TerrainSoilIndex, TerrainSoil);
+        if (!soil) {
+            continue;
+        }
+
+        int32_t frames = (cells + BiomePlantDecayChunk - 1) /
+            BiomePlantDecayChunk;
+        BiomePlantDecayContext *ctx = it->ctx;
+        int32_t frame = ctx->frame % frames;
+        int32_t begin = (int32_t)((int64_t)cells * frame / frames);
+        int32_t end = (int32_t)((int64_t)cells * (frame + 1) / frames);
+        ctx->frame = (frame + 1) % frames;
+
+        float decay = cfg->fertility_decay * (float)frames;
+        for (int32_t cell = begin; cell < end; cell ++) {
+            if (soil[cell].fertility <= 0) {
+                continue;
+            }
+            if (biome_plant_tileHasPlant(
+                world, cell % t->width, cell / t->width))
+            {
+                continue;
+            }
+            soil[cell].fertility -= decay;
+            if (soil[cell].fertility < 0) {
+                soil[cell].fertility = 0;
+            }
+        }
+    }
 }
 
 static bool biome_plant_cellAvailable(
@@ -246,5 +326,17 @@ void biomePlantImport(ecs_world_t *world) {
         .callback = BiomePlantUpdate,
         .ctx = ctx,
         .ctx_free = biomePlantSpreadContextFree
+    });
+
+    ecs_system(world, {
+        .entity = ecs_entity(world, { .name = "DecayFertility" }),
+        .query.terms = {
+            { .id = ecs_id(FlecsTerrain), .inout = EcsIn },
+            { .id = ecs_id(Terrain), .inout = EcsIn }
+        },
+        .phase = EcsOnUpdate,
+        .callback = BiomePlantDecayFertility,
+        .ctx = ecs_os_calloc_t(BiomePlantDecayContext),
+        .ctx_free = biomePlantDecayContextFree
     });
 }

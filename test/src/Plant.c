@@ -173,6 +173,57 @@ void Plant_dies_without_needs(void) {
     ecs_fini(world);
 }
 
+void Plant_fertility_decay(void) {
+    ecs_world_t *world = Plant_world();
+
+    ecs_entity_t terrain = ecs_new(world);
+    ecs_set(world, terrain, Terrain, {
+        .width = 3,
+        .height = 3,
+        .scale = 1,
+        .octaves = 1,
+        .warp_octaves = 1,
+        .ridge_octaves = 1,
+        .water_level = -10,
+        .fertility_decay = 0.001f
+    });
+
+    TerrainSoil *soil = flecsEngine_terrain_getLayer(
+        world, terrain, TerrainSoilIndex, TerrainSoil);
+    test_assert(soil != NULL);
+    soil[1 * 3 + 1].fertility = 0.5f;
+    soil[0 * 3 + 0].fertility = 0.5f;
+
+    ecs_entity_t plant = ecs_new(world);
+    ecs_set(world, plant, BiomePlant, {
+        .min_temperature = -50,
+        .max_temperature = 50,
+        .min_moisture = 0,
+        .min_fertility = 0,
+        .resilience = 100
+    });
+    ecs_set(world, plant, FlecsTerrainPosition, {
+        .terrain = terrain, .x = 1, .y = 1
+    });
+
+    ecs_progress(world, 0);
+
+    soil = flecsEngine_terrain_getLayer(
+        world, terrain, TerrainSoilIndex, TerrainSoil);
+    test_flt(soil[1 * 3 + 1].fertility, 0.5f);
+    test_flt(soil[0 * 3 + 0].fertility, 0.5f - 0.001f);
+
+    ecs_delete(world, plant);
+    ecs_progress(world, 0);
+
+    soil = flecsEngine_terrain_getLayer(
+        world, terrain, TerrainSoilIndex, TerrainSoil);
+    test_flt(soil[1 * 3 + 1].fertility, 0.5f - 0.001f);
+    test_flt(soil[0 * 3 + 0].fertility, 0.5f - 0.002f);
+
+    ecs_fini(world);
+}
+
 void Plant_spreads_to_neighbors(void) {
     ecs_world_t *world = Plant_world();
     ecs_entity_t terrain = Plant_terrain(world);

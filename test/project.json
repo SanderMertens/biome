@@ -55,6 +55,7 @@
                     "capture_and_vent",
                     "capture_requires_gas",
                     "dies_without_needs",
+                    "fertility_decay",
                     "spreads_to_neighbors"
                 ]
             },

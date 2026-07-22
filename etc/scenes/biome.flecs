@@ -50,6 +50,7 @@ $ {
         water_level: -2
         ground_moisture: 0
         water_moisture_range_tiles: 6
+        fertility_decay: 0.000005
     }
 
     weather.Weather: {
