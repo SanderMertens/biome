@@ -54,7 +54,7 @@ prefab Base : PoweredBuilding {
             Copper: 500
             Carbon: 0
             Chemicals: 0
-            Seeds: 1000
+            Seeds: 0
         ]
     }
 

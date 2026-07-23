@@ -43,7 +43,7 @@ hud {
     }
   }
 
-  // if player.isBuildingPlaced(buildings.Biome) {
+  if player.isBuildingPlaced(buildings.Biome) {
     vegetation {
       Anchor: {h: Right, v: Bottom, x: -21, y: -21}
       Layout: {direction: Row, padding: 4, spacing: 4}
@@ -55,7 +55,7 @@ hud {
       ToolButton grass("GRASS", plants.Grass, style: VegetationButtonStyle)
       ToolButton trees("TREES", plants.Trees, style: VegetationButtonStyle)
     }
-  // }
+  }
 
   resources {
     Anchor: {h: Left, v: Top, x: 12, y: 12}
