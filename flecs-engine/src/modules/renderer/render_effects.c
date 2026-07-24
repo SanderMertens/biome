@@ -1,4 +1,6 @@
 #include "renderer.h"
+#include "../particles/particles.h"
+#include "gpu_timing.h"
 #include "../../tracy_hooks.h"
 #include "flecs_engine.h"
 
@@ -124,6 +126,61 @@ static int32_t flecsEngine_resolveEffectInput(
     return 0;
 }
 
+static void flecsEngine_renderView_renderParticles(
+    ecs_world_t *world,
+    FlecsEngineImpl *engine,
+    FlecsRenderViewImpl *view_impl,
+    WGPUCommandEncoder encoder,
+    WGPUTextureView color_view,
+    WGPUTextureFormat color_format,
+    int32_t particle_count)
+{
+    if (particle_count <= 0) {
+        return;
+    }
+
+    WGPURenderPassColorAttachment color_attachment = {
+        .view = color_view,
+        WGPU_DEPTH_SLICE
+        .loadOp = WGPULoadOp_Load,
+        .storeOp = WGPUStoreOp_Store,
+        .clearValue = (WGPUColor){0, 0, 0, 1}
+    };
+
+    WGPURenderPassDepthStencilAttachment depth_attachment = {
+        .view = view_impl->depth_texture_view,
+        .depthLoadOp = WGPULoadOp_Load,
+        .depthStoreOp = WGPUStoreOp_Store,
+        .depthClearValue = 1.0f,
+        .depthReadOnly = false,
+        .stencilLoadOp = WGPULoadOp_Undefined,
+        .stencilStoreOp = WGPUStoreOp_Undefined,
+        .stencilClearValue = 0,
+        .stencilReadOnly = true
+    };
+
+    WGPURenderPassTimestampWrites ts_writes;
+    int ts_pair = flecsEngine_gpuTiming_allocPair(engine, "Particles");
+    flecsEngine_gpuTiming_renderPassTimestamps(
+        engine, ts_pair, &ts_writes);
+
+    WGPURenderPassDescriptor pass_desc = {
+        .colorAttachmentCount = 1,
+        .colorAttachments = &color_attachment,
+        .depthStencilAttachment = &depth_attachment,
+        .timestampWrites = WGPU_TIMESTAMP_WRITES(
+            ts_pair >= 0 ? &ts_writes : NULL)
+    };
+
+    WGPURenderPassEncoder pass = wgpuCommandEncoderBeginRenderPass(
+        encoder, &pass_desc);
+    view_impl->last_pipeline = NULL;
+    flecsEngine_particles_draw(world, engine, view_impl, pass,
+        color_format, 1, particle_count);
+    wgpuRenderPassEncoderEnd(pass);
+    wgpuRenderPassEncoderRelease(pass);
+}
+
 void flecsEngine_renderView_renderEffects(
     ecs_world_t *world,
     ecs_entity_t view_entity,
@@ -131,7 +188,8 @@ void flecsEngine_renderView_renderEffects(
     const FlecsRenderView *view,
     FlecsRenderViewImpl *viewImpl,
     WGPUTextureView view_texture,
-    WGPUCommandEncoder encoder)
+    WGPUCommandEncoder encoder,
+    int32_t particle_count)
 {
     FLECS_TRACY_ZONE_BEGIN("RenderEffects");
     int32_t effect_count = ecs_vec_count(&view->effects);
@@ -140,6 +198,7 @@ void flecsEngine_renderView_renderEffects(
     /* Sync enabled flag to EcsDisabled tag on each effect entity, and find
      * the last enabled effect. */
     int32_t last_enabled = -1;
+    int32_t last_ssao = -1;
     if (effect_count > 0) {
         effects = ecs_vec_first(&view->effects);
         ecs_defer_suspend(world);
@@ -160,6 +219,21 @@ void flecsEngine_renderView_renderEffects(
                 break;
             }
         }
+        for (int32_t i = effect_count - 1; i >= 0; i --) {
+            if (effects[i].enabled &&
+                ecs_has(world, effects[i].effect, FlecsSSAO))
+            {
+                last_ssao = i;
+                break;
+            }
+        }
+    }
+
+    if (last_ssao < 0) {
+        flecsEngine_renderView_renderParticles(
+            world, engine, viewImpl, encoder,
+            viewImpl->effect_target_views[0],
+            viewImpl->effect_target_format, particle_count);
     }
 
     /* No effects enabled — blit batch output to screen via passthrough. */
@@ -249,6 +323,11 @@ void flecsEngine_renderView_renderEffects(
                 FLECS_TRACY_ZONE_END;
                 return;
             }
+            if (i == last_ssao) {
+                flecsEngine_renderView_renderParticles(
+                    world, engine, viewImpl, encoder, output_view,
+                    output_format, particle_count);
+            }
             continue;
         }
 
@@ -258,6 +337,12 @@ void flecsEngine_renderView_renderEffects(
             entity, kind, effect_impl,
             input_view, output_format,
             effect_name ? effect_name : "Effect", NULL);
+
+        if (i == last_ssao) {
+            flecsEngine_renderView_renderParticles(
+                world, engine, viewImpl, encoder, output_view,
+                output_format, particle_count);
+        }
 
         FLECS_TRACY_ZONE_END_N(effect_zone);
     }

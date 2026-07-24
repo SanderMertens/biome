@@ -112,7 +112,8 @@ void flecsEngine_renderView_renderEffects(
     const FlecsRenderView *view,
     FlecsRenderViewImpl *viewImpl,
     WGPUTextureView view_texture,
-    WGPUCommandEncoder encoder);
+    WGPUCommandEncoder encoder,
+    int32_t particle_count);
 
 /* Shared fullscreen-triangle vertex shader used by all post-process effects.
  * Produces a single triangle covering clip space with correct UVs. */

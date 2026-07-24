@@ -990,56 +990,12 @@ static void flecsEngine_renderView_render(
         }
     }
 
-    {
-        int32_t particle_count = flecsEngine_particles_prepare(
-            world, engine, impl);
-        if (particle_count > 0) {
-            WGPURenderPassColorAttachment color_attachment = {
-                .view = impl->effect_target_views[0],
-                WGPU_DEPTH_SLICE
-                .loadOp = WGPULoadOp_Load,
-                .storeOp = WGPUStoreOp_Store,
-                .clearValue = (WGPUColor){0, 0, 0, 1}
-            };
-
-            WGPURenderPassDepthStencilAttachment depth_attachment = {
-                .view = impl->depth_texture_view,
-                .depthLoadOp = WGPULoadOp_Load,
-                .depthStoreOp = WGPUStoreOp_Store,
-                .depthClearValue = 1.0f,
-                .depthReadOnly = false,
-                .stencilLoadOp = WGPULoadOp_Undefined,
-                .stencilStoreOp = WGPUStoreOp_Undefined,
-                .stencilClearValue = 0,
-                .stencilReadOnly = true
-            };
-
-            WGPURenderPassTimestampWrites ts_writes;
-            int ts_pair = flecsEngine_gpuTiming_allocPair(
-                engine, "Particles");
-            flecsEngine_gpuTiming_renderPassTimestamps(
-                engine, ts_pair, &ts_writes);
-
-            WGPURenderPassDescriptor pass_desc = {
-                .colorAttachmentCount = 1,
-                .colorAttachments = &color_attachment,
-                .depthStencilAttachment = &depth_attachment,
-                .timestampWrites = WGPU_TIMESTAMP_WRITES(
-                    ts_pair >= 0 ? &ts_writes : NULL)
-            };
-
-            WGPURenderPassEncoder pass = wgpuCommandEncoderBeginRenderPass(
-                encoder, &pass_desc);
-            impl->last_pipeline = NULL;
-            flecsEngine_particles_draw(world, engine, impl, pass,
-                impl->effect_target_format, 1, particle_count);
-            wgpuRenderPassEncoderEnd(pass);
-            wgpuRenderPassEncoderRelease(pass);
-        }
-    }
+    int32_t particle_count = flecsEngine_particles_prepare(
+        world, engine, impl);
 
     flecsEngine_renderView_renderEffects(
-        world, view_entity, engine, view, impl, view_texture, encoder);
+        world, view_entity, engine, view, impl, view_texture, encoder,
+        particle_count);
 
     FLECS_TRACY_ZONE_END;
 }
