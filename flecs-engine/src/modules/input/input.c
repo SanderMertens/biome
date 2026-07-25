@@ -162,6 +162,10 @@ static void flecsEngine_input_mouseReset(
     input->mouse.scroll = (flecs_engine_mouse_coord_t){0};
 }
 
+/* The input singleton is created when the module is imported, so it's
+ * written in place. ensure() would enqueue an add command per call, and the
+ * window callbacks below run from inside FlecsReadInputs, which means those
+ * land in the frame's command queue too. */
 #ifndef __EMSCRIPTEN__
 static void flecsEngine_input_onKey(
     GLFWwindow *window,
@@ -178,7 +182,7 @@ static void flecsEngine_input_onKey(
         return;
     }
 
-    FlecsInput *input = ecs_singleton_ensure(world, FlecsInput);
+    FlecsInput *input = ecs_singleton_get_mut(world, FlecsInput);
     if (!input) {
         return;
     }
@@ -206,7 +210,7 @@ static void flecsEngine_input_onMouseButton(
         return;
     }
 
-    FlecsInput *input = ecs_singleton_ensure(world, FlecsInput);
+    FlecsInput *input = ecs_singleton_get_mut(world, FlecsInput);
     if (!input) {
         return;
     }
@@ -239,7 +243,7 @@ static void flecsEngine_input_onScroll(
         return;
     }
 
-    FlecsInput *input = ecs_singleton_ensure(world, FlecsInput);
+    FlecsInput *input = ecs_singleton_get_mut(world, FlecsInput);
     if (!input) {
         return;
     }
@@ -306,7 +310,7 @@ static FlecsInput* flecsEngine_input_em_get(void) {
     if (!flecs_em_input_world) {
         return NULL;
     }
-    return ecs_singleton_ensure(flecs_em_input_world, FlecsInput);
+    return ecs_singleton_get_mut(flecs_em_input_world, FlecsInput);
 }
 
 static EM_BOOL flecsEngine_input_em_onKey(
@@ -429,7 +433,11 @@ static void FlecsReadInputs(
         em_registered = true;
     }
 
-    FlecsInput *input = ecs_singleton_ensure(it->world, FlecsInput);
+    FlecsInput *input = ecs_singleton_get_mut(it->world, FlecsInput);
+    if (!input) {
+        FLECS_TRACY_ZONE_END;
+        return;
+    }
 
     float prev_x = input->mouse.wnd.x;
     float prev_y = input->mouse.wnd.y;
@@ -460,7 +468,11 @@ static void FlecsReadInputs(
 
     flecsEngine_input_bindWindow(it->world, wnd->window);
 
-    FlecsInput *input = ecs_singleton_ensure(it->world, FlecsInput);
+    FlecsInput *input = ecs_singleton_get_mut(it->world, FlecsInput);
+    if (!input) {
+        FLECS_TRACY_ZONE_END;
+        return;
+    }
 
     float prev_x = input->mouse.wnd.x;
     float prev_y = input->mouse.wnd.y;

@@ -20,7 +20,7 @@ sky {
             toa_intensity: 6,
             toa_color: {255, 255, 255, 255}
         }
-        LookAt: {0, 0, 0}
+        Rotation3: {0, 0, 0}
         Rgba: {255, 255, 255, 255}
     }
 
@@ -31,7 +31,7 @@ sky {
             toa_intensity: 0.0005,
             toa_color: {255, 255, 255, 255}
         }
-        LookAt: {0, 0, 0}
+        Rotation3: {0, 0, 0}
         Rgba: {255, 255, 255, 255}
     }
 

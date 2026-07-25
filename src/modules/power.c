@@ -545,9 +545,21 @@ void BiomePowerUpdate(ecs_iter_t *it) {
         }
     }
 
+    float production = grid->total_production;
+    float demand = grid->total_demand;
+    float satisfied = grid->satisfied_demand;
+
     biome_power_distribute(world, grid);
 
-    ecs_modified(world, ecs_id(BiomePowerGrid), BiomePowerGrid);
+    /* Signalling the grid reinstantiates the widgets that read it, which is
+     * the expensive part of the merge that follows. The totals only move when
+     * a producer or consumer changes, so most frames have nothing to report. */
+    if (grid->total_production != production ||
+        grid->total_demand != demand ||
+        grid->satisfied_demand != satisfied)
+    {
+        ecs_modified(world, ecs_id(BiomePowerGrid), BiomePowerGrid);
+    }
 }
 
 static void BiomePowerPlacement(ecs_iter_t *it) {

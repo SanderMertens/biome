@@ -176,6 +176,71 @@ static void flecsEngine_solarPosition(
     *out_azimuth = azimuth;
 }
 
+/* The sky is recomputed every frame, but with a paused or slow moving clock
+ * the results usually land on the same values. Signalling those would wake up
+ * the transform and material observers for nothing, so each write reports
+ * only when it actually changes something. */
+static void flecsEngine_tod_setRotation(
+    ecs_world_t *world,
+    ecs_entity_t e,
+    float x,
+    float y,
+    float z)
+{
+    FlecsRotation3 *rot = ecs_get_mut(world, e, FlecsRotation3);
+    if (!rot || (rot->x == x && rot->y == y && rot->z == z)) {
+        return;
+    }
+
+    rot->x = x;
+    rot->y = y;
+    rot->z = z;
+    ecs_modified(world, e, FlecsRotation3);
+}
+
+static void flecsEngine_tod_setIntensity(
+    ecs_world_t *world,
+    ecs_entity_t e,
+    float intensity)
+{
+    FlecsDirectionalLight *dl = ecs_get_mut(world, e, FlecsDirectionalLight);
+    if (!dl || dl->intensity == intensity) {
+        return;
+    }
+
+    dl->intensity = intensity;
+    ecs_modified(world, e, FlecsDirectionalLight);
+}
+
+static void flecsEngine_tod_setColor(
+    ecs_world_t *world,
+    ecs_entity_t e,
+    float r,
+    float g,
+    float b)
+{
+    FlecsRgba *rgba = ecs_get_mut(world, e, FlecsRgba);
+    if (!rgba) {
+        return;
+    }
+
+    FlecsRgba value = {
+        (uint8_t)(glm_clamp(r, 0.0f, 1.0f) * 255.0f),
+        (uint8_t)(glm_clamp(g, 0.0f, 1.0f) * 255.0f),
+        (uint8_t)(glm_clamp(b, 0.0f, 1.0f) * 255.0f),
+        255
+    };
+
+    if (rgba->r == value.r && rgba->g == value.g &&
+        rgba->b == value.b && rgba->a == value.a)
+    {
+        return;
+    }
+
+    *rgba = value;
+    ecs_modified(world, e, FlecsRgba);
+}
+
 static void FlecsAdvanceTimeOfDay(ecs_iter_t *it) {
     FlecsTimeOfDay *tod = ecs_field(it, FlecsTimeOfDay, 0);
     float dt = it->delta_time;
@@ -215,14 +280,7 @@ static void FlecsAdvanceTimeOfDay(ecs_iter_t *it) {
         }
 
         if (t->light) {
-            FlecsRotation3 *rot = ecs_get_mut(
-                world, t->light, FlecsRotation3);
-            if (rot) {
-                rot->x = pitch;
-                rot->y = yaw;
-                rot->z = 0.0f;
-                ecs_modified(world, t->light, FlecsRotation3);
-            }
+            flecsEngine_tod_setRotation(world, t->light, pitch, yaw, 0.0f);
 
             const FlecsCelestialLight *cl = ecs_get(
                 world, t->light, FlecsCelestialLight);
@@ -256,21 +314,9 @@ static void FlecsAdvanceTimeOfDay(ecs_iter_t *it) {
                 light_b = toa_b * sb;
             }
 
-            FlecsDirectionalLight *dl = ecs_get_mut(
-                world, t->light, FlecsDirectionalLight);
-            if (dl) {
-                dl->intensity = light_intensity;
-                ecs_modified(world, t->light, FlecsDirectionalLight);
-            }
-
-            FlecsRgba *rgba = ecs_get_mut(world, t->light, FlecsRgba);
-            if (rgba) {
-                rgba->r = (uint8_t)(glm_clamp(light_r, 0.0f, 1.0f) * 255.0f);
-                rgba->g = (uint8_t)(glm_clamp(light_g, 0.0f, 1.0f) * 255.0f);
-                rgba->b = (uint8_t)(glm_clamp(light_b, 0.0f, 1.0f) * 255.0f);
-                rgba->a = 255;
-                ecs_modified(world, t->light, FlecsRgba);
-            }
+            flecsEngine_tod_setIntensity(world, t->light, light_intensity);
+            flecsEngine_tod_setColor(
+                world, t->light, light_r, light_g, light_b);
         }
 
         if (t->moon_light) {
@@ -283,14 +329,8 @@ static void FlecsAdvanceTimeOfDay(ecs_iter_t *it) {
             float moon_pitch = -moon_alt;
             float moon_yaw = moon_az + north_rad + GLM_PIf;
 
-            FlecsRotation3 *mrot = ecs_get_mut(
-                world, t->moon_light, FlecsRotation3);
-            if (mrot) {
-                mrot->x = moon_pitch;
-                mrot->y = moon_yaw;
-                mrot->z = 0.0f;
-                ecs_modified(world, t->moon_light, FlecsRotation3);
-            }
+            flecsEngine_tod_setRotation(
+                world, t->moon_light, moon_pitch, moon_yaw, 0.0f);
 
             float moon_altitude_for_trans = moon_alt > sun_disk_radius_rad
                 ? moon_alt : sun_disk_radius_rad;
@@ -329,35 +369,18 @@ static void FlecsAdvanceTimeOfDay(ecs_iter_t *it) {
                 mb = mtoa_b * moon_trans_rgb[2] / m;
             }
 
-            FlecsDirectionalLight *mdl = ecs_get_mut(
-                world, t->moon_light, FlecsDirectionalLight);
-            if (mdl) {
-                mdl->intensity = moon_intensity;
-                ecs_modified(world, t->moon_light, FlecsDirectionalLight);
-            }
-
-            FlecsRgba *mrgba = ecs_get_mut(
-                world, t->moon_light, FlecsRgba);
-            if (mrgba) {
-                mrgba->r = (uint8_t)(glm_clamp(mr, 0.0f, 1.0f) * 255.0f);
-                mrgba->g = (uint8_t)(glm_clamp(mg, 0.0f, 1.0f) * 255.0f);
-                mrgba->b = (uint8_t)(glm_clamp(mb, 0.0f, 1.0f) * 255.0f);
-                mrgba->a = 255;
-                ecs_modified(world, t->moon_light, FlecsRgba);
-            }
+            flecsEngine_tod_setIntensity(
+                world, t->moon_light, moon_intensity);
+            flecsEngine_tod_setColor(world, t->moon_light, mr, mg, mb);
         }
 
         if (t->stars) {
             const float sidereal_rate = 2.0f * GLM_PIf / 23.9344696f;
 
-            FlecsRotation3 *srot = ecs_get_mut(
-                world, t->stars, FlecsRotation3);
-            if (srot) {
-                srot->x = glm_rad(t->latitude);
-                srot->y = -sidereal_rate * t->hour;
-                srot->z = north_rad;
-                ecs_modified(world, t->stars, FlecsRotation3);
-            }
+            flecsEngine_tod_setRotation(world, t->stars,
+                glm_rad(t->latitude),
+                -sidereal_rate * t->hour,
+                north_rad);
         }
     }
 }
