@@ -188,6 +188,7 @@ static void biome_logistics_cancelMotion(
 static void BiomeLogisticsMove(ecs_iter_t *it) {
     BiomeLogisticsMotion *motions = ecs_field(
         it, BiomeLogisticsMotion, 0);
+    FlecsPosition3 *positions = ecs_field(it, FlecsPosition3, 1);
 
     for (int32_t i = 0; i < it->count; i ++) {
         BiomeLogisticsMotion *motion = &motions[i];
@@ -223,7 +224,7 @@ static void BiomeLogisticsMove(ecs_iter_t *it) {
                     clearance;
             }
         }
-        ecs_set_ptr(it->world, it->entities[i], FlecsPosition3, &position);
+        positions[i] = position;
         if (motion->elapsed >= motion->duration) {
             ecs_script_future_t *future = motion->future;
             ecs_remove(it->world, it->entities[i], BiomeLogisticsMotion);
@@ -392,9 +393,17 @@ void biomeLogisticsTasksImport(
         .callback = biome_logistics_dropOff
     });
 
+    /* Position is matched rather than set: carriers are dynamic transforms,
+     * so nothing observes the component and their world transform is
+     * recomputed from it every frame anyway. Writing the field avoids a
+     * command per carrier per frame. Self only, so the field is always
+     * writable storage and never a shared prefab value. */
     ecs_system(world, {
         .entity = ecs_entity(world, { .name = "Move" }),
-        .query.terms = {{ .id = ecs_id(BiomeLogisticsMotion) }},
+        .query.terms = {
+            { .id = ecs_id(BiomeLogisticsMotion) },
+            { .id = ecs_id(FlecsPosition3), .src.id = EcsSelf }
+        },
         .phase = EcsOnUpdate,
         .callback = BiomeLogisticsMove
     });

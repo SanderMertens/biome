@@ -811,3 +811,53 @@ void Logistics_closest_storage(void) {
 
     ecs_fini(world);
 }
+
+void Logistics_move_updates_position(void) {
+    ecs_world_t *world = Logistics_world();
+
+    ECS_COMPONENT_DEFINE(world, FlecsPosition3);
+    ECS_META_COMPONENT(world, BiomeLogisticsJob);
+
+    ecs_entity_t module = ecs_entity(world, { .name = "logistics" });
+    biomeLogisticsTasksImport(world, module);
+    ecs_set_scope(world, 0);
+
+    ecs_entity_t drone = ecs_new(world);
+    ecs_set(world, drone, FlecsPosition3, {1, 0, 2});
+    ecs_set(world, drone, BiomeLogisticsMotion, {
+        .start = {1, 0, 2},
+        .target = {1, 10, 2},
+        .duration = 10
+    });
+
+    /* A carrier that lost its position must not be moved */
+    ecs_entity_t stray = ecs_new(world);
+    ecs_set(world, stray, BiomeLogisticsMotion, {
+        .start = {0, 0, 0},
+        .target = {0, 10, 0},
+        .duration = 10
+    });
+
+    for (int32_t i = 1; i <= 3; i ++) {
+        ecs_progress(world, 0);
+
+        const FlecsPosition3 *position = ecs_get(
+            world, drone, FlecsPosition3);
+        test_assert(position != NULL);
+        test_flt(position->x, 1);
+        test_flt(position->y, (float)i);
+        test_flt(position->z, 2);
+
+        const BiomeLogisticsMotion *motion = ecs_get(
+            world, drone, BiomeLogisticsMotion);
+        test_assert(motion != NULL);
+        test_int(motion->elapsed, i);
+
+        motion = ecs_get(world, stray, BiomeLogisticsMotion);
+        test_assert(motion != NULL);
+        test_int(motion->elapsed, 0);
+        test_assert(!ecs_has(world, stray, FlecsPosition3));
+    }
+
+    ecs_fini(world);
+}
