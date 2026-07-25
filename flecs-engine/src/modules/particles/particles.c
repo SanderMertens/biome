@@ -213,7 +213,17 @@ void flecsEngine_particlesEmit(
     ecs_entity_t pool,
     const flecs_particle_t *particle)
 {
-    FlecsParticles *p = ecs_ensure(world, pool, FlecsParticles);
+    /* Emitting runs per particle per frame, so the pool is written in place.
+     * Nothing observes FlecsParticles; ensure() is only needed to create a
+     * pool that a scene didn't declare, which happens once. */
+    FlecsParticles *p = ecs_get_mut(world, pool, FlecsParticles);
+    if (!p) {
+        p = ecs_ensure(world, pool, FlecsParticles);
+        if (!p) {
+            return;
+        }
+    }
+
     int32_t cap = flecsEngine_particles_poolCap(p);
     if (!p->particles) {
         p->particles = ecs_os_calloc_n(flecs_particle_t, cap);
@@ -528,8 +538,11 @@ int32_t flecsEngine_particles_prepare(
     if (!ecs_id(FlecsParticlesImpl)) {
         return 0;
     }
-    FlecsParticlesImpl *impl = ecs_singleton_ensure(
+    FlecsParticlesImpl *impl = ecs_singleton_get_mut(
         world, FlecsParticlesImpl);
+    if (!impl) {
+        return 0;
+    }
 
     if (!impl->emitter_query) {
         impl->emitter_query = ecs_query(world, {
@@ -802,8 +815,11 @@ void flecsEngine_particles_draw(
     int32_t sample_count,
     int32_t instance_count)
 {
-    FlecsParticlesImpl *impl = ecs_singleton_ensure(
+    FlecsParticlesImpl *impl = ecs_singleton_get_mut(
         world, FlecsParticlesImpl);
+    if (!impl) {
+        return;
+    }
 
     if (!flecsEngine_particles_ensurePipeline(
         impl, engine, color_format, sample_count))
