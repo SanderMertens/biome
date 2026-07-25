@@ -8,10 +8,18 @@
 
 ECS_COMPONENT_DECLARE(FlecsUiEventListener);
 
+/* A hit-test candidate carries the rectangle computed by the layout pass
+ * that produced it. Reading FlecsUiBounds back instead would make the hit
+ * test depend on when component writes become visible. */
+typedef struct {
+    ecs_entity_t entity;
+    float x, y, width, height;
+} flecs_ui_hit_t;
+
 typedef struct FlecsUiImpl {
     ecs_query_t *ui_query;
     ecs_query_t *hotkey_query;
-    ecs_vec_t hits;    /* ecs_entity_t, hit-test candidates in draw order */
+    ecs_vec_t hits;    /* flecs_ui_hit_t, hit-test candidates in draw order */
     ecs_vec_t roots;   /* ecs_entity_t scratch */
     ecs_entity_t hovered;
     ecs_entity_t active;
@@ -23,21 +31,30 @@ ECS_COMPONENT_DECLARE(FlecsUiImpl);
 
 ECS_CTOR(FlecsUiImpl, ptr, {
     ecs_os_zeromem(ptr);
-    ecs_vec_init_t(NULL, &ptr->hits, ecs_entity_t, 0);
+    ecs_vec_init_t(NULL, &ptr->hits, flecs_ui_hit_t, 0);
     ecs_vec_init_t(NULL, &ptr->roots, ecs_entity_t, 0);
 })
 
 ECS_DTOR(FlecsUiImpl, ptr, {
-    ecs_vec_fini_t(NULL, &ptr->hits, ecs_entity_t);
+    ecs_vec_fini_t(NULL, &ptr->hits, flecs_ui_hit_t);
     ecs_vec_fini_t(NULL, &ptr->roots, ecs_entity_t);
 })
 
 ECS_MOVE(FlecsUiImpl, dst, src, {
-    ecs_vec_fini_t(NULL, &dst->hits, ecs_entity_t);
+    ecs_vec_fini_t(NULL, &dst->hits, flecs_ui_hit_t);
     ecs_vec_fini_t(NULL, &dst->roots, ecs_entity_t);
     *dst = *src;
     ecs_os_zeromem(src);
 })
+
+/* The singleton is created when the module is imported. Using ensure() here
+ * would enqueue an add command on every call, which for the drawing code
+ * paths means one command per UI element per frame. */
+static FlecsUiImpl* flecs_ui_impl(
+    ecs_world_t *world)
+{
+    return ecs_singleton_get_mut(world, FlecsUiImpl);
+}
 
 typedef struct {
     float w, h;
@@ -57,6 +74,52 @@ static FlecsUiEventListener flecs_ui_listener(
     const FlecsUiEventListener *l = ecs_get(
         world, e, FlecsUiEventListener);
     return l ? *l : (FlecsUiEventListener){0};
+}
+
+/* Bounds is a layout output that nothing observes, so it's written in place.
+ * Only the first frame of an element enqueues a command, for the add. */
+static void flecs_ui_setBounds(
+    ecs_world_t *world,
+    ecs_entity_t e,
+    const FlecsUiBounds *value)
+{
+    FlecsUiBounds *bounds = ecs_get_mut(world, e, FlecsUiBounds);
+    if (!bounds) {
+        bounds = ecs_ensure(world, e, FlecsUiBounds);
+        if (!bounds) {
+            return;
+        }
+    }
+    *bounds = *value;
+}
+
+static bool flecs_ui_stateEq(
+    const FlecsUiWidgetState *a,
+    const FlecsUiWidgetState *b)
+{
+    return a->hover == b->hover &&
+        a->drag == b->drag &&
+        a->lmb_down == b->lmb_down &&
+        a->rmb_down == b->rmb_down &&
+        a->mouse_x == b->mouse_x &&
+        a->mouse_y == b->mouse_y &&
+        a->drag_anchor_x == b->drag_anchor_x &&
+        a->drag_anchor_y == b->drag_anchor_y;
+}
+
+/* Widget state is set rather than written in place: script templates observe
+ * it to restyle widgets. Setting an unchanged value would enqueue a command
+ * and reinstantiate the template for nothing, so skip those. */
+static void flecs_ui_setState(
+    ecs_world_t *world,
+    ecs_entity_t e,
+    const FlecsUiWidgetState *value)
+{
+    const FlecsUiWidgetState *cur = ecs_get(world, e, FlecsUiWidgetState);
+    if (cur && flecs_ui_stateEq(cur, value)) {
+        return;
+    }
+    ecs_set_ptr(world, e, FlecsUiWidgetState, value);
 }
 
 static bool flecs_ui_isWidget(
@@ -240,16 +303,21 @@ static void flecs_ui_place(
         box_h = flecs_ui_max(box_h, size.h);
     }
 
-    FlecsUiBounds *bounds = ecs_ensure(world, e, FlecsUiBounds);
-    bounds->x = x;
-    bounds->y = y;
-    bounds->width = flecs_ui_max(box_w, size.w);
-    bounds->height = flecs_ui_max(box_h, size.h);
+    FlecsUiBounds bounds = {
+        x, y,
+        flecs_ui_max(box_w, size.w),
+        flecs_ui_max(box_h, size.h)
+    };
+    flecs_ui_setBounds(world, e, &bounds);
 
     /* Text and lines don't capture the mouse unless the element listens
-     * for events or has a background box. */
-    if (box_w > 0 && box_h > 0) {
-        *ecs_vec_append_t(NULL, &ctx->impl->hits, ecs_entity_t) = e;
+     * for events or has a background box. The draw pass doesn't collect
+     * candidates; the input pass does its own walk. */
+    if (!ctx->draw && box_w > 0 && box_h > 0) {
+        *ecs_vec_append_t(NULL, &ctx->impl->hits, flecs_ui_hit_t) =
+            (flecs_ui_hit_t){
+                e, bounds.x, bounds.y, bounds.width, bounds.height
+            };
     }
 
     if (ctx->draw) {
@@ -384,7 +452,9 @@ static void flecs_ui_walk(
     FlecsUiImpl *impl,
     bool draw)
 {
-    ecs_vec_clear(&impl->hits);
+    if (!draw) {
+        ecs_vec_clear(&impl->hits);
+    }
 
     float sw, sh;
     if (!impl->ui_query || !flecsEngine_ui2dScreenSize(world, &sw, &sh)) {
@@ -476,7 +546,10 @@ static void FlecsUiUpdate(
     ecs_iter_t *it)
 {
     ecs_world_t *world = it->world;
-    FlecsUiImpl *impl = ecs_singleton_ensure(world, FlecsUiImpl);
+    FlecsUiImpl *impl = flecs_ui_impl(world);
+    if (!impl) {
+        return;
+    }
 
     flecs_ui_walk(world, impl, false);
 
@@ -503,16 +576,16 @@ static void FlecsUiUpdate(
     bool captured = false;
     ecs_entity_t hovered = 0;
     int32_t count = ecs_vec_count(&impl->hits);
-    ecs_entity_t *hits = ecs_vec_first_t(&impl->hits, ecs_entity_t);
+    flecs_ui_hit_t *hits = ecs_vec_first_t(&impl->hits, flecs_ui_hit_t);
     for (int32_t i = count - 1; i >= 0; i --) {
-        const FlecsUiBounds *b = ecs_get(world, hits[i], FlecsUiBounds);
-        if (!b || mx < b->x || mx > b->x + b->width ||
-            my < b->y || my > b->y + b->height)
+        const flecs_ui_hit_t *hit = &hits[i];
+        if (mx < hit->x || mx > hit->x + hit->width ||
+            my < hit->y || my > hit->y + hit->height)
         {
             continue;
         }
         captured = true;
-        ecs_entity_t e = hits[i];
+        ecs_entity_t e = hit->entity;
         while (e) {
             if (flecs_ui_isWidget(world, e)) {
                 hovered = e;
@@ -540,7 +613,7 @@ static void FlecsUiUpdate(
         if (prev != impl->rmb_active) {
             s.rmb_down = false;
         }
-        ecs_set_ptr(world, prev, FlecsUiWidgetState, &s);
+        flecs_ui_setState(world, prev, &s);
         FlecsUiEventListener l = flecs_ui_listener(world, prev);
         flecs_ui_invoke(world, prev, l.on_leave, l.ctx);
     }
@@ -595,7 +668,7 @@ static void FlecsUiUpdate(
         }
 
         if (write) {
-            ecs_set_ptr(world, hovered, FlecsUiWidgetState, &s);
+            flecs_ui_setState(world, hovered, &s);
         }
 
         if (entered) {
@@ -640,13 +713,13 @@ static void FlecsUiUpdate(
             if (l_state) {
                 if (moved) {
                     s.drag = true;
-                    ecs_set_ptr(world, active, FlecsUiWidgetState, &s);
+                    flecs_ui_setState(world, active, &s);
                     flecs_ui_invoke(world, active, l.on_drag, l.ctx);
                 }
             } else {
                 s.lmb_down = false;
                 s.drag = false;
-                ecs_set_ptr(world, active, FlecsUiWidgetState, &s);
+                flecs_ui_setState(world, active, &s);
                 flecs_ui_invoke(world, active, l.on_lmb_up, l.ctx);
                 impl->active = 0;
             }
@@ -663,7 +736,7 @@ static void FlecsUiUpdate(
             FlecsUiWidgetState s = cur ? *cur : (FlecsUiWidgetState){0};
             FlecsUiEventListener l = flecs_ui_listener(world, rmb_active);
             s.rmb_down = false;
-            ecs_set_ptr(world, rmb_active, FlecsUiWidgetState, &s);
+            flecs_ui_setState(world, rmb_active, &s);
             flecs_ui_invoke(world, rmb_active, l.on_rmb_up, l.ctx);
             impl->rmb_active = 0;
         }
@@ -676,7 +749,10 @@ static void FlecsUiRender(
     ecs_iter_t *it)
 {
     ecs_world_t *world = it->world;
-    FlecsUiImpl *impl = ecs_singleton_ensure(world, FlecsUiImpl);
+    FlecsUiImpl *impl = flecs_ui_impl(world);
+    if (!impl) {
+        return;
+    }
     flecs_ui_walk(world, impl, true);
 }
 
@@ -762,6 +838,39 @@ void FlecsEngineUiImport(
         }
     });
 
-    ECS_SYSTEM(world, FlecsUiUpdate, EcsPostLoad);
-    ECS_SYSTEM(world, FlecsUiRender, EcsPreStore);
+    /* Both systems walk the UI tree themselves instead of matching elements,
+     * so the components they touch are annotated with an empty source. The
+     * write on FlecsUiWidgetState combined with the read in FlecsUiRender is
+     * what makes the scheduler insert a sync point between the two: widget
+     * state is observed by script templates, and the restyling they do has
+     * to be merged before the elements are drawn. */
+    ecs_system(world, {
+        .entity = ecs_entity(world, {
+            .name = "FlecsUiUpdate",
+            .add = ecs_ids(ecs_dependson(EcsPostLoad))
+        }),
+        .query.terms = {
+            { .id = ecs_id(FlecsUiWidgetState), .inout = EcsOut,
+              .src.id = EcsIsEntity },
+            { .id = ecs_id(FlecsUiBounds), .inout = EcsOut,
+              .src.id = EcsIsEntity }
+        },
+        .callback = FlecsUiUpdate
+    });
+
+    ecs_system(world, {
+        .entity = ecs_entity(world, {
+            .name = "FlecsUiRender",
+            .add = ecs_ids(ecs_dependson(EcsPreStore))
+        }),
+        .query.terms = {
+            { .id = ecs_id(FlecsUiWidgetState), .inout = EcsIn,
+              .src.id = EcsIsEntity },
+            { .id = ecs_id(FlecsRgba), .inout = EcsIn,
+              .src.id = EcsIsEntity },
+            { .id = ecs_id(FlecsUiBounds), .inout = EcsOut,
+              .src.id = EcsIsEntity }
+        },
+        .callback = FlecsUiRender
+    });
 }

@@ -205,13 +205,16 @@ static bool flecsEngine_ui2d_ensureFont(
     return true;
 }
 
+/* The singleton is created when the module is imported, so the queue can be
+ * written in place. Using ensure() here would enqueue an add command for
+ * every submitted primitive. */
 static FlecsUi2dImpl* flecsEngine_ui2d_get(
     ecs_world_t *world)
 {
     if (!ecs_id(FlecsUi2dImpl)) {
         return NULL;
     }
-    return ecs_singleton_ensure(world, FlecsUi2dImpl);
+    return ecs_singleton_get_mut(world, FlecsUi2dImpl);
 }
 
 static bool flecsEngine_ui2d_surfaceSize(
@@ -781,10 +784,10 @@ void flecsEngine_ui2d_render(
     WGPUTextureView target,
     WGPUCommandEncoder encoder)
 {
-    if (!ecs_id(FlecsUi2dImpl)) {
+    FlecsUi2dImpl *impl = flecsEngine_ui2d_get(world);
+    if (!impl) {
         return;
     }
-    FlecsUi2dImpl *impl = ecs_singleton_ensure(world, FlecsUi2dImpl);
 
     const ecs_world_info_t *info = ecs_get_world_info(world);
     if (impl->frame != info->frame_count_total || !impl->vert_count) {
