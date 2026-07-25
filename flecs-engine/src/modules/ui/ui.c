@@ -77,7 +77,8 @@ static FlecsUiEventListener flecs_ui_listener(
 }
 
 /* Bounds is a layout output that nothing observes, so it's written in place.
- * Only the first frame of an element enqueues a command, for the add. */
+ * UI components carry it through EcsWith, so the ensure below is a fallback
+ * for elements built before the module was imported. */
 static void flecs_ui_setBounds(
     ecs_world_t *world,
     ecs_entity_t e,
@@ -805,6 +806,28 @@ void FlecsEngineUiImport(
     ecs_add_pair(world, ecs_id(FlecsUiLayout), EcsWith, EcsOrderedChildren);
     ecs_add_pair(world, ecs_id(FlecsUiBorder), EcsWith,
         ecs_id(FlecsUiRect));
+
+    /* Elements are created with their bounds, so the layout pass never has to
+     * add the component itself. Script templates reinstantiate their contents
+     * whenever a value they read changes, which means new elements show up
+     * every frame; adding bounds from the layout pass would enqueue a command
+     * for each of them. The set below mirrors flecs_ui_isUiEntity(). */
+    ecs_id_t ui_ids[] = {
+        ecs_id(FlecsUiRect),
+        ecs_id(FlecsUiBorder),
+        ecs_id(FlecsUiLine),
+        ecs_id(FlecsUiText),
+        ecs_id(FlecsUiPosition),
+        ecs_id(FlecsUiLayout),
+        ecs_id(FlecsUiAnchor),
+        ecs_id(FlecsUiWidgetState),
+        ecs_id(FlecsUiEventListener)
+    };
+
+    for (int32_t i = 0; i < (int32_t)(sizeof(ui_ids) / sizeof(ui_ids[0])); i ++)
+    {
+        ecs_add_pair(world, ui_ids[i], EcsWith, ecs_id(FlecsUiBounds));
+    }
 
     FlecsUiImpl *impl = ecs_singleton_ensure(world, FlecsUiImpl);
     impl->ui_query = ecs_query(world, {
