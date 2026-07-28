@@ -28,6 +28,8 @@ void Logistics_different_power_network(void);
 void Logistics_player_storage_transfer(void);
 void Logistics_player_storage_capacity(void);
 void Logistics_closest_storage(void);
+void Logistics_catch_move_to_deleted_destination(void);
+void Logistics_catch_dropoff_at_deleted_destination(void);
 void Logistics_move_updates_position(void);
 
 // Testsuite 'Factory'
@@ -119,6 +121,14 @@ bake_test_case Logistics_testcases[] = {
     {
         "closest_storage",
         Logistics_closest_storage
+    },
+    {
+        "catch_move_to_deleted_destination",
+        Logistics_catch_move_to_deleted_destination
+    },
+    {
+        "catch_dropoff_at_deleted_destination",
+        Logistics_catch_dropoff_at_deleted_destination
     },
     {
         "move_updates_position",
@@ -217,7 +227,7 @@ static bake_test_suite suites[] = {
         "Logistics",
         NULL,
         NULL,
-        12,
+        14,
         Logistics_testcases
     },
     {

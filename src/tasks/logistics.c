@@ -1,5 +1,15 @@
 #include "logistics.h"
 
+static ecs_entity_t biome_logistics_destinationGone;
+
+static void biome_logistics_rejectGone(
+    ecs_script_future_t *future,
+    const char *error)
+{
+    ecs_script_future_reject_id(
+        future, biome_logistics_destinationGone, error);
+}
+
 static void biome_logistics_resolve(
     ecs_script_future_t *future)
 {
@@ -118,6 +128,10 @@ static void biome_logistics_land(
         return;
     }
     ecs_entity_t dst = *(ecs_entity_t*)argv[0].ptr;
+    if (!ecs_is_alive(ctx->world, dst)) {
+        biome_logistics_rejectGone(future, "land destination no longer exists");
+        return;
+    }
     const FlecsPosition3 *position = ecs_get(
         ctx->world, ctx->entity, FlecsPosition3);
     const FlecsPosition3 *dst_position = ecs_get(
@@ -155,6 +169,11 @@ static void biome_logistics_moveTo(
         return;
     }
     ecs_entity_t dst = *(ecs_entity_t*)argv[0].ptr;
+    if (!ecs_is_alive(ctx->world, dst)) {
+        biome_logistics_rejectGone(
+            future, "moveTo destination no longer exists");
+        return;
+    }
     const FlecsPosition3 *position = ecs_get(
         ctx->world, ctx->entity, FlecsPosition3);
     const FlecsPosition3 *dst_position = ecs_get(
@@ -298,9 +317,17 @@ static void biome_logistics_pickUp(
     const ecs_value_t *argv,
     ecs_script_future_t *future)
 {
-    if (argc != 4 || !biome_logistics_transfer(ctx->world,
-        *(ecs_entity_t*)argv[0].ptr, *(int32_t*)argv[1].ptr,
-        *(ecs_entity_t*)argv[2].ptr, true))
+    if (argc != 4) {
+        ecs_script_future_reject(future, "pickup failed");
+        return;
+    }
+    ecs_entity_t src = *(ecs_entity_t*)argv[2].ptr;
+    if (!ecs_is_alive(ctx->world, src)) {
+        biome_logistics_rejectGone(future, "pickup source no longer exists");
+        return;
+    }
+    if (!biome_logistics_transfer(ctx->world,
+        *(ecs_entity_t*)argv[0].ptr, *(int32_t*)argv[1].ptr, src, true))
     {
         ecs_script_future_reject(future, "pickup failed");
         return;
@@ -314,9 +341,18 @@ static void biome_logistics_dropOff(
     const ecs_value_t *argv,
     ecs_script_future_t *future)
 {
-    if (argc != 4 || !biome_logistics_transfer(ctx->world,
-        *(ecs_entity_t*)argv[0].ptr, *(int32_t*)argv[1].ptr,
-        *(ecs_entity_t*)argv[3].ptr, false))
+    if (argc != 4) {
+        ecs_script_future_reject(future, "dropoff failed");
+        return;
+    }
+    ecs_entity_t dst = *(ecs_entity_t*)argv[3].ptr;
+    if (!ecs_is_alive(ctx->world, dst)) {
+        biome_logistics_rejectGone(
+            future, "dropoff destination no longer exists");
+        return;
+    }
+    if (!biome_logistics_transfer(ctx->world,
+        *(ecs_entity_t*)argv[0].ptr, *(int32_t*)argv[1].ptr, dst, false))
     {
         ecs_script_future_reject(future, "dropoff failed");
         return;
@@ -330,6 +366,11 @@ void biomeLogisticsTasksImport(
 {
     ECS_COMPONENT_DEFINE(world, BiomeLogisticsWaiter);
     ECS_COMPONENT_DEFINE(world, BiomeLogisticsMotion);
+
+    biome_logistics_destinationGone = ecs_entity(world, {
+        .name = "DestinationGone",
+        .parent = module
+    });
 
     ecs_async_function(world, {
         .name = "acceptJob",

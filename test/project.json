@@ -38,6 +38,8 @@
                     "player_storage_transfer",
                     "player_storage_capacity",
                     "closest_storage",
+                    "catch_move_to_deleted_destination",
+                    "catch_dropoff_at_deleted_destination",
                     "move_updates_position"
                 ]
             },

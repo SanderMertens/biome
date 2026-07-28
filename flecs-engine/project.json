@@ -57,7 +57,7 @@
     "bundle": {
         "flecs": {
             "repository": "../../flecs",
-            "commit": "1cdcccd9c411f8cdf9a0dc8b8b27d4125b273a18",
+            "commit": "eb77ce1a66776be5d57799977eaf78f79682a121",
             "library": "flecs_static",
             "cmake-args": ["-DCMAKE_C_FLAGS=-DFLECS_SCRIPT_MATH", "-DFLECS_SHARED=OFF", "-DFLECS_STATIC=ON"]
         },

@@ -812,6 +812,109 @@ void Logistics_closest_storage(void) {
     ecs_fini(world);
 }
 
+static ecs_world_t* Logistics_taskWorld(void) {
+    ecs_world_t *world = Logistics_world();
+
+    ECS_COMPONENT_DEFINE(world, FlecsPosition3);
+    ECS_META_COMPONENT(world, BiomeLogisticsJob);
+
+    ecs_entity_t module = ecs_entity(world, { .name = "logistics" });
+    biomeLogisticsTasksImport(world, module);
+    ecs_set_scope(world, 0);
+    return world;
+}
+
+void Logistics_catch_move_to_deleted_destination(void) {
+    ecs_world_t *world = Logistics_taskWorld();
+
+    ecs_entity_t drone = ecs_new(world);
+    ecs_set(world, drone, FlecsPosition3, {0, 0, 0});
+
+    ecs_entity_t dst = ecs_new(world);
+    ecs_set(world, dst, FlecsPosition3, {10, 0, 10});
+    ecs_delete(world, dst);
+
+    ecs_script_vars_t *vars = ecs_script_vars_init(world);
+    ecs_script_var_t *dst_var = ecs_script_vars_define(
+        vars, "dst", ecs_entity_t);
+    *(ecs_entity_t*)dst_var->value.ptr = dst;
+
+    ecs_script_eval_desc_t parse_desc = { .vars = vars };
+    ecs_script_t *script = ecs_script_parse(world, NULL,
+        "using logistics\n"
+        "try {\n"
+        "  await moveTo($dst, 1.0)\n"
+        "  NotReached {}\n"
+        "} catch(DestinationGone) {\n"
+        "  Caught {}\n"
+        "}", &parse_desc, NULL);
+    test_assert(script != NULL);
+
+    ecs_script_task_t *task = ecs_script_task_new(script,
+        &(ecs_script_task_desc_t){ .entity = drone, .vars = vars });
+    test_assert(task != NULL);
+
+    ecs_script_eval_result_t result = {0};
+    test_int(ecs_script_task_resume(task, &result), EcsScriptTaskDone);
+    test_assert(result.error == NULL);
+
+    test_assert(ecs_lookup(world, "NotReached") == 0);
+    test_assert(ecs_lookup(world, "Caught") != 0);
+    test_assert(!ecs_has(world, drone, BiomeLogisticsMotion));
+
+    ecs_script_task_free(task);
+    ecs_script_free(script);
+    ecs_script_vars_fini(vars);
+    ecs_fini(world);
+}
+
+void Logistics_catch_dropoff_at_deleted_destination(void) {
+    ecs_world_t *world = Logistics_taskWorld();
+
+    ecs_entity_t drone = ecs_new(world);
+    ecs_entity_t resource = ecs_new(world);
+
+    ecs_entity_t dst = Logistics_storage(
+        world, BiomeResourceStorageKindSink, 100);
+    Logistics_storageFini(world, dst);
+    ecs_delete(world, dst);
+
+    ecs_script_vars_t *vars = ecs_script_vars_init(world);
+    ecs_script_var_t *dst_var = ecs_script_vars_define(
+        vars, "dst", ecs_entity_t);
+    *(ecs_entity_t*)dst_var->value.ptr = dst;
+    ecs_script_var_t *resource_var = ecs_script_vars_define(
+        vars, "resource", ecs_entity_t);
+    *(ecs_entity_t*)resource_var->value.ptr = resource;
+
+    ecs_script_eval_desc_t parse_desc = { .vars = vars };
+    ecs_script_t *script = ecs_script_parse(world, NULL,
+        "using logistics\n"
+        "try {\n"
+        "  await dropOff($resource, 1, this, $dst)\n"
+        "  NotReached {}\n"
+        "} catch(DestinationGone) {\n"
+        "  Caught {}\n"
+        "}", &parse_desc, NULL);
+    test_assert(script != NULL);
+
+    ecs_script_task_t *task = ecs_script_task_new(script,
+        &(ecs_script_task_desc_t){ .entity = drone, .vars = vars });
+    test_assert(task != NULL);
+
+    ecs_script_eval_result_t result = {0};
+    test_int(ecs_script_task_resume(task, &result), EcsScriptTaskDone);
+    test_assert(result.error == NULL);
+
+    test_assert(ecs_lookup(world, "NotReached") == 0);
+    test_assert(ecs_lookup(world, "Caught") != 0);
+
+    ecs_script_task_free(task);
+    ecs_script_free(script);
+    ecs_script_vars_fini(vars);
+    ecs_fini(world);
+}
+
 void Logistics_move_updates_position(void) {
     ecs_world_t *world = Logistics_world();
 
