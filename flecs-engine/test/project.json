@@ -52,6 +52,29 @@
                 "testcases": [
                     "batch_permutations"
                 ]
+            },
+            {
+                "id": "Ui",
+                "testcases": [
+                    "align_offset",
+                    "measure_text",
+                    "slot_align_text_matrix",
+                    "slot_align_rect_matrix",
+                    "container_align_child_matrix",
+                    "row_align_block_matrix",
+                    "column_align_block_matrix",
+                    "column_mixed_slot_align",
+                    "row_child_self_valign",
+                    "container_align_padding",
+                    "text_own_padding",
+                    "text_own_padding_slot_align",
+                    "text_and_children_align",
+                    "anchor_point_matrix",
+                    "anchor_screen",
+                    "anchor_out_of_flow",
+                    "anchor_above_parent",
+                    "defaults_unchanged"
+                ]
             }
         ]
     }

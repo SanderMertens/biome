@@ -39,6 +39,26 @@ void Transition_tint_hierarchy_matrix(void);
 // Testsuite 'Renderer'
 void Renderer_batch_permutations(void);
 
+// Testsuite 'Ui'
+void Ui_align_offset(void);
+void Ui_measure_text(void);
+void Ui_slot_align_text_matrix(void);
+void Ui_slot_align_rect_matrix(void);
+void Ui_container_align_child_matrix(void);
+void Ui_row_align_block_matrix(void);
+void Ui_column_align_block_matrix(void);
+void Ui_column_mixed_slot_align(void);
+void Ui_row_child_self_valign(void);
+void Ui_container_align_padding(void);
+void Ui_text_own_padding(void);
+void Ui_text_own_padding_slot_align(void);
+void Ui_text_and_children_align(void);
+void Ui_anchor_point_matrix(void);
+void Ui_anchor_screen(void);
+void Ui_anchor_out_of_flow(void);
+void Ui_anchor_above_parent(void);
+void Ui_defaults_unchanged(void);
+
 bake_test_case Transform3_testcases[] = {
     {
         "child_world_transform",
@@ -143,6 +163,81 @@ bake_test_case Renderer_testcases[] = {
     }
 };
 
+bake_test_case Ui_testcases[] = {
+    {
+        "align_offset",
+        Ui_align_offset
+    },
+    {
+        "measure_text",
+        Ui_measure_text
+    },
+    {
+        "slot_align_text_matrix",
+        Ui_slot_align_text_matrix
+    },
+    {
+        "slot_align_rect_matrix",
+        Ui_slot_align_rect_matrix
+    },
+    {
+        "container_align_child_matrix",
+        Ui_container_align_child_matrix
+    },
+    {
+        "row_align_block_matrix",
+        Ui_row_align_block_matrix
+    },
+    {
+        "column_align_block_matrix",
+        Ui_column_align_block_matrix
+    },
+    {
+        "column_mixed_slot_align",
+        Ui_column_mixed_slot_align
+    },
+    {
+        "row_child_self_valign",
+        Ui_row_child_self_valign
+    },
+    {
+        "container_align_padding",
+        Ui_container_align_padding
+    },
+    {
+        "text_own_padding",
+        Ui_text_own_padding
+    },
+    {
+        "text_own_padding_slot_align",
+        Ui_text_own_padding_slot_align
+    },
+    {
+        "text_and_children_align",
+        Ui_text_and_children_align
+    },
+    {
+        "anchor_point_matrix",
+        Ui_anchor_point_matrix
+    },
+    {
+        "anchor_screen",
+        Ui_anchor_screen
+    },
+    {
+        "anchor_out_of_flow",
+        Ui_anchor_out_of_flow
+    },
+    {
+        "anchor_above_parent",
+        Ui_anchor_above_parent
+    },
+    {
+        "defaults_unchanged",
+        Ui_defaults_unchanged
+    }
+};
+
 static bake_test_suite suites[] = {
     {
         "Transform3",
@@ -171,9 +266,16 @@ static bake_test_suite suites[] = {
         NULL,
         1,
         Renderer_testcases
+    },
+    {
+        "Ui",
+        NULL,
+        NULL,
+        18,
+        Ui_testcases
     }
 };
 
 int main(int argc, char *argv[]) {
-    return bake_test_run("flecs_engine_test", argc, argv, suites, 4);
+    return bake_test_run("flecs_engine_test", argc, argv, suites, 5);
 }

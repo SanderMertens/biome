@@ -3,8 +3,10 @@ module cfg.widgets
 using flecs.engine.*
 using flecs.engine.material
 using biome.power
+using biome.resources
 
 export const FontSize = 18
+export const TooltipFontSize = 16
 export const PanelColor: Rgba = {19, 23, 27, 255}
 export const ButtonColor: Rgba = {49, 56, 63, 255}
 export const HoverColor: Rgba = {58, 66, 74, 255}
@@ -91,8 +93,8 @@ template Button {
   ]
 
   label {
-    Position: {x: 0, y: (height - style[Style].font_size) / 2}
-    Text: {text: text, size: style[Style].font_size, align: Center}
+    Layout: {halign: Center, valign: Middle}
+    Text: {text: text, size: style[Style].font_size}
     Rgba: {235, 238, 245, 255}
   }
 }
@@ -120,6 +122,7 @@ template Gauge {
   prop border_color = ButtonColor
 
   OrderedChildren
+  Layout: {padding: 2}
   Rect: {width: width, height: height}
   Border: {width: 1, color: border_color, radius: 7}
   Rgba: {24, 28, 36, 235}
@@ -135,19 +138,19 @@ template Gauge {
   }
 
   fill {
-    Position: {x: 2, y: 2}
     Border: {width: 2, color: color, radius: 6}
     Rect: {width: (width - 4) * (valueNorm / maxNorm), height: height - 4}
     Rgba: color
   }
 
   label {
-    Position: {x: 0, y: (height - size) / 2}
-    Text: {text: text, size: size, align: Center}
+    Layout: {halign: Center, valign: Middle}
+    Text: {text: text, size: size}
     Rgba: {235, 238, 245, 255}
   }
 }
 
+@tree Parent
 template ToolButton {
   prop text = "Button"
   prop building: entity = 0
@@ -156,14 +159,45 @@ template ToolButton {
 
   Button: {text: text, width: 80, height: 60, style: style}
   Hotkey: {key: hotKey}
+  WidgetState
 
   hotkey {
-    Position: {x: 4, y: 4}
-    Layout: {width: 70, height: 11}
-    Text: {text: hotKey, size: 11, align: Right}
+    Layout: {padding: 4, halign: Right}
+    Text: {text: hotKey, size: 11}
     Rgba: {235, 238, 245, 255}
   }
 
+  if building && building.has(Recipe) {
+    if this[WidgetState].hover {
+      tooltip {
+        Anchor: {v: Top, y: -8}
+        Layout: {direction: Column, valign: Bottom, padding: 6, spacing: 6}
+        Rect: {width: 0, height: 0}
+        Border: {width: 1, color: ButtonColor, radius: 6}
+        Rgba: PanelColor
+
+        for (resource, amount) in building[Recipe].inputs {
+          if amount > 0 {{
+            Layout: {direction: Row, padding: 0, spacing: 5}
+
+            {
+              Text: {text: "{resource.name()}", size: TooltipFontSize}
+              Rgba: {160, 168, 178, 255}
+            }
+
+            {
+              Text: {text: "{amount}", size: TooltipFontSize}
+              Rgba: {235, 238, 245, 255}
+
+              if player.ResourceTotals[resource] < amount {
+                Rgba: DangerColor
+              }
+            }
+          }}
+        }
+      }
+    }
+  }
 }
 
 template ResourceGauge {
@@ -174,9 +208,8 @@ template ResourceGauge {
   Layout: {direction: Row, padding: 0, spacing: 6}
 
   label {
-    Position: {x: 0, y: (30 - FontSize) / 2}
-    Layout: {width: 80, height: 30}
-    Text: {text: text, size: FontSize, align: Right}
+    Layout: {width: 80, height: 30, halign: Right, valign: Middle}
+    Text: {text: text, size: FontSize}
     Rgba: {235, 238, 245, 255}
   }
 
@@ -210,9 +243,8 @@ template PowerGauge {
   Layout: {direction: Row, padding: 0, spacing: 6}
 
   label {
-    Position: {x: 0, y: (30 - FontSize) / 2}
-    Layout: {width: 80, height: 30}
-    Text: {text: "POWER", size: FontSize, align: Right}
+    Layout: {width: 80, height: 30, halign: Right, valign: Middle}
+    Text: {text: "POWER", size: FontSize}
     Rgba: {235, 238, 245, 255}
   }
 

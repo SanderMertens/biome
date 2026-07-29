@@ -52,7 +52,7 @@ prefab Base : PoweredBuilding {
         resources: [
             Iron:   500
             Copper: 500
-            Carbon: 0
+            Carbon: 500
             Chemicals: 0
             Seeds: 0
         ]
@@ -77,6 +77,7 @@ prefab Solar {
         inputs: [
             Iron: 50
             Copper: 50
+            Carbon: 10
         ]
     }
 
@@ -209,7 +210,6 @@ prefab Drill :  PoweredBuilding, effects.DrillEmitter {
     Recipe: {
         inputs: [
             Iron: 100
-            Copper: 0
         ]
     }
 

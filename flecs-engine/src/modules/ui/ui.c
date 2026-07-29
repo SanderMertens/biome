@@ -187,14 +187,19 @@ static flecs_ui_size_t flecs_ui_measureContent(
     ecs_entity_t *ids = ecs_vec_first_t(&children, ecs_entity_t);
 
     float w = 0, h = 0;
+    int32_t measured = 0;
     for (int32_t i = 0; i < count; i ++) {
+        if (ecs_has(world, ids[i], FlecsUiAnchor)) {
+            continue;
+        }
         flecs_ui_size_t cs = flecs_ui_measure(world, ids[i]);
+        measured ++;
         if (layout->direction == FlecsUiRow) {
-            w += cs.w + (i ? layout->spacing : 0);
+            w += cs.w + (measured > 1 ? layout->spacing : 0);
             h = flecs_ui_max(h, cs.h);
         } else if (layout->direction == FlecsUiColumn) {
             w = flecs_ui_max(w, cs.w);
-            h += cs.h + (i ? layout->spacing : 0);
+            h += cs.h + (measured > 1 ? layout->spacing : 0);
         } else {
             const FlecsUiPosition *pos = ecs_get(
                 world, ids[i], FlecsUiPosition);
@@ -231,15 +236,18 @@ static flecs_ui_size_t flecs_ui_measure(
         s.h = flecs_ui_max(s.h, flecs_ui_max(line->y1, line->y2));
     }
 
+    const FlecsUiLayout *layout = ecs_get(world, e, FlecsUiLayout);
+    float padding = layout ? layout->padding : 0;
+
     const FlecsUiText *text = ecs_get(world, e, FlecsUiText);
     if (text && text->text) {
         float size = text->size > 0 ? text->size : FLECS_UI_DEFAULT_TEXT_SIZE;
         s.w = flecs_ui_max(s.w,
-            flecsEngine_ui2dTextWidth(world, size, text->text));
-        s.h = flecs_ui_max(s.h, size);
+            flecsEngine_ui2dTextWidth(world, size, text->text) +
+                padding * 2.0f);
+        s.h = flecs_ui_max(s.h, size + padding * 2.0f);
     }
 
-    const FlecsUiLayout *layout = ecs_get(world, e, FlecsUiLayout);
     if (layout) {
         if (layout->width > 0) {
             s.w = flecs_ui_max(s.w, layout->width);
@@ -268,12 +276,39 @@ typedef struct {
     bool draw;
 } flecs_ui_walk_t;
 
+float flecsEngine_uiAlignOffset(
+    FlecsUiAlign halign,
+    float avail,
+    float content)
+{
+    if (halign == FlecsUiCenter) {
+        return (avail - content) * 0.5f;
+    } else if (halign == FlecsUiRight) {
+        return avail - content;
+    }
+    return 0;
+}
+
+float flecsEngine_uiValignOffset(
+    FlecsUiVAlign valign,
+    float avail,
+    float content)
+{
+    if (valign == FlecsUiMiddle) {
+        return (avail - content) * 0.5f;
+    } else if (valign == FlecsUiBottom) {
+        return avail - content;
+    }
+    return 0;
+}
+
 static void flecs_ui_place(
     flecs_ui_walk_t *ctx,
     ecs_entity_t e,
     float x,
     float y,
-    float slot_w)
+    float slot_w,
+    float slot_h)
 {
     ecs_world_t *world = ctx->world;
 
@@ -290,7 +325,26 @@ static void flecs_ui_place(
     const FlecsUiLine *line = ecs_get(world, e, FlecsUiLine);
     const FlecsUiText *text = ecs_get(world, e, FlecsUiText);
     const FlecsUiLayout *layout = ecs_get(world, e, FlecsUiLayout);
+    const FlecsUiAnchor *anchor = ecs_get(world, e, FlecsUiAnchor);
     bool interactive = flecs_ui_isWidget(world, e);
+
+    FlecsUiAlign halign = layout ? layout->halign : FlecsUiLeft;
+    FlecsUiVAlign valign = layout ? layout->valign : FlecsUiTop;
+    float padding = layout ? layout->padding : 0;
+
+    if (anchor) {
+        x += flecsEngine_uiAlignOffset(anchor->h, slot_w, 0) + anchor->x +
+            flecsEngine_uiAlignOffset(halign, 0, size.w);
+        y += flecsEngine_uiValignOffset(anchor->v, slot_h, 0) + anchor->y +
+            flecsEngine_uiValignOffset(valign, 0, size.h);
+    } else if (layout) {
+        if (!rect && layout->width <= 0) {
+            x += flecsEngine_uiAlignOffset(halign, slot_w, size.w);
+        }
+        if (!rect && layout->height <= 0) {
+            y += flecsEngine_uiValignOffset(valign, slot_h, size.h);
+        }
+    }
 
     float rect_w = 0, rect_h = 0;
     if (rect) {
@@ -401,26 +455,27 @@ static void flecs_ui_place(
         if (text && text->text) {
             float text_size = text->size > 0
                 ? text->size : FLECS_UI_DEFAULT_TEXT_SIZE;
-            float align_w = (rect || layout)
-                ? flecs_ui_max(box_w, size.w) : slot_w;
-            float tx = x;
-            if (text->align != FlecsUiLeft) {
+            float align_w = flecs_ui_max(
+                flecs_ui_max(box_w, size.w) - padding * 2.0f, 0);
+            float align_h = flecs_ui_max(
+                flecs_ui_max(box_h, size.h) - padding * 2.0f, 0);
+            float tx = x + padding;
+            float ty = y + padding + flecsEngine_uiValignOffset(
+                valign, align_h, text_size);
+            if (halign != FlecsUiLeft) {
                 float tw = flecsEngine_ui2dTextWidth(
                     world, text_size, text->text);
-                if (text->align == FlecsUiCenter) {
-                    tx = x + (align_w - tw) * 0.5f;
-                } else {
-                    tx = x + align_w - tw;
-                }
+                tx = x + padding + flecsEngine_uiAlignOffset(
+                    halign, align_w, tw);
             }
-            flecsEngine_ui2dText(world, tx, y, text_size, color, text->text);
+            flecsEngine_ui2dText(world, tx, ty, text_size, color, text->text);
         }
     }
 
-    float padding = layout ? layout->padding : 0;
     float spacing = layout ? layout->spacing : 0;
     FlecsUiDirection direction = layout ? layout->direction : FlecsUiNone;
     float inner_w = flecs_ui_max(size.w - padding * 2.0f, 0);
+    float inner_h = flecs_ui_max(size.h - padding * 2.0f, 0);
 
     ecs_vec_t children;
     ecs_vec_init_t(NULL, &children, ecs_entity_t, 0);
@@ -428,20 +483,40 @@ static void flecs_ui_place(
 
     int32_t count = ecs_vec_count(&children);
     ecs_entity_t *ids = ecs_vec_first_t(&children, ecs_entity_t);
-    float cx = x + padding;
-    float cy = y + padding;
+
+    float block_dx = 0, block_dy = 0;
+    float slot_cw = inner_w;
+    float slot_ch = inner_h;
+    if (layout && count &&
+        (halign != FlecsUiLeft || valign != FlecsUiTop))
+    {
+        flecs_ui_size_t content = flecs_ui_measureContent(world, e, layout);
+        if (halign != FlecsUiLeft) {
+            block_dx = flecsEngine_uiAlignOffset(halign, size.w, content.w);
+            slot_cw = flecs_ui_max(content.w - padding * 2.0f, 0);
+        }
+        if (valign != FlecsUiTop) {
+            block_dy = flecsEngine_uiValignOffset(valign, size.h, content.h);
+            slot_ch = flecs_ui_max(content.h - padding * 2.0f, 0);
+        }
+    }
+
+    float cx = x + padding + block_dx;
+    float cy = y + padding + block_dy;
 
     for (int32_t i = 0; i < count; i ++) {
-        if (direction == FlecsUiRow) {
+        if (ecs_has(world, ids[i], FlecsUiAnchor)) {
+            flecs_ui_place(ctx, ids[i], x, y, size.w, size.h);
+        } else if (direction == FlecsUiRow) {
             flecs_ui_size_t cs = flecs_ui_measure(world, ids[i]);
-            flecs_ui_place(ctx, ids[i], cx, cy, cs.w);
+            flecs_ui_place(ctx, ids[i], cx, cy, cs.w, slot_ch);
             cx += cs.w + spacing;
         } else if (direction == FlecsUiColumn) {
             flecs_ui_size_t cs = flecs_ui_measure(world, ids[i]);
-            flecs_ui_place(ctx, ids[i], cx, cy, inner_w);
+            flecs_ui_place(ctx, ids[i], cx, cy, slot_cw, cs.h);
             cy += cs.h + spacing;
         } else {
-            flecs_ui_place(ctx, ids[i], cx, cy, inner_w);
+            flecs_ui_place(ctx, ids[i], cx, cy, slot_cw, slot_ch);
         }
     }
 
@@ -480,25 +555,7 @@ static void flecs_ui_walk(
     ecs_entity_t *roots = ecs_vec_first_t(&impl->roots, ecs_entity_t);
 
     for (int32_t i = 0; i < count; i ++) {
-        flecs_ui_size_t size = flecs_ui_measure(world, roots[i]);
-        float x = 0, y = 0;
-        const FlecsUiAnchor *anchor = ecs_get(
-            world, roots[i], FlecsUiAnchor);
-        if (anchor) {
-            if (anchor->h == FlecsUiCenter) {
-                x = (sw - size.w) * 0.5f;
-            } else if (anchor->h == FlecsUiRight) {
-                x = sw - size.w;
-            }
-            if (anchor->v == FlecsUiMiddle) {
-                y = (sh - size.h) * 0.5f;
-            } else if (anchor->v == FlecsUiBottom) {
-                y = sh - size.h;
-            }
-            x += anchor->x;
-            y += anchor->y;
-        }
-        flecs_ui_place(&ctx, roots[i], x, y, size.w);
+        flecs_ui_place(&ctx, roots[i], 0, 0, sw, sh);
     }
 }
 

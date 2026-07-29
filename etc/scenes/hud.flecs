@@ -11,7 +11,7 @@ using flecs.engine.*
 hud {
   toolbar {
     Anchor: {h: Center, v: Bottom, x: 0, y: -21}
-    Layout: {direction: Row, padding: 4, spacing: 4}
+    Layout: {direction: Row, halign: Center, valign: Bottom, padding: 4, spacing: 4}
     Border: {width: 2, color: PanelColor.rgba, radius: 10}
     Rect: {width: 0, height: 0}
     Rgba: PanelColor
@@ -21,9 +21,6 @@ hud {
     } else {
       ToolButton wire("WIRE", buildings.ElectricityPole, hotKey: "1")
       ToolButton solar("SOLAR", buildings.Solar hotKey: "2")
-    }
-
-    if player.isBuildingPlaced(buildings.Solar) {
       ToolButton drill("DRILL", buildings.Drill, hotKey: "3")
     }
 
@@ -46,7 +43,7 @@ hud {
   if player.isBuildingPlaced(buildings.Biome) {
     vegetation {
       Anchor: {h: Right, v: Bottom, x: -21, y: -21}
-      Layout: {direction: Row, padding: 4, spacing: 4}
+      Layout: {direction: Row, halign: Right, valign: Bottom, padding: 4, spacing: 4}
       Border: {width: 2, color: PanelColor.rgba, radius: 10}
       Rect: {width: 0, height: 0}
       Rgba: PanelColor

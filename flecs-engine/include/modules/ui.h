@@ -56,7 +56,6 @@ ECS_STRUCT(FlecsUiLine, {
 ECS_STRUCT(FlecsUiText, {
     char *text;
     float size;
-    FlecsUiAlign align;
 });
 
 ECS_STRUCT(FlecsUiPosition, {
@@ -66,6 +65,8 @@ ECS_STRUCT(FlecsUiPosition, {
 
 ECS_STRUCT(FlecsUiLayout, {
     FlecsUiDirection direction;
+    FlecsUiAlign halign;
+    FlecsUiVAlign valign;
     float padding;
     float spacing;
     float width;
