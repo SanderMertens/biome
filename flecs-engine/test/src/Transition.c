@@ -544,6 +544,68 @@ void Transition_parent_tint(void) {
     ecs_fini(world);
 }
 
+void Transition_distinct_parent_tints(void) {
+    ecs_world_t *world = ecs_init();
+    ECS_IMPORT(world, FlecsEngine);
+
+    ecs_entity_t parent_a = ecs_new(world);
+    ecs_entity_t parent_b = ecs_new(world);
+    ecs_entity_t child_a = ecs_new(world);
+    ecs_entity_t child_b = ecs_new(world);
+    ecs_set(world, child_a, EcsParent, {parent_a});
+    ecs_set(world, child_b, EcsParent, {parent_b});
+
+    ecs_set(world, parent_a, FlecsTint, {90, 180, 255, 128});
+    ecs_set(world, parent_b, FlecsTint, {255, 128, 0, 128});
+
+    ecs_progress(world, 0);
+
+    const FlecsActualTint *actual_a = ecs_get(
+        world, child_a, FlecsActualTint);
+    const FlecsActualTint *actual_b = ecs_get(
+        world, child_b, FlecsActualTint);
+    test_assert(actual_a != NULL);
+    test_assert(actual_b != NULL);
+    test_int(actual_a->r, 90);
+    test_int(actual_a->g, 180);
+    test_int(actual_a->b, 255);
+    test_int(actual_a->a, 128);
+    test_int(actual_b->r, 255);
+    test_int(actual_b->g, 128);
+    test_int(actual_b->b, 0);
+    test_int(actual_b->a, 128);
+
+    ecs_entity_t prefab_a = ecs_new_w_id(world, EcsPrefab);
+    ecs_set(world, prefab_a, FlecsTint, {90, 180, 255, 128});
+    ecs_entity_t prefab_b = ecs_new_w_id(world, EcsPrefab);
+    ecs_set(world, prefab_b, FlecsTint, {255, 128, 0, 128});
+
+    ecs_entity_t inst_a = ecs_new_w_pair(world, EcsIsA, prefab_a);
+    ecs_entity_t inst_b = ecs_new_w_pair(world, EcsIsA, prefab_b);
+    ecs_entity_t mesh_a = ecs_new(world);
+    ecs_entity_t mesh_b = ecs_new(world);
+    ecs_set(world, mesh_a, EcsParent, {inst_a});
+    ecs_set(world, mesh_b, EcsParent, {inst_b});
+
+    ecs_progress(world, 0);
+
+    const FlecsActualTint *mesh_actual_a = ecs_get(
+        world, mesh_a, FlecsActualTint);
+    const FlecsActualTint *mesh_actual_b = ecs_get(
+        world, mesh_b, FlecsActualTint);
+    test_assert(mesh_actual_a != NULL);
+    test_assert(mesh_actual_b != NULL);
+    test_int(mesh_actual_a->r, 90);
+    test_int(mesh_actual_a->g, 180);
+    test_int(mesh_actual_a->b, 255);
+    test_int(mesh_actual_a->a, 128);
+    test_int(mesh_actual_b->r, 255);
+    test_int(mesh_actual_b->g, 128);
+    test_int(mesh_actual_b->b, 0);
+    test_int(mesh_actual_b->a, 128);
+    ecs_fini(world);
+}
+
 static ecs_entity_t transition_tint_hierarchy(
     ecs_world_t *world,
     int32_t levels,

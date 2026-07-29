@@ -12,17 +12,17 @@ using biome.*
 using cfg.resources
 using cfg.units
 
-const baseGltf: "etc/assets/kaykit/space/Assets/gltf/basemodule_F.gltf"
-const habitatGltf: "etc/assets/kaykit/space/Assets/gltf/basemodule_B.gltf"
-const droneLandingPadGltf: "etc/assets/kaykit/space/Assets/gltf/landingpad_small.gltf"
-const droneGltf: "etc/assets/kaykit/space/Assets/gltf/lander_base.gltf"
-const solarGltf: "etc/assets/kaykit/space/Assets/gltf/solarpanel.gltf"
-const drillGltf: "etc/assets/kaykit/space/Assets/gltf/drill_structure.gltf"
-const storageGltf: "etc/assets/kaykit/space/Assets/gltf/cargodepot_B.gltf"
-const lightsGltf: "etc/assets/kaykit/space/Assets/gltf/lights.gltf"
-const domeGltf: "etc/assets/kaykit/space/Assets/gltf/dome.gltf"
-const farmGltf: "etc/assets/kaykit/space/Assets/gltf/space_farm_large_sprinkler.gltf"
-const corridorGltf: "etc/assets/kaykit/space/Assets/gltf/tunnel_straight_A.gltf"
+const baseGltf = "etc/assets/kaykit/space/Assets/gltf/basemodule_F.gltf"
+const habitatGltf = "etc/assets/kaykit/space/Assets/gltf/basemodule_B.gltf"
+const droneLandingPadGltf = "etc/assets/kaykit/space/Assets/gltf/landingpad_small.gltf"
+const droneGltf = "etc/assets/kaykit/space/Assets/gltf/lander_base.gltf"
+const solarGltf = "etc/assets/kaykit/space/Assets/gltf/solarpanel.gltf"
+const drillGltf = "etc/assets/kaykit/space/Assets/gltf/drill_structure.gltf"
+const storageGltf = "etc/assets/kaykit/space/Assets/gltf/cargodepot_B.gltf"
+const lightsGltf = "etc/assets/kaykit/space/Assets/gltf/lights.gltf"
+const domeGltf = "etc/assets/kaykit/space/Assets/gltf/dome.gltf"
+const farmGltf = "etc/assets/kaykit/space/Assets/gltf/space_farm_large_sprinkler.gltf"
+const corridorGltf = "etc/assets/kaykit/space/Assets/gltf/tunnel_straight_A.gltf"
 const burnerGltf = "etc/assets/kenney/city-kit-industrial/Models/GLB format/chimney-large.glb"
 
 prefab PoweredBuilding {
@@ -84,7 +84,7 @@ prefab Solar {
     Scale3: {3, 3, 3}
 }
 
-const ElectricityWireColor = Rgba: {210, 150, 50}
+const ElectricityWireColor: Rgba = {210, 150, 50}
 
 prefab ElectricityWire {
     Position3: {0, 0.75, 0}

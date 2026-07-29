@@ -13,16 +13,16 @@
 // Example code:
 
 scratchpad {
-    struct Example {
-        value = f32
-    }
+    struct Example (
+        value: f32
+    )
 
     example_entity {
         Example: {10}
     }
 
     template ExampleMany {
-        prop count: 10
+        prop count = 10
 
         for i in 0..count {
             {

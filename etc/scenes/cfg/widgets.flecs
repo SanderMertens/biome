@@ -4,23 +4,23 @@ using flecs.engine.*
 using flecs.engine.material
 using biome.power
 
-export const FontSize: 18
-export const PanelColor = Rgba: {19, 23, 27, 255}
-export const ButtonColor = Rgba: {49, 56, 63, 255}
-export const HoverColor = Rgba: {58, 66, 74, 255}
-export const HighlightColor = Rgba: {66, 185, 131, 255}
-export const DangerColor = Rgba: {220, 60, 50, 255}
-export const PowerColor = Rgba: {195, 155, 40, 255}
-export const PowerWarningColor = Rgba: {235, 130, 45, 255}
+export const FontSize = 18
+export const PanelColor: Rgba = {19, 23, 27, 255}
+export const ButtonColor: Rgba = {49, 56, 63, 255}
+export const HoverColor: Rgba = {58, 66, 74, 255}
+export const HighlightColor: Rgba = {66, 185, 131, 255}
+export const DangerColor: Rgba = {220, 60, 50, 255}
+export const PowerColor: Rgba = {195, 155, 40, 255}
+export const PowerWarningColor: Rgba = {235, 130, 45, 255}
 
-struct Style {
-  color = Rgba
-  hover = Rgba
-  pressed = Rgba
-  active = Rgba
-  disabled = Rgba
-  font_size = u8
-}
+struct Style (
+  color: Rgba
+  hover: Rgba
+  pressed: Rgba
+  active: Rgba
+  disabled: Rgba
+  font_size: u8
+)
 
 DefaultStyle {
   Style: {
@@ -47,21 +47,21 @@ VegetationButtonStyle : ToolButtonStyle {
 }
 
 template Label {
-  prop text: "Label"
-  prop size: FontSize
+  prop text = "Label"
+  prop size = FontSize
 
   Text: {text: text, size: size}
   Rgba: {235, 238, 245, 255}
 }
 
 template Button {
-  prop text: "Button"
-  prop width: 120
-  prop height: 32
-  prop style: DefaultStyle
+  prop text = "Button"
+  prop width = 120
+  prop height = 32
+  prop style = DefaultStyle
 
-  mut active: false
-  mut disabled: false
+  mut active = false
+  mut disabled = false
 
   OrderedChildren
   WidgetState
@@ -98,10 +98,10 @@ template Button {
 }
 
 template Panel {
-  prop width: 0
-  prop height: 0
-  prop padding: 10
-  prop spacing: 8
+  prop width = 0
+  prop height = 0
+  prop padding = 10
+  prop spacing = 8
 
   OrderedChildren
   Layout: {direction: Column, padding: padding, spacing: spacing, width: width, height: height}
@@ -110,14 +110,14 @@ template Panel {
 }
 
 template Gauge {
-  prop width: 180
-  prop height: 18
-  prop value: 0.5
-  prop max: 1.0
-  prop text: ""
-  prop size: FontSize
-  prop color: HighlightColor
-  prop border_color: ButtonColor
+  prop width = 180
+  prop height = 18
+  prop value = 0.5
+  prop max = 1.0
+  prop text = ""
+  prop size = FontSize
+  prop color = HighlightColor
+  prop border_color = ButtonColor
 
   OrderedChildren
   Rect: {width: width, height: height}
@@ -150,7 +150,7 @@ template Gauge {
 
 template ToolButton {
   prop text = "Button"
-  prop building = entity: 0
+  prop building: entity = 0
   prop hotKey = ""
   prop style = ToolButtonStyle
 
@@ -163,11 +163,12 @@ template ToolButton {
     Text: {text: hotKey, size: 11, align: Right}
     Rgba: {235, 238, 245, 255}
   }
+
 }
 
 template ResourceGauge {
   prop text = "Resource"
-  prop resource = entity: 0
+  prop resource: entity = 0
   prop color = HighlightColor
 
   Layout: {direction: Row, padding: 0, spacing: 6}

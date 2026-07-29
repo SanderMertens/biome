@@ -43,6 +43,7 @@
                     "tint",
                     "childof_tint",
                     "parent_tint",
+                    "distinct_parent_tints",
                     "tint_hierarchy_matrix"
                 ]
             },

@@ -22,6 +22,8 @@ camera {
     }
 }
 
+scene.drones {}
+
 $ {
     terrain.Terrain: {
         width: 256 // tiles
