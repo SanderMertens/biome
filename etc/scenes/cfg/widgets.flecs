@@ -4,6 +4,7 @@ using flecs.engine.*
 using flecs.engine.material
 using biome.power
 using biome.resources
+using biome.factory
 
 export const FontSize = 18
 export const TooltipFontSize = 16
@@ -176,6 +177,11 @@ template ToolButton {
         Border: {width: 1, color: ButtonColor, radius: 6}
         Rgba: PanelColor
 
+        cost_header {
+          Text: {text: "COST", size: 12}
+          Rgba: {120, 128, 138, 255}
+        }
+
         for (resource, amount) in building[Recipe].inputs {
           if amount > 0 {{
             Layout: {direction: Row, padding: 0, spacing: 5}
@@ -194,6 +200,69 @@ template ToolButton {
               }
             }
           }}
+        }
+
+        if building.has(Factory) {
+          const recipe = building[Factory].recipe
+
+          consumes_header {
+            Text: {text: "CONSUMES", size: 12}
+            Rgba: {120, 128, 138, 255}
+          }
+
+          for (resource, amount) in recipe[Recipe].inputs {
+            if amount > 0 {{
+              Layout: {direction: Row, padding: 0, spacing: 5}
+
+              {
+                Text: {text: "{resource.name()}", size: TooltipFontSize}
+                Rgba: {160, 168, 178, 255}
+              }
+
+              {
+                Text: {text: "{amount}", size: TooltipFontSize}
+                Rgba: {235, 238, 245, 255}
+              }
+            }}
+          }
+
+          produces_header {
+            Text: {text: "PRODUCES", size: 12}
+            Rgba: {120, 128, 138, 255}
+          }
+
+          for (resource, amount) in recipe[Recipe].outputs {
+            if amount > 0 {{
+              Layout: {direction: Row, padding: 0, spacing: 5}
+
+              {
+                Text: {text: "{resource.name()}", size: TooltipFontSize}
+                Rgba: {160, 168, 178, 255}
+              }
+
+              {
+                Text: {text: "{amount}", size: TooltipFontSize}
+                Rgba: {235, 238, 245, 255}
+              }
+            }}
+          }
+
+          const output = recipe[Recipe].output
+          if output {
+            output_row {
+              Layout: {direction: Row, padding: 0, spacing: 5}
+
+              {
+                Text: {text: "{output.name()}", size: TooltipFontSize}
+                Rgba: {160, 168, 178, 255}
+              }
+
+              {
+                Text: {text: "1", size: TooltipFontSize}
+                Rgba: {235, 238, 245, 255}
+              }
+            }
+          }
         }
       }
     }
